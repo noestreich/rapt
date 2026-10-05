@@ -52,7 +52,8 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
   dasselbe hintereinander (Bombe 32, Farbtilger 22, Strudel 18, Atombombe 16, Fresser 12). Jeder sechste Sprung
   bringt garantiert Fresser oder Atombombe, dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
-- Kurz vor dem Absturz brummt ein pulsierender Hochspannungs-Alarm, lauter je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
+- Kurz vor dem Absturz brummt leise ein Netzbrummen und die Figur glüht rot, beides stärker je näher am Rand
+  (Sound-Labor-Platz `danger`, läuft als Schleife).
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
 
@@ -139,6 +140,13 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `voiceKira` … `voiceRobo` | Funkspruch des jeweiligen Kontakts (bekommt automatisch Funkklang) |
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
+
+## Musik
+
+Elf Tracks aus dem „Action Pack 1“ von Luis Zuno ([@ansimuz](https://ansimuz.itch.io/)), frei auch für kommerzielle
+Nutzung (Lizenz: `App/Resources/Music/LICENSE-music-ansimuz.txt`, Credit in den Einstellungen). Als AAC (`music_*.m4a`)
+im Bundle, weil Apple-Geräte kein OGG abspielen. Pro Spiel läuft ein zufälliger Track nahtlos in Schleife, nie zweimal
+derselbe hintereinander. Eine eigene Datei im Sound-Labor auf dem Platz „Hintergrundmusik“ hat Vorrang.
 
 ## Einstellungen
 

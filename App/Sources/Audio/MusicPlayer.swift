@@ -1,46 +1,113 @@
 import AVFoundation
 
-/// Hintergrundmusik in Schleife. Quelle ist der Platz `.music` der `SoundLibrary`
-/// (eigene Datei aus dem Sound-Labor oder `music.mp3` im Bundle). Ohne Datei bleibt es still.
+/// Hintergrundmusik: pro Spiel ein zufälliger Track aus dem Bundle (`music_*.m4a`), nahtlos in Schleife.
+/// Liegt im Sound-Labor eine eigene Datei auf dem Platz `.music`, läuft stattdessen diese.
 final class MusicPlayer {
     private let library: SoundLibrary
-    private var player: AVAudioPlayer?
-    private var loadedURL: URL?
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let playlist: [URL]
+    private var current: URL?
+    private var isPlaying = false
+    private var fadeTimer: Timer?
 
     var isEnabled = true {
         didSet { apply() }
     }
 
     var volume: Float = 0.6 {
-        didSet { player?.volume = effectiveVolume }
+        didSet { if fadeTimer == nil { player.volume = effectiveVolume } }
     }
 
     private var effectiveVolume: Float { volume * Float(library.gain(for: .music)) }
 
     init(library: SoundLibrary) {
         self.library = library
+        playlist = (Bundle.main.urls(forResourcesWithExtension: "m4a", subdirectory: nil) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("music_") }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: nil)
         reload()
     }
 
+    /// Titel der Bundle-Tracks, z. B. für Credits.
+    var trackNames: [String] { playlist.map { $0.deletingPathExtension().lastPathComponent } }
+
+    /// Eigene Datei aus dem Sound-Labor geändert: neu laden.
     func reload() {
-        let url = library.url(for: .music)
-        if url != loadedURL {
-            player?.stop()
-            player = url.flatMap { try? AVAudioPlayer(contentsOf: $0) }
-            player?.numberOfLoops = -1
-            player?.prepareToPlay()
-            loadedURL = url
+        current = nil
+        nextTrack()
+    }
+
+    /// Wechselt zu einem anderen, zufälligen Track (eigene Datei hat Vorrang).
+    func nextTrack() {
+        let custom = library.source(for: .music) != .synth ? library.url(for: .music) : nil
+        let choice = custom ?? playlist.filter { $0 != current }.randomElement() ?? playlist.first
+        guard let url = choice else { return }
+        guard isEnabled else {
+            current = url
+            return
         }
-        player?.volume = effectiveVolume
-        apply()
+        fade(to: 0, duration: isPlaying ? 0.6 : 0) { [weak self] in
+            self?.start(url)
+        }
+    }
+
+    private func start(_ url: URL) {
+        player.stop()
+        isPlaying = false
+        current = url
+        guard let file = try? AVAudioFile(forReading: url),
+              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+              (try? file.read(into: buffer)) != nil else { return }
+        // Format des Tracks an den Mischer anpassen
+        engine.disconnectNodeOutput(player)
+        engine.connect(player, to: engine.mainMixerNode, format: buffer.format)
+        if !engine.isRunning { try? engine.start() }
+        guard engine.isRunning else { return }
+        player.volume = 0
+        player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+        player.play()
+        isPlaying = true
+        fade(to: effectiveVolume, duration: 1.2)
     }
 
     private func apply() {
-        guard let player else { return }
-        if isEnabled && !player.isPlaying {
-            player.play()
-        } else if !isEnabled && player.isPlaying {
-            player.pause()
+        if isEnabled {
+            if !isPlaying {
+                if let url = current { start(url) } else { nextTrack() }
+            }
+        } else if isPlaying {
+            fade(to: 0, duration: 0.4) { [weak self] in
+                self?.player.pause()
+                self?.isPlaying = false
+            }
+        }
+    }
+
+    private func fade(to target: Float, duration: TimeInterval, then completion: (() -> Void)? = nil) {
+        fadeTimer?.invalidate()
+        guard duration > 0 else {
+            player.volume = target
+            fadeTimer = nil
+            completion?()
+            return
+        }
+        let start = player.volume
+        let began = Date()
+        fadeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            let t = min(1, Date().timeIntervalSince(began) / duration)
+            self.player.volume = start + (target - start) * Float(t)
+            if t >= 1 {
+                timer.invalidate()
+                self.fadeTimer = nil
+                completion?()
+            }
         }
     }
 }

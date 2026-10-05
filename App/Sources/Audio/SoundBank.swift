@@ -81,7 +81,7 @@ final class SoundBank {
             dangerPlayer.play()
             dangerActive = true
         }
-        dangerPlayer.volume = (0.12 + 0.38 * min(1, level)) * Float(library.gain(for: .danger))
+        dangerPlayer.volume = (0.05 + 0.15 * min(1, level)) * Float(library.gain(for: .danger))
     }
 
     /// Lädt eigene Dateien neu, z. B. nachdem im Sound-Labor etwas zugewiesen wurde.
@@ -274,17 +274,11 @@ final class SoundBank {
             }
 
         case .danger:
-            // Hochspannung: Netzbrummen mit Obertönen, pulsierend (2,5 Hz), Knistern und leises Sirren.
-            // 2 s lang, alle Frequenzen passen ganzzahlig hinein, damit die Schleife nahtlos ist.
-            var crackle = 0.0
+            // Leichtes Netzbrummen (50 Hz mit Obertönen), sanft pulsierend. 2 s, nahtlos schleifbar.
             return buffer(2.0, crush: 1, loop: true) { t in
-                let hum = sin(2 * .pi * 50 * t) * 0.5 + sin(2 * .pi * 100 * t) * 0.35 + sin(2 * .pi * 150 * t) * 0.2
-                let buzz = tanh(sin(2 * .pi * 100 * t) * 4) * 0.18
-                let whine = sin(2 * .pi * 2000 * t) * 0.025 * (0.5 + 0.5 * sin(2 * .pi * 0.5 * t))
-                if noise.next() > 0.9993 { crackle = 0.6 }
-                crackle *= 0.995
-                let pulse = 0.4 + 0.6 * pow(0.5 + 0.5 * sin(2 * .pi * 2.5 * t), 2)
-                return ((hum + buzz) * pulse + whine + noise.next() * crackle * 0.4) * 0.45
+                let hum = sin(2 * .pi * 50 * t) * 0.6 + sin(2 * .pi * 100 * t) * 0.3 + sin(2 * .pi * 150 * t) * 0.1
+                let pulse = 0.75 + 0.25 * sin(2 * .pi * 1.5 * t)
+                return hum * pulse * 0.3
             }
 
         case .match, .music, .voiceKira, .voiceBoris, .voiceJuki, .voiceZora, .voiceK9, .voiceRobo:

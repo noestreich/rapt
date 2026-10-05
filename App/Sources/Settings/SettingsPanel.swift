@@ -118,6 +118,8 @@ final class SettingsPanel {
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1"
         let footer = PixelFont.render("RAPT " + version, color: Self.dim)
         node.addChild(sprite(footer, at: x0 + (width - footer.width) / 2, y0 + height - 10))
+        let credits = PixelFont.render("MUSIK: LUIS ZUNO - ANSIMUZ.COM", color: Self.dim)
+        node.addChild(sprite(credits, at: x0 + (width - credits.width) / 2, y0 + height - 19))
         render()
     }
 

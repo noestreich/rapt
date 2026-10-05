@@ -132,10 +132,10 @@ final class GameScene: SKScene {
     private let figure = SKSpriteNode()
     private var figureIdle: [SKTexture] = []
     private var figureJump = SKTexture()
+    private let dangerAura = SKSpriteNode()
     private var figureJumping = false
     private var figureFalling = false
     private var wasInDanger = false
-    private var dangerBeep: TimeInterval = 0
 
     // Stadt
     private var buildingSprites: [Int: SKSpriteNode] = [:]
@@ -268,6 +268,15 @@ final class GameScene: SKScene {
         aura.zPosition = 1
         aura.run(.repeatForever(.sequence([.fadeAlpha(to: 0.5, duration: 0.8), .fadeAlpha(to: 0.25, duration: 0.8)])))
         figure.addChild(aura)
+        dangerAura.texture = glowTexture
+        dangerAura.color = Palette.red.skColor
+        dangerAura.colorBlendFactor = 1
+        dangerAura.blendMode = .add
+        dangerAura.size = CGSize(width: 30, height: 30)
+        dangerAura.position = CGPoint(x: 0, y: 5)
+        dangerAura.zPosition = 2
+        dangerAura.alpha = 0
+        figure.addChild(dangerAura)
         backLayer.addChild(figure)
         startFigureIdle()
         let blink = SKAction.repeatForever(.sequence([
@@ -511,6 +520,7 @@ final class GameScene: SKScene {
     // MARK: Spielablauf
 
     private func startNewGame(mode newMode: GameMode, animated: Bool) {
+        if menuVisible == false && isBuilt && game.score > 0 { AudioCenter.shared.music.nextTrack() }
         mode = newMode
         UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
         highscore = Highscore.load(newMode)
@@ -1803,16 +1813,13 @@ final class GameScene: SKScene {
             // Je näher am Rand, desto lauter brummt der Alarm
             let level = danger ? Float(1 - max(0, game.city.figureX) / City.dangerX) : 0
             audio.setDanger(level)
-            if danger {
-                dangerBeep -= dt
-                if dangerBeep <= 0 {
-                    dangerBeep = 0.4
-                    let pulse = fx.glow(at: CGPoint(x: figure.position.x, y: figure.position.y + 5), color: Palette.red.skColor, size: 16, alpha: 0.6)
-                    pulse.run(.sequence([.fadeOut(withDuration: 0.35), .removeFromParent()]))
-                }
-            }
+            // Roter Glow um die Figur, pulsiert mit dem Brummen und wird stärker, je näher der Rand
+            let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
+            dangerAura.alpha = CGFloat(Double(level) * 0.85 * pulse)
+            dangerAura.setScale(CGFloat(0.9 + 0.5 * Double(level)))
         } else {
             audio.setDanger(0)
+            dangerAura.alpha = 0
         }
 
         if !busy && !game.isOver && pointerStart == nil && armed == nil && game.hasValidMove {
