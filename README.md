@@ -31,6 +31,7 @@ Nach Änderungen an `project.yml` oder neuen Dateien `xcodegen generate` erneut 
 | `App/Sources/Audio/` | Synthesizer, Sound-Plätze, Dateizuordnung, Musik |
 | `App/Sources/SoundLabView.swift` | Sound-Labor (nur Mac, nur Debug-Build) |
 | `tools/make_icon.py` | Erzeugt das App-Icon |
+| `tools/import_portraits.py` | Rechnet Porträts auf 184 × 121 Pixel mit 128 Farben herunter |
 | `tools/render_assets.py` | Rendert Steine, Spezialsteine, Power-up-Symbole und Porträts als PNG nach `docs/assets/` (Python-Spiegel der Swift-Generatoren) |
 
 Die Grafik wird in einem Raster von 200 × 373 Kunst-Pixeln gebaut und **ganzzahlig** auf echte Bildschirmpixel
@@ -79,8 +80,10 @@ Funkspruch. Das Spiel läuft dabei weiter. Abschaltbar in den Einstellungen.
 | K-9 | Fresser |
 | ROBO-7 | Atombombe |
 
-- **Porträts:** Platzhalter werden im Code erzeugt. Eigene Bilder als `App/Resources/portrait_<id>.png`
-  (`kira`, `boris`, `juki`, `zora`, `k9`, `robo`), 48 × 48 Pixel, danach `xcodegen generate`.
+- **Porträts:** liegen als `App/Resources/portrait_<id>.png` (`kira`, `boris`, `juki`, `zora`, `k9`, `robo`) im
+  Querformat 184 × 121 und füllen die Einblendung in voller Breite. Neue Bilder (beliebige Größe, ca. 3:2) mit
+  `python3 tools/import_portraits.py <Ordner>` aufs Pixelraster bringen, danach `xcodegen generate`.
+  Fehlt eine Datei, erzeugt das Spiel einen 48 × 48-Platzhalter.
 - **Stimmen:** Ohne Datei spricht ein Plapper-Synthesizer (Vokal-Formanten, pro Figur eigene Tonhöhe und Tempo).
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang
   (Bandpass, Verzerrung, Rauschen, Klicken der Sendetaste).
@@ -135,5 +138,6 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 
 ## Einstellungen
 
-iPhone: Zahnrad oben rechts. Mac: ⌘, (Rapt → Einstellungen). Soundeffekte, Musik (je mit Lautstärke) und Haptik (iPhone)
-lassen sich abschalten.
+Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
+Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Haptik (iPhone), „Neues Spiel“ zur Moduswahl.
+Während die Einstellungen offen sind, steht die Stadt still.

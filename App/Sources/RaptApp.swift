@@ -13,14 +13,6 @@ struct RaptApp: App {
         .commands { DeveloperCommands() }
         #endif
 
-        #if os(macOS)
-        Settings {
-            SettingsView()
-                .frame(width: 360)
-                .padding()
-        }
-        #endif
-
         #if os(macOS) && DEBUG
         Window("Sound-Labor", id: SoundLabView.windowID) {
             SoundLabView()

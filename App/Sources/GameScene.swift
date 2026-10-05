@@ -111,6 +111,9 @@ final class GameScene: SKScene {
     private var bombOverlay = SKTexture()
     private var hyperFrames: [SKTexture] = []
     private var splash: SplashPresenter!
+    private var settingsPanel: SettingsPanel!
+    /// Zahnrad auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
+    private let gearRect = CGRect(x: 172, y: 4, width: 22, height: 20)
     private var armed: Armed?
     private var armedSlot = 0
     private var fresser: FresserState?
@@ -251,6 +254,14 @@ final class GameScene: SKScene {
         figure.size = CGSize(width: 7, height: 10)
         figure.anchorPoint = CGPoint(x: 0.5, y: 0)
         figure.zPosition = 4
+        let aura = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0x3FD8FF).skColor, size: CGSize(width: 18, height: 18))
+        aura.colorBlendFactor = 1
+        aura.blendMode = .add
+        aura.alpha = 0.35
+        aura.position = CGPoint(x: 0, y: 6)
+        aura.zPosition = 1
+        aura.run(.repeatForever(.sequence([.fadeAlpha(to: 0.5, duration: 0.8), .fadeAlpha(to: 0.25, duration: 0.8)])))
+        figure.addChild(aura)
         backLayer.addChild(figure)
         startFigureIdle()
         let blink = SKAction.repeatForever(.sequence([
@@ -267,7 +278,7 @@ final class GameScene: SKScene {
         let labels: [(SKSpriteNode, CGPoint, CGPoint)] = [
             (scoreLabel, CGPoint(x: 0, y: 1), design(24, 33)),
             (comboLabel, CGPoint(x: 1, y: 1), design(176, 33)),
-            (recordLabel, CGPoint(x: 1, y: 1), design(180, 17)),
+            (recordLabel, CGPoint(x: 1, y: 1), design(177, 17)),
             (planLabel, CGPoint(x: 0, y: 1), design(Layout.boardX, planY)),
         ]
         for (label, anchor, position) in labels {
@@ -343,6 +354,26 @@ final class GameScene: SKScene {
             self?.haptics.select()
         }
         shaker.addChild(splash.node)
+
+        // Einstellungen als Pixel-Ansicht, Zahnrad auf der Punkteplatte
+        settingsPanel = SettingsPanel(designHeight: Layout.height)
+        settingsPanel.node.zPosition = 80
+        settingsPanel.onClose = { [weak self] in self?.settingsPanel.hide() }
+        settingsPanel.onNewGame = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            self.showMenu(gameOver: false)
+        }
+        settingsPanel.onChange = { [weak self] in self?.audio.play(.select, volume: 0.5) }
+        shaker.addChild(settingsPanel.node)
+        let gearRows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
+        var gearCanvas = PixelCanvas(width: 7, height: 7)
+        for (y, row) in gearRows.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "X" { gearCanvas.set(x, y, Palette.label) }
+        }
+        let gear = pixelSprite(gearCanvas, topLeft: design(182, 13))
+        gear.zPosition = 2
+        hudLayer.addChild(gear)
 
         buildBracket(armedBracket, color: RGBA(hex: 0xFF6A3D).skColor, size: Layout.slotSize)
         armedBracket.zPosition = 46
@@ -980,7 +1011,7 @@ final class GameScene: SKScene {
         fresser = nil
         countdownLabel.isHidden = true
         setArmed(nil)
-        figure.removeAction(forKey: "idle")
+        stopFigureIdle()
         figure.texture = figureJump
         audio.play(.jump, volume: 0.6)
         haptics.explosion()
@@ -1289,7 +1320,7 @@ final class GameScene: SKScene {
     }
 
     private func updateFresser(_ dt: TimeInterval) {
-        guard let current = fresser else { return }
+        guard let current = fresser, !settingsPanel.isVisible else { return }
         fresser?.timeLeft -= dt
         fresser?.stepTimer -= dt
         if current.stepTimer - dt <= 0 {
@@ -1339,9 +1370,24 @@ final class GameScene: SKScene {
 
     // MARK: Plan, Figur, Belohnungen
 
+    /// Atmen und hin und wieder ein Blick zurück.
     private func startFigureIdle() {
         figure.texture = figureIdle[0]
+        figure.xScale = 1
         figure.run(.repeatForever(.animate(with: figureIdle, timePerFrame: 0.5)), withKey: "idle")
+        let figure = self.figure
+        figure.run(.repeatForever(.sequence([
+            .wait(forDuration: 6, withRange: 6),
+            .run { figure.xScale = -1 },
+            .wait(forDuration: 0.9, withRange: 0.6),
+            .run { figure.xScale = 1 },
+        ])), withKey: "look")
+    }
+
+    private func stopFigureIdle() {
+        figure.removeAction(forKey: "idle")
+        figure.removeAction(forKey: "look")
+        figure.xScale = 1
     }
 
     /// Sprung auf das Haus mit Index `building`. Das Ziel wandert während des Sprungs mit.
@@ -1352,7 +1398,7 @@ final class GameScene: SKScene {
         }
         figureJumping = true
         audio.play(.jump, volume: 0.6)
-        figure.removeAction(forKey: "idle")
+        stopFigureIdle()
         figure.texture = figureJump
         let from = figure.position
         let duration: CGFloat = 0.6
@@ -1424,6 +1470,19 @@ final class GameScene: SKScene {
     private func pointerDown(_ point: CGPoint) {
         idleTime = 0
         place(hintCursor, at: nil)
+        let d = CGPoint(x: point.x, y: Layout.height - point.y)
+        if settingsPanel.isVisible {
+            settingsPanel.pointerDown(d)
+            return
+        }
+        if gearRect.contains(d) && fresser == nil {
+            pointerStart = nil
+            setArmed(nil)
+            setSelected(nil)
+            audio.play(.select, volume: 0.5)
+            settingsPanel.show()
+            return
+        }
         if menuVisible {
             handleMenu(point)
             return
@@ -1456,6 +1515,10 @@ final class GameScene: SKScene {
     }
 
     private func pointerMoved(_ point: CGPoint) {
+        if settingsPanel.isVisible {
+            settingsPanel.pointerMoved(CGPoint(x: point.x, y: Layout.height - point.y))
+            return
+        }
         if fresser != nil {
             guard let start = swipeStart else { return }
             let dx = point.x - start.x, dy = point.y - start.y
@@ -1481,6 +1544,10 @@ final class GameScene: SKScene {
 
     private func pointerUp(_ point: CGPoint) {
         swipeStart = nil
+        if settingsPanel.isVisible {
+            settingsPanel.pointerUp()
+            return
+        }
         guard let start = pointerStart else { return }
         pointerStart = nil
         guard let current = selected else {
@@ -1555,7 +1622,7 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
 
-        if mode == .rooftop && !menuVisible && !figureFalling {
+        if mode == .rooftop && !menuVisible && !figureFalling && !settingsPanel.isVisible {
             if game.tick(dt) {
                 busy = true
                 figureFall()

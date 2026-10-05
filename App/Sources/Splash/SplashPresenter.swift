@@ -88,6 +88,104 @@ final class SplashPresenter {
     }
 
     private func makePanel(_ delivery: Delivery) -> SKNode {
+        if let texture = portraits[delivery.contact.id], texture.size().width > CGFloat(PortraitArt.size) {
+            return makeWidePanel(delivery, portrait: texture)
+        }
+        return makeSquarePanel(delivery)
+    }
+
+    /// Eigenes Porträt im Querformat: füllt die ganze Breite, Name und Funkspruch auf einem Band unten.
+    /// Der Gegenstand ist schon im Bild, deshalb gibt es kein Overlay.
+    private func makeWidePanel(_ delivery: Delivery, portrait texture: SKTexture) -> SKNode {
+        let panel = SKNode()
+        let w = Int(width)
+        let h = Int((texture.size().height * width / texture.size().width).rounded())
+        let accent = RGBA(hex: delivery.contact.accent)
+
+        let image = SKSpriteNode(texture: texture, size: CGSize(width: w, height: h))
+        image.anchorPoint = CGPoint(x: 0, y: 1)
+        panel.addChild(image)
+
+        // Scanlines, Rahmen und Band
+        var overlay = PixelCanvas(width: w, height: h)
+        for y in stride(from: 1, to: h, by: 2) { overlay.fillRect(0, y, w, 1, RGBA(hex: 0x000000, alpha: 46)) }
+        let band = 27
+        for y in (h - band)..<h {
+            let a = y < h - band + 4 ? 120 + (y - (h - band)) * 25 : 215
+            overlay.fillRect(0, y, w, 1, RGBA(hex: 0x0B0A11, alpha: UInt8(a)))
+        }
+        overlay.fillRect(0, 0, w, 1, accent)
+        overlay.fillRect(0, h - 1, w, 1, accent)
+        overlay.fillRect(0, 0, 1, h, accent)
+        overlay.fillRect(w - 1, 0, 1, h, accent)
+        let overlayNode = pixel(overlay, at: .zero)
+        overlayNode.zPosition = 1
+        panel.addChild(overlayNode)
+
+        // Bildrauschen beim Einschalten des Funks
+        var staticCanvas = PixelCanvas(width: w, height: h)
+        for y in 0..<h {
+            for x in 0..<w where Noise.hash(x, y, Int.random(in: 0...9999)) < 0.55 {
+                let v = UInt8(Int.random(in: 60...230))
+                staticCanvas.set(x, y, RGBA(r: v, g: v, b: v, a: 200))
+            }
+        }
+        let noise = pixel(staticCanvas, at: .zero)
+        noise.zPosition = 3
+        noise.run(.sequence([.wait(forDuration: 0.08), .fadeOut(withDuration: 0.12), .removeFromParent()]))
+        panel.addChild(noise)
+
+        // Name und Funkspruch
+        let name = pixel(PixelFont.render(delivery.contact.name, color: accent, shadow: RGBA(hex: 0x050409)), at: CGPoint(x: 5, y: -(h - band + 4)))
+        name.zPosition = 2
+        panel.addChild(name)
+        addTypewriter(Contact.gibberish(using: &rng), to: panel, x: 5, y: CGFloat(-(h - band + 12)), lineHeight: 7)
+        addSignalBars(to: panel, x: CGFloat(w - 16), y: -10, accent: accent)
+        return panel
+    }
+
+    private func addTypewriter(_ lines: [String], to panel: SKNode, x: CGFloat, y: CGFloat, lineHeight: CGFloat) {
+        for (i, line) in lines.enumerated() {
+            let label = SKSpriteNode()
+            label.anchorPoint = CGPoint(x: 0, y: 1)
+            label.position = CGPoint(x: x, y: y - CGFloat(i) * lineHeight)
+            label.zPosition = 2
+            panel.addChild(label)
+            var actions: [SKAction] = [.wait(forDuration: 0.08 + Double(i) * 0.25)]
+            for n in stride(from: 1, through: line.count, by: 2) {
+                let part = String(line.prefix(n))
+                actions.append(.run {
+                    let canvas = PixelFont.render(part, color: RGBA(hex: 0xFFF3D6), shadow: RGBA(hex: 0x050409))
+                    label.texture = canvas.texture()
+                    label.size = canvas.size
+                })
+                actions.append(.wait(forDuration: 0.03))
+            }
+            actions.append(.run {
+                let canvas = PixelFont.render(line, color: RGBA(hex: 0xFFF3D6), shadow: RGBA(hex: 0x050409))
+                label.texture = canvas.texture()
+                label.size = canvas.size
+            })
+            label.run(.sequence(actions))
+        }
+    }
+
+    private func addSignalBars(to panel: SKNode, x: CGFloat, y: CGFloat, accent: RGBA) {
+        for i in 0..<4 {
+            let bar = SKSpriteNode(color: accent.skColor, size: CGSize(width: 2, height: 2 + i * 2))
+            bar.anchorPoint = CGPoint(x: 0, y: 0)
+            bar.position = CGPoint(x: x + CGFloat(i * 3), y: y)
+            bar.zPosition = 2
+            bar.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 1, duration: 0), .wait(forDuration: Double.random(in: 0.05...0.15)),
+                .fadeAlpha(to: 0.25, duration: 0), .wait(forDuration: Double.random(in: 0.05...0.12)),
+            ])))
+            panel.addChild(bar)
+        }
+    }
+
+    /// Platzhalter-Porträt (48×48) links, Gegenstand als Overlay, Text rechts.
+    private func makeSquarePanel(_ delivery: Delivery) -> SKNode {
         let panel = SKNode()
         let w = Int(width), h = Int(height)
 

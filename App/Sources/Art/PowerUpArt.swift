@@ -17,22 +17,24 @@ enum PowerUpArt {
     // MARK: Figur
 
     private static let figurePalette: [Character: UInt32] = [
-        "O": 0xE8792B, "o": 0xB4521C, "f": 0xE8B58A, "R": 0xC8361F, "B": 0x3B5BA0, "b": 0x283E70, "K": 0x1A1418,
+        "H": 0x4A4468, "h": 0x7A70A8, "V": 0x3FD8FF, "v": 0xD8FAFF, "f": 0xD9A27A, "J": 0x3A3552, "j": 0x564E78,
+        "N": 0xFF4FA8, "C": 0x3FD8FF, "P": 0x2E2C44, "B": 0x14121C, "G": 0x8E94AA, "S": 0x3FD8FF,
     ]
 
-    /// Zwei Stehbilder (leichtes Wippen) und ein Sprungbild mit erhobenen Armen.
+    /// Cyberpunk-Läufer mit Kapuze, Leuchtvisier, Neon-Saum und Lichtsohlen. Blickrichtung rechts;
+    /// gespiegelt (xScale -1) schaut er zurück. Zwei Stehbilder (Atmen) und ein Sprungbild.
     static func figureFrames() -> (idle: [SKTexture], jump: SKTexture) {
         let stand1 = [
-            "..OOO..", ".OOOOo.", "..fff..", "..fff..", ".RRRRR.",
-            "B.BBB.B", "..BBB..", "..B.b..", "..B.b..", ".KK.KK.",
+            "..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..", ".jNJJj.",
+            "G.JJJ.G", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS.",
         ]
         let stand2 = [
-            ".......", "..OOO..", ".OOOOo.", "..fff..", "..fff..",
-            ".RRRRR.", "B.BBB.B", "..BBB..", "..B.b..", ".KK.KK.",
+            ".......", "..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..",
+            "GjNJJjG", "..JJJ..", "..JCJ..", "..P.P..", ".BS.BS.",
         ]
         let jump = [
-            "B.OOO.B", "BOOOOoB", "..fff..", "..fff..", ".RRRRR.",
-            "..BBB..", "..BBB..", ".B...b.", "B.....b", "K.....K",
+            "G.HHh.G", "jHHHHhj", ".HHVvVC", "..Hff..", ".jNJJj.",
+            "..JJJ..", "..JCJ..", ".P...P.", "P.....P", "B.....B",
         ]
         return ([sprite(stand1, figurePalette).texture(), sprite(stand2, figurePalette).texture()],
                 sprite(jump, figurePalette).texture())

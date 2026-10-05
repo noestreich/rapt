@@ -1,7 +1,7 @@
 import SpriteKit
 
-/// Platzhalter-Porträts (48×48) für die Funk-Kontakte. Liegt im Bundle eine Datei
-/// `portrait_<id>.png`, wird stattdessen diese verwendet.
+/// Porträts der Funk-Kontakte. Liegt im Bundle `portrait_<id>.png` (Querformat, 184 × 121,
+/// erzeugt mit tools/import_portraits.py), wird diese verwendet, sonst ein Platzhalter (48 × 48).
 enum PortraitArt {
     static let size = 48
 
