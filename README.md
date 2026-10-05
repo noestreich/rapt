@@ -31,6 +31,7 @@ Nach Änderungen an `project.yml` oder neuen Dateien `xcodegen generate` erneut 
 | `App/Sources/Audio/` | Synthesizer, Sound-Plätze, Dateizuordnung, Musik |
 | `App/Sources/SoundLabView.swift` | Sound-Labor (nur Mac, nur Debug-Build) |
 | `tools/make_icon.py` | Erzeugt das App-Icon |
+| `tools/render_assets.py` | Rendert Steine, Spezialsteine, Power-up-Symbole und Porträts als PNG nach `docs/assets/` (Python-Spiegel der Swift-Generatoren) |
 
 Die Grafik wird in einem Raster von 200 × 373 Kunst-Pixeln gebaut und **ganzzahlig** auf echte Bildschirmpixel
 hochskaliert. Licht und Partikel rendern in voller Auflösung darüber.
