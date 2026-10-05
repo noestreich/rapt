@@ -155,6 +155,7 @@ final class GameScene: SKScene {
 
     // Menü (Moduswahl, Spielende)
     private var menuButtons: [(rect: CGRect, mode: GameMode)] = []
+    private var menuSettingsRect = CGRect.zero
     private var menuVisible = false
     private var slotFrames: [SKSpriteNode] = []
     /// Power-ups, die schon im Lager sind, aber noch per Übergabe einfliegen.
@@ -423,12 +424,8 @@ final class GameScene: SKScene {
         edgeGlow.zPosition = 200
         edgeGlow.alpha = 0
         addChild(edgeGlow)
-        let gearRows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
-        var gearCanvas = PixelCanvas(width: 7, height: 7)
-        for (y, row) in gearRows.enumerated() {
-            for (x, ch) in row.enumerated() where ch == "X" { gearCanvas.set(x, y, Palette.label) }
-        }
-        let gear = pixelSprite(gearCanvas, topLeft: design(182, 13))
+        // Zahnrad mittig auf der Zeile der Hochpunkte (Text 5 px ab y 17, Zahnrad 7 px ab y 16)
+        let gear = pixelSprite(Self.gearCanvas(Palette.label), topLeft: design(182, 16))
         gear.zPosition = 2
         hudLayer.addChild(gear)
 
@@ -1044,11 +1041,36 @@ final class GameScene: SKScene {
             overlayLayer.addChild(node)
             menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.0))
         }
-        text(Self.newGameHint, color: Palette.label, scale: 1, y: buttonY + 2 * 36 + 4)
+        // Direkter Weg in die Einstellungen
+        let label = "EINSTELLUNGEN"
+        let linkWidth = 7 + 4 + PixelFont.width(label)
+        var link = PixelCanvas(width: linkWidth, height: 7)
+        link.draw(Self.gearCanvas(Palette.cream), at: 0, 0)
+        PixelFont.draw(label, into: &link, x: 11, y: 1, color: Palette.cream)
+        let linkX = Layout.boardX + (Layout.boardSize - linkWidth) / 2
+        let linkY = Layout.boardY + buttonY + 2 * 36 + 4
+        let linkNode = pixelSprite(link, topLeft: design(linkX, linkY))
+        linkNode.zPosition = 1
+        overlayLayer.addChild(linkNode)
+        menuSettingsRect = CGRect(x: linkX, y: linkY, width: linkWidth, height: 7).insetBy(dx: -8, dy: -6)
+    }
+
+    private static func gearCanvas(_ color: RGBA) -> PixelCanvas {
+        let rows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
+        var c = PixelCanvas(width: 7, height: 7)
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "X" { c.set(x, y, color) }
+        }
+        return c
     }
 
     private func handleMenu(_ point: CGPoint) {
         let p = CGPoint(x: point.x, y: Layout.height - point.y)
+        if menuSettingsRect.contains(p) {
+            audio.play(.select, volume: 0.5)
+            settingsPanel.show()
+            return
+        }
         guard let choice = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
         menuVisible = false
         menuButtons = []
@@ -1276,14 +1298,6 @@ final class GameScene: SKScene {
     }
 
     // MARK: Power-ups
-
-    private static var newGameHint: String {
-        #if os(iOS)
-        return "MODUS ANTIPPEN"
-        #else
-        return "MODUS ANKLICKEN"
-        #endif
-    }
 
     private static func name(_ kind: PowerUp) -> String {
         switch kind {
