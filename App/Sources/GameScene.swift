@@ -836,7 +836,7 @@ final class GameScene: SKScene {
         let anchor = center(of: step.runs[0].center)
         fx.popup("+\(step.points)", at: CGPoint(x: anchor.x, y: anchor.y + 6), color: Palette.cream)
         if combo >= 2 {
-            fx.popup("KASKADE x\(combo)", at: design(100, Layout.boardY + 24), color: Palette.amber, scale: 2)
+            fx.popup("\(Self.cheer(for: combo)) x\(combo)", at: design(100, Layout.boardY + 24), color: Palette.amber, scale: 2)
         }
 
         audio.play(.shrapnel, volume: Float(min(1, 0.35 + 0.1 * Double(combo))))
@@ -1299,6 +1299,12 @@ final class GameScene: SKScene {
     }
 
     // MARK: Power-ups
+
+    /// Lob für Kettenreaktionen, steigert sich mit der Stufe.
+    private static func cheer(for combo: Int) -> String {
+        let words = ["STARK", "BRAVO", "LEISTUNG", "STURM", "HURRA", "HEPP HEPP"]
+        return words[min(max(combo - 2, 0), words.count - 1)]
+    }
 
     private static func name(_ kind: PowerUp) -> String {
         switch kind {
