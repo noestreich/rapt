@@ -1,0 +1,768 @@
+import RaptCore
+import SpriteKit
+#if os(iOS)
+import UIKit
+#endif
+
+struct ScreenInsets: Equatable {
+    var top: CGFloat = 0
+    var left: CGFloat = 0
+    var bottom: CGFloat = 0
+    var right: CGFloat = 0
+}
+
+/// Spielszene im Neo-Pixel-Stil. Alles wird in einem festen Design-Raster von 200×373 Kunst-Pixeln
+/// gebaut und ganzzahlig auf echte Bildschirmpixel hochskaliert. Weiches Licht rendert SpriteKit
+/// dabei automatisch in voller Auflösung.
+final class GameScene: SKScene {
+    private enum Layout {
+        static let width: CGFloat = 200
+        static let height: CGFloat = 373
+        static let tile = GemArt.tile
+        static let count = 8
+        static let boardX = 12
+        static let boardY = 96
+        static var boardSize: Int { tile * count }
+    }
+
+    private enum Palette {
+        static let amber = RGBA(hex: 0xFFB347)
+        static let red = RGBA(hex: 0xE0452B)
+        static let label = RGBA(hex: 0x9A9CAB)
+        static let cream = RGBA(hex: 0xFFF3D6)
+    }
+
+    var safeInsets = ScreenInsets() {
+        didSet { if safeInsets != oldValue { layoutWorld() } }
+    }
+
+    private var game = Game(seed: UInt64.random(in: 0...UInt64.max))
+    private let audio = AudioCenter.shared.effects
+    private let haptics = Haptics.shared
+    private let fx = Effects()
+
+    private let world = SKNode()
+    private let shaker = SKNode()
+    private let backLayer = SKNode()
+    private let hudLayer = SKNode()
+    private let boardCrop = SKCropNode()
+    private let gemLayer = SKNode()
+    private let glowLayer = SKNode()
+    private let overlayLayer = SKNode()
+    private let cursor = SKNode()
+    private let hintCursor = SKNode()
+
+    private let nebula = SKSpriteNode()
+    private let skyline = SKSpriteNode()
+    private let beacon = SKSpriteNode(color: SKColor(red: 1, green: 0.23, blue: 0.16, alpha: 1), size: CGSize(width: 1, height: 1))
+    private var beaconGlow: SKSpriteNode?
+    private var windowGlows: [SKSpriteNode] = []
+    private var stars: [SKSpriteNode] = []
+
+    private let scoreLabel = SKSpriteNode()
+    private let comboLabel = SKSpriteNode()
+    private let recordLabel = SKSpriteNode()
+    private let planLabel = SKSpriteNode()
+    private var planSegments: [SKSpriteNode] = []
+
+    private var sprites: [Gem: GemArt.Sprite] = [:]
+    private var glowTexture = SKTexture()
+    private var gems: [Pos: GemNode] = [:]
+
+    private var displayedScore = 0.0
+    private var shownScore = -1
+    private var shownPlan = 0
+    private var lastCombo = 1
+    private var highscore = Highscore.load()
+    private var busy = false
+    private var selected: Pos?
+    private var pointerStart: (pos: Pos, point: CGPoint)?
+    private var idleTime: TimeInterval = 0
+    private var lastUpdate: TimeInterval = 0
+    private var clock: TimeInterval = 0
+    private var backdropKey = ""
+    private var isBuilt = false
+
+    // MARK: Lebenszyklus
+
+    override func didMove(to view: SKView) {
+        scaleMode = .resizeFill
+        backgroundColor = SKColor(red: 0.027, green: 0.024, blue: 0.05, alpha: 1)
+        if !isBuilt {
+            build()
+            isBuilt = true
+            startNewGame(animated: true)
+        }
+        layoutWorld()
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        layoutWorld()
+    }
+
+    // MARK: Koordinaten
+
+    /// Design-Koordinate (oben links, y nach unten) → Weltkoordinate (y nach oben).
+    private func design(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+        CGPoint(x: x, y: Layout.height - y)
+    }
+
+    private func design(_ x: Int, _ y: Int) -> CGPoint {
+        design(CGFloat(x), CGFloat(y))
+    }
+
+    private func center(of p: Pos) -> CGPoint {
+        let half = CGFloat(Layout.tile) / 2
+        return design(CGFloat(Layout.boardX + p.col * Layout.tile) + half, CGFloat(Layout.boardY + p.row * Layout.tile) + half)
+    }
+
+    private func cell(at point: CGPoint) -> Pos? {
+        let x = point.x - CGFloat(Layout.boardX)
+        let y = (Layout.height - point.y) - CGFloat(Layout.boardY)
+        let p = Pos(Int(floor(x / CGFloat(Layout.tile))), Int(floor(y / CGFloat(Layout.tile))))
+        return game.board.contains(p) ? p : nil
+    }
+
+    private var pixelScale: CGFloat {
+        #if os(iOS)
+        let scale = view?.traitCollection.displayScale ?? 3
+        return scale > 0 ? scale : 3
+        #else
+        return view?.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        #endif
+    }
+
+    // MARK: Aufbau
+
+    private func pixelSprite(_ canvas: PixelCanvas, topLeft: CGPoint) -> SKSpriteNode {
+        let node = SKSpriteNode(texture: canvas.texture(), size: canvas.size)
+        node.anchorPoint = CGPoint(x: 0, y: 1)
+        node.position = topLeft
+        return node
+    }
+
+    private func setText(_ node: SKSpriteNode, _ text: String, color: RGBA, scale: CGFloat = 1) {
+        let canvas = PixelFont.render(text, color: color)
+        node.texture = canvas.texture()
+        node.size = CGSize(width: CGFloat(canvas.width) * scale, height: CGFloat(canvas.height) * scale)
+    }
+
+    private func build() {
+        for gem in Gem.allCases { sprites[gem] = GemArt.makeSprite(gem) }
+        glowTexture = Backdrop.glow()
+
+        addChild(world)
+        world.addChild(shaker)
+        let layers: [(SKNode, CGFloat)] = [
+            (backLayer, 0), (hudLayer, 10), (boardCrop, 20), (glowLayer, 25),
+            (fx.pixelLayer, 30), (fx.lightLayer, 40), (hintCursor, 44), (cursor, 45), (overlayLayer, 50),
+        ]
+        for (layer, z) in layers {
+            layer.zPosition = z
+            shaker.addChild(layer)
+        }
+
+        // Hintergrund (Inhalt entsteht in rebuildBackdrop, sobald die Fenstergröße feststeht)
+        nebula.anchorPoint = CGPoint(x: 0, y: 1)
+        skyline.anchorPoint = CGPoint(x: 0, y: 0)
+        skyline.zPosition = 2
+        beacon.anchorPoint = CGPoint(x: 0, y: 1)
+        beacon.zPosition = 3
+        backLayer.addChild(nebula)
+        backLayer.addChild(skyline)
+        backLayer.addChild(beacon)
+        let blink = SKAction.repeatForever(.sequence([
+            .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.7),
+            .fadeAlpha(to: 0.2, duration: 0), .wait(forDuration: 0.7),
+        ]))
+        beacon.run(blink)
+
+        // Punkteanzeige und Brett
+        hudLayer.addChild(pixelSprite(Backdrop.hudPlate(), topLeft: design(8, 10)))
+        hudLayer.addChild(pixelSprite(Backdrop.boardFrame(tile: Layout.tile, count: Layout.count),
+                                      topLeft: design(Layout.boardX - 6, Layout.boardY - 6)))
+        let planY = Layout.boardY + Layout.boardSize + 10
+        let labels: [(SKSpriteNode, CGPoint, CGPoint)] = [
+            (scoreLabel, CGPoint(x: 0, y: 1), design(24, 33)),
+            (comboLabel, CGPoint(x: 1, y: 1), design(176, 33)),
+            (recordLabel, CGPoint(x: 1, y: 1), design(180, 17)),
+            (planLabel, CGPoint(x: 0, y: 1), design(Layout.boardX, planY)),
+        ]
+        for (label, anchor, position) in labels {
+            label.anchorPoint = anchor
+            label.position = position
+            label.zPosition = 1
+            hudLayer.addChild(label)
+        }
+        let scoreGlow = SKSpriteNode(texture: glowTexture, color: Palette.amber.skColor, size: CGSize(width: 110, height: 34))
+        scoreGlow.colorBlendFactor = 1
+        scoreGlow.blendMode = .add
+        scoreGlow.alpha = 0.28
+        scoreGlow.position = design(55, 38)
+        glowLayer.addChild(scoreGlow)
+
+        // Plan-Leiste
+        let barStart = Layout.boardX + PixelFont.width("ПЛАН 00") + 5
+        let barEnd = Layout.boardX + Layout.boardSize
+        let bar = SKSpriteNode(color: RGBA(hex: 0x0B0A11).skColor, size: CGSize(width: barEnd - barStart, height: 7))
+        bar.anchorPoint = CGPoint(x: 0, y: 1)
+        bar.position = design(barStart, planY - 1)
+        hudLayer.addChild(bar)
+        var x = barStart + 1
+        while x + 3 <= barEnd - 1 {
+            let seg = SKSpriteNode(color: RGBA(hex: 0x221E2A).skColor, size: CGSize(width: 3, height: 5))
+            seg.anchorPoint = CGPoint(x: 0, y: 1)
+            seg.position = design(x, planY)
+            seg.zPosition = 1
+            hudLayer.addChild(seg)
+            planSegments.append(seg)
+            x += 4
+        }
+
+        // Steine liegen in einer Maske, damit nachrutschende Steine hinter der Brettkante auftauchen
+        let mask = SKSpriteNode(color: .white, size: CGSize(width: Layout.boardSize, height: Layout.boardSize))
+        mask.anchorPoint = CGPoint(x: 0, y: 1)
+        mask.position = design(Layout.boardX, Layout.boardY)
+        boardCrop.maskNode = mask
+        boardCrop.addChild(gemLayer)
+        fx.floorY = Layout.height - CGFloat(Layout.boardY + Layout.boardSize)
+
+        buildBracket(cursor, color: RGBA(hex: 0xFFD27A).skColor)
+        buildBracket(hintCursor, color: RGBA(hex: 0x9FB4FF).skColor)
+    }
+
+    private func buildBracket(_ node: SKNode, color: SKColor) {
+        let t = Layout.tile
+        let rects: [(Int, Int, Int, Int)] = [
+            (0, 0, 3, 1), (0, 0, 1, 3), (t - 3, 0, 3, 1), (t - 1, 0, 1, 3),
+            (0, t - 1, 3, 1), (0, t - 3, 1, 3), (t - 3, t - 1, 3, 1), (t - 1, t - 3, 1, 3),
+        ]
+        for r in rects {
+            let s = SKSpriteNode(color: color, size: CGSize(width: r.2, height: r.3))
+            s.anchorPoint = CGPoint(x: 0, y: 1)
+            s.position = CGPoint(x: r.0, y: -r.1)
+            node.addChild(s)
+        }
+        node.isHidden = true
+        node.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.14),
+            .fadeAlpha(to: 0.3, duration: 0), .wait(forDuration: 0.14),
+        ])))
+    }
+
+    private func place(_ node: SKNode, at p: Pos?) {
+        guard let p else {
+            node.isHidden = true
+            return
+        }
+        node.position = design(Layout.boardX + p.col * Layout.tile, Layout.boardY + p.row * Layout.tile)
+        node.isHidden = false
+    }
+
+    // MARK: Layout
+
+    /// Skaliert das Design-Raster ganzzahlig auf echte Pixel und zentriert es im sicheren Bereich.
+    private func layoutWorld() {
+        guard isBuilt, size.width > 1, size.height > 1 else { return }
+        let px = pixelScale
+        let availW = max(1, size.width - safeInsets.left - safeInsets.right)
+        let availH = max(1, size.height - safeInsets.top - safeInsets.bottom)
+        let k = max(1, floor(min(availW * px / Layout.width, availH * px / Layout.height)))
+        let scale = k / px
+        world.setScale(scale)
+        let ox = safeInsets.left + (availW - Layout.width * scale) / 2
+        let oy = safeInsets.bottom + (availH - Layout.height * scale) / 2
+        world.position = CGPoint(x: (ox * px).rounded() / px, y: (oy * px).rounded() / px)
+
+        // Sichtbarer Bereich in Design-Pixeln
+        let left = Int(floor(-world.position.x / scale)) - 1
+        let right = Int(ceil((size.width - world.position.x) / scale)) + 1
+        let top = Int(floor(Layout.height - (size.height - world.position.y) / scale)) - 1
+        let bottom = Int(ceil(Layout.height + world.position.y / scale)) + 1
+        let key = "\(left),\(right),\(top),\(bottom)"
+        guard key != backdropKey else { return }
+        backdropKey = key
+
+        // Beim Ziehen am Fensterrand nicht bei jedem Schritt neu rechnen
+        let rebuild = SKAction.run { [weak self] in
+            self?.rebuildBackdrop(left: left, right: right, top: top, bottom: bottom)
+        }
+        removeAction(forKey: "backdrop")
+        if nebula.texture == nil {
+            rebuildBackdrop(left: left, right: right, top: top, bottom: bottom)
+        } else {
+            run(.sequence([.wait(forDuration: 0.15), rebuild]), withKey: "backdrop")
+        }
+    }
+
+    private func rebuildBackdrop(left: Int, right: Int, top: Int, bottom: Int) {
+        let w = right - left, h = bottom - top
+        let neb = Backdrop.nebula(width: w, height: h, originX: left, originY: top)
+        nebula.texture = neb.texture()
+        nebula.size = neb.size
+        nebula.position = design(left, top)
+
+        let sky = Backdrop.skyline(width: w, seed: 5)
+        let skyTop = bottom - sky.canvas.height
+        skyline.texture = sky.canvas.texture()
+        skyline.size = sky.canvas.size
+        skyline.position = design(left, bottom)
+        beacon.position = design(left + sky.beacon.x, skyTop + sky.beacon.y)
+
+        beaconGlow?.removeFromParent()
+        let glow = SKSpriteNode(texture: glowTexture, color: SKColor(red: 1, green: 0.25, blue: 0.15, alpha: 1), size: CGSize(width: 22, height: 22))
+        glow.colorBlendFactor = 1
+        glow.blendMode = .add
+        glow.position = CGPoint(x: beacon.position.x + 0.5, y: beacon.position.y - 0.5)
+        glow.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.9, duration: 0), .wait(forDuration: 0.7),
+            .fadeAlpha(to: 0.1, duration: 0), .wait(forDuration: 0.7),
+        ])))
+        glowLayer.addChild(glow)
+        beaconGlow = glow
+
+        windowGlows.forEach { $0.removeFromParent() }
+        windowGlows = sky.lights.prefix(60).map { light in
+            let g = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0xE8A94A).skColor, size: CGSize(width: 9, height: 9))
+            g.colorBlendFactor = 1
+            g.blendMode = .add
+            g.alpha = 0.18
+            g.position = design(CGFloat(left + light.x), CGFloat(skyTop + light.y))
+            glowLayer.addChild(g)
+            return g
+        }
+
+        // Funkelnde Sterne über dem Brett
+        stars.forEach { $0.removeFromParent() }
+        stars = (0..<16).map { _ in
+            let star = SKSpriteNode(color: RGBA(hex: 0xE8ECFF).skColor, size: CGSize(width: 1, height: 1))
+            star.anchorPoint = CGPoint(x: 0, y: 1)
+            star.zPosition = 1
+            star.position = design(Int.random(in: left..<max(left + 1, right)), Int.random(in: top..<max(top + 1, Layout.boardY - 12)))
+            star.alpha = 0
+            let on = Double.random(in: 0.4...1.6)
+            star.run(.repeatForever(.sequence([
+                .wait(forDuration: Double.random(in: 0.5...4)),
+                .fadeAlpha(to: 1, duration: 0.25), .wait(forDuration: on), .fadeAlpha(to: 0, duration: 0.4),
+            ])))
+            backLayer.addChild(star)
+            return star
+        }
+    }
+
+    // MARK: Spielablauf
+
+    private func startNewGame(animated: Bool) {
+        game = Game(seed: UInt64.random(in: 0...UInt64.max))
+        gems.values.forEach { $0.removeWithGlow() }
+        gems = [:]
+        overlayLayer.removeAllChildren()
+        selected = nil
+        place(cursor, at: nil)
+        place(hintCursor, at: nil)
+        displayedScore = 0
+        shownScore = -1
+        lastCombo = 1
+        idleTime = 0
+        shownPlan = game.plan
+        updateHUD(celebrate: false)
+
+        var longest = 0.0
+        for p in game.board.positions {
+            guard let gem = game.board[p] else { continue }
+            let node = makeGem(gem, at: animated ? Pos(p.col, p.row - Layout.count - 1) : p)
+            gems[p] = node
+            if animated {
+                let delay = Double(p.col) * 0.035 + Double(Layout.count - 1 - p.row) * 0.02
+                longest = max(longest, drop(node, to: p, rows: Layout.count + 1, delay: delay) + delay)
+            }
+        }
+        busy = animated
+        if animated {
+            run(.sequence([.wait(forDuration: longest), .run { [weak self] in
+                self?.audio.play(.land, volume: 0.5)
+                self?.busy = false
+            }]))
+        }
+    }
+
+    private func makeGem(_ gem: Gem, at p: Pos) -> GemNode {
+        let node = GemNode(gem: gem, texture: sprites[gem]!.texture, glowTexture: glowTexture)
+        node.position = center(of: p)
+        gemLayer.addChild(node)
+        glowLayer.addChild(node.glow)
+        return node
+    }
+
+    /// Fall mit Erdbeschleunigung (52 Felder/s²) und 1-px-Nachfedern.
+    @discardableResult
+    private func drop(_ node: GemNode, to p: Pos, rows: Int, delay: TimeInterval = 0) -> TimeInterval {
+        let duration = (2 * Double(max(rows, 1)) / 52).squareRoot()
+        let move = SKAction.move(to: center(of: p), duration: duration)
+        move.timingMode = .easeIn
+        node.removeAllActions()
+        node.run(.sequence([
+            .wait(forDuration: delay), move,
+            .moveBy(x: 0, y: 1, duration: 0.04), .moveBy(x: 0, y: -1, duration: 0.05),
+        ]))
+        return duration
+    }
+
+    private func setSelected(_ p: Pos?) {
+        selected = p
+        place(cursor, at: p)
+        if p != nil {
+            audio.play(.select, volume: 0.4)
+            haptics.select()
+        }
+    }
+
+    private func attemptSwap(_ a: Pos, _ b: Pos) {
+        guard let na = gems[a], let nb = gems[b] else { return }
+        busy = true
+        idleTime = 0
+        place(hintCursor, at: nil)
+        let ca = center(of: a), cb = center(of: b)
+
+        func slide(_ node: GemNode, to p: CGPoint) -> SKAction {
+            let action = SKAction.move(to: p, duration: 0.14)
+            action.timingMode = .easeInEaseOut
+            return action
+        }
+
+        let result = game.swap(a, b)
+        guard result.isValid else {
+            audio.play(.invalid, volume: 0.45)
+            haptics.invalid()
+            na.run(.sequence([slide(na, to: cb), slide(na, to: ca)]))
+            nb.run(.sequence([slide(nb, to: ca), slide(nb, to: cb)]))
+            run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in self?.busy = false }]))
+            return
+        }
+        audio.play(.swap, volume: 0.5)
+        na.run(slide(na, to: cb))
+        nb.run(slide(nb, to: ca))
+        gems[a] = nb
+        gems[b] = na
+        run(.sequence([.wait(forDuration: 0.15), .run { [weak self] in
+            self?.play(result.steps, index: 0, gameOver: result.isGameOver)
+        }]))
+    }
+
+    private func play(_ steps: [CascadeStep], index: Int, gameOver: Bool) {
+        guard index < steps.count else {
+            finish(gameOver: gameOver)
+            return
+        }
+        let step = steps[index]
+        lastCombo = step.combo
+        explode(step)
+        run(.sequence([.wait(forDuration: 0.17), .run { [weak self] in
+            self?.collapse(step) { self?.play(steps, index: index + 1, gameOver: gameOver) }
+        }]))
+    }
+
+    private func collapse(_ step: CascadeStep, then next: @escaping () -> Void) {
+        var moved: [Pos: GemNode] = [:]
+        var longest = 0.0
+        for fall in step.falls {
+            guard let node = gems.removeValue(forKey: fall.from) else { continue }
+            moved[fall.to] = node
+            longest = max(longest, drop(node, to: fall.to, rows: fall.to.row - fall.from.row))
+        }
+        for spawn in step.spawns {
+            let node = makeGem(spawn.gem, at: spawn.from)
+            moved[spawn.to] = node
+            longest = max(longest, drop(node, to: spawn.to, rows: spawn.to.row - spawn.from.row))
+        }
+        for (p, node) in moved { gems[p] = node }
+        run(.sequence([
+            .wait(forDuration: longest),
+            .run { [weak self] in self?.audio.play(.land, volume: 0.35) },
+            .wait(forDuration: 0.06),
+            .run(next),
+        ]))
+    }
+
+    private func finish(gameOver: Bool) {
+        if game.score > highscore {
+            highscore = game.score
+            Highscore.save(highscore)
+        }
+        updateHUD(celebrate: true)
+        if gameOver {
+            showGameOver()
+        } else {
+            busy = false
+        }
+    }
+
+    // MARK: Effekte
+
+    private func explode(_ step: CascadeStep) {
+        let combo = step.combo
+        for p in step.cleared {
+            if let node = gems.removeValue(forKey: p) { pop(node) }
+        }
+
+        var big = false
+        let boardMid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        for (i, match) in step.runs.enumerated() {
+            let color = GemArt.glowColor(match.gem)
+            let shards = sprites[match.gem]!.ramp.suffix(3).map(\.skColor)
+            run(.sequence([.wait(forDuration: Double(i) * 0.05), .run { [weak self] in
+                self?.audio.match(step: combo - 1 + i)
+            }]))
+            for p in match.cells {
+                let c = center(of: p)
+                fx.flash(at: c, color: color)
+                fx.explosion(at: c, scale: 0.55)
+                fx.shrapnel(at: c, colors: shards, count: 7 + combo * 2, power: 1 + CGFloat(combo - 1) * 0.15)
+            }
+            let mid = center(of: match.center)
+            fx.steam(at: mid)
+            if combo >= 2 { fx.steam(at: center(of: match.cells[0])) }
+            if match.length >= 4 {
+                big = true
+                let beamCenter = match.isHorizontal ? CGPoint(x: boardMid.x, y: mid.y) : CGPoint(x: mid.x, y: boardMid.y)
+                fx.beam(horizontal: match.isHorizontal, center: beamCenter, length: CGFloat(Layout.boardSize), color: color)
+                fx.explosion(at: mid, scale: 1.3)
+                warp(at: mid, strength: 6, color: color)
+            }
+        }
+        if combo >= 3 && !big {
+            warp(at: center(of: step.runs[0].center), strength: 4, color: .white)
+        }
+
+        let anchor = center(of: step.runs[0].center)
+        fx.popup("+\(step.points)", at: CGPoint(x: anchor.x, y: anchor.y + 6), color: Palette.cream)
+        if combo >= 2 {
+            fx.popup("КАСКАД x\(combo)", at: design(100, Layout.boardY + 24), color: Palette.amber, scale: 2)
+        }
+
+        audio.play(.shrapnel, volume: Float(min(1, 0.35 + 0.1 * Double(combo))))
+        if combo >= 2 { audio.play(.steam, volume: 0.4) }
+        if combo >= 2 { audio.play(.cascade, volume: 0.5) }
+        if big {
+            audio.play(.explosion, volume: 0.9)
+            audio.play(.warp, volume: 0.6)
+            shake(strength: 2)
+            haptics.explosion()
+        } else if combo >= 3 {
+            audio.play(.warp, volume: 0.5)
+            shake(strength: 1)
+            haptics.warp()
+        } else {
+            haptics.match(combo: combo)
+        }
+        setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
+    }
+
+    private func pop(_ node: GemNode) {
+        node.isDying = true
+        let flash = SKSpriteNode(color: .white, size: CGSize(width: 18, height: 18))
+        flash.alpha = 0.85
+        flash.zPosition = 1
+        node.body.addChild(flash)
+        flash.run(.fadeOut(withDuration: 0.16))
+        node.glow.run(.group([.scale(to: 1.8, duration: 0.16), .fadeAlpha(to: 0.9, duration: 0.06)]))
+        node.run(.sequence([.wait(forDuration: 0.16), .run { node.removeWithGlow() }]))
+    }
+
+    /// Schockwelle: Ringe mit Farbsaum, dazu werden die Steine kurz nach außen gedrückt.
+    private func warp(at p: CGPoint, strength: CGFloat, color: SKColor) {
+        fx.warpRing(at: p, color: color, radius: 90)
+        let flash = fx.glow(at: p, color: color, size: 260, alpha: 0.22)
+        flash.run(.sequence([.fadeOut(withDuration: 0.3), .removeFromParent()]))
+        for node in gems.values where !node.isDying {
+            let dx = node.position.x - p.x, dy = node.position.y - p.y
+            let d = max(1, (dx * dx + dy * dy).squareRoot())
+            let push = strength * exp(-d / 45)
+            guard push > 0.5 else { continue }
+            let offset = CGPoint(x: (dx / d * push).rounded(), y: (dy / d * push).rounded())
+            let out = SKAction.move(to: offset, duration: 0.07)
+            out.timingMode = .easeOut
+            let back = SKAction.move(to: .zero, duration: 0.3)
+            back.timingMode = .easeInEaseOut
+            node.body.removeAction(forKey: "warp")
+            node.body.run(.sequence([.wait(forDuration: Double(d / 320)), out, back]), withKey: "warp")
+        }
+    }
+
+    private func shake(strength: Int) {
+        var steps: [SKAction] = (0..<7).map { _ in
+            .move(to: CGPoint(x: Int.random(in: -strength...strength), y: Int.random(in: -strength...strength)), duration: 0.035)
+        }
+        steps.append(.move(to: .zero, duration: 0.04))
+        shaker.removeAction(forKey: "shake")
+        shaker.run(.sequence(steps), withKey: "shake")
+    }
+
+    // MARK: Anzeige
+
+    private func updateHUD(celebrate: Bool) {
+        setText(recordLabel, "РЕКОРД " + String(format: "%08d", highscore), color: Palette.label)
+        setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
+        let plan = game.plan
+        setText(planLabel, "ПЛАН " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
+        let filled = Int((game.planProgress * Double(planSegments.count)).rounded(.down))
+        for (i, seg) in planSegments.enumerated() {
+            seg.color = (i < filled ? Palette.amber : RGBA(hex: 0x221E2A)).skColor
+        }
+        if celebrate && plan > shownPlan { celebratePlan() }
+        shownPlan = plan
+    }
+
+    /// Plan erfüllt: Fanfare, Konfetti in allen Steinfarben, Warp-Ring.
+    private func celebratePlan() {
+        audio.play(.plan, volume: 0.7)
+        haptics.plan()
+        let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        fx.warpRing(at: mid, color: Palette.amber.skColor, radius: 130)
+        fx.popup("ПЛАН ВЫПОЛНЕН!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
+        for (i, gem) in Gem.allCases.enumerated() {
+            let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
+            fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
+        }
+    }
+
+    private func showGameOver() {
+        audio.play(.gameOver, volume: 0.7)
+        let shade = SKSpriteNode(color: SKColor(red: 0.03, green: 0.02, blue: 0.06, alpha: 0.85),
+                                 size: CGSize(width: Layout.boardSize, height: Layout.boardSize))
+        shade.anchorPoint = CGPoint(x: 0, y: 1)
+        shade.position = design(Layout.boardX, Layout.boardY)
+        shade.alpha = 0
+        overlayLayer.addChild(shade)
+        shade.run(.fadeIn(withDuration: 0.4))
+
+        let lines: [(String, RGBA, CGFloat, Int)] = [
+            ("НЕТ ХОДОВ", Palette.amber, 2, 62),
+            ("ОЧКИ " + String(game.score), Palette.cream, 1, 84),
+            ("НАЖМИ ДЛЯ НОВОЙ ИГРЫ", Palette.label, 1, 108),
+        ]
+        for (text, color, scale, y) in lines {
+            let canvas = PixelFont.render(text, color: color, shadow: RGBA(hex: 0x050409))
+            let node = SKSpriteNode(texture: canvas.texture(),
+                                    size: CGSize(width: CGFloat(canvas.width) * scale, height: CGFloat(canvas.height) * scale))
+            node.anchorPoint = CGPoint(x: 0, y: 1)
+            let width = Int(CGFloat(canvas.width) * scale)
+            node.position = design(Layout.boardX + (Layout.boardSize - width) / 2, Layout.boardY + y)
+            node.alpha = 0
+            overlayLayer.addChild(node)
+            node.run(.sequence([.wait(forDuration: 0.3), .fadeIn(withDuration: 0.3)]))
+        }
+        run(.sequence([.wait(forDuration: 0.8), .run { [weak self] in self?.busy = false }]))
+    }
+
+    // MARK: Eingabe
+
+    private func pointerDown(_ point: CGPoint) {
+        idleTime = 0
+        place(hintCursor, at: nil)
+        if game.isOver {
+            if !busy { startNewGame(animated: true) }
+            return
+        }
+        guard !busy, let p = cell(at: point) else {
+            pointerStart = nil
+            return
+        }
+        pointerStart = (p, point)
+    }
+
+    private func pointerMoved(_ point: CGPoint) {
+        guard let start = pointerStart, !busy else { return }
+        let dx = point.x - start.point.x, dy = point.y - start.point.y
+        guard max(abs(dx), abs(dy)) >= 7 else { return }
+        pointerStart = nil
+        // Welt-y zeigt nach oben, Zeilen zählen nach unten
+        let target = abs(dx) > abs(dy)
+            ? Pos(start.pos.col + (dx > 0 ? 1 : -1), start.pos.row)
+            : Pos(start.pos.col, start.pos.row + (dy > 0 ? -1 : 1))
+        guard game.board.contains(target) else { return }
+        setSelected(nil)
+        attemptSwap(start.pos, target)
+    }
+
+    private func pointerUp(_ point: CGPoint) {
+        guard let start = pointerStart else { return }
+        pointerStart = nil
+        guard let current = selected else {
+            setSelected(start.pos)
+            return
+        }
+        if current == start.pos {
+            setSelected(nil)
+        } else if current.isAdjacent(to: start.pos) {
+            setSelected(nil)
+            attemptSwap(current, start.pos)
+        } else {
+            setSelected(start.pos)
+        }
+    }
+
+    #if os(iOS)
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let t = touches.first { pointerDown(t.location(in: shaker)) }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let t = touches.first { pointerMoved(t.location(in: shaker)) }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let t = touches.first { pointerUp(t.location(in: shaker)) }
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        pointerStart = nil
+    }
+    #else
+    override func mouseDown(with event: NSEvent) {
+        pointerDown(event.location(in: shaker))
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        pointerMoved(event.location(in: shaker))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        pointerUp(event.location(in: shaker))
+    }
+    #endif
+
+    // MARK: Bildaufbau
+
+    override func update(_ currentTime: TimeInterval) {
+        let dt = lastUpdate == 0 ? 1.0 / 60 : min(0.05, currentTime - lastUpdate)
+        lastUpdate = currentTime
+        clock += dt
+        fx.update(CGFloat(dt))
+
+        let boardTop = Layout.height - CGFloat(Layout.boardY)
+        for case let gem as GemNode in gemLayer.children {
+            let v = gem.visualPosition
+            gem.glow.position = v
+            if gem.isDying { continue }
+            gem.glow.isHidden = gem.position.y > boardTop
+            gem.glow.alpha = CGFloat(0.16 + 0.05 * sin(clock * 2.2 + Double(v.x) / 22 * 0.9 + Double(v.y) / 22 * 1.3))
+        }
+
+        let target = Double(game.score)
+        displayedScore += (target - displayedScore) * min(1, dt * 6)
+        if abs(target - displayedScore) < 0.5 { displayedScore = target }
+        let shown = Int(displayedScore.rounded())
+        if shown != shownScore {
+            shownScore = shown
+            setText(scoreLabel, String(format: "%08d", shown), color: Palette.amber, scale: 2)
+        }
+
+        if !busy && !game.isOver && pointerStart == nil {
+            idleTime += dt
+            if idleTime > 7, hintCursor.isHidden, let move = game.hint() {
+                place(hintCursor, at: move.a)
+            }
+        }
+    }
+}

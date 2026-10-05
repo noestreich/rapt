@@ -1,0 +1,8 @@
+# Wird aus project.yml erzeugt
+Rapt.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+.DS_Store
