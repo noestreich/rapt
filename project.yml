@@ -12,8 +12,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    # Team: aketo GmbH. Hier die 10-stellige Team-ID eintragen (developer.apple.com → Account → Membership).
-    DEVELOPMENT_TEAM: ""
+    # Team: aketo GmbH
+    DEVELOPMENT_TEAM: 9H7F5NMT97
 
 packages:
   RaptCore:
