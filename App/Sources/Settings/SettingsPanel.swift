@@ -6,6 +6,7 @@ final class SettingsPanel {
     let node = SKNode()
     var onClose: () -> Void = {}
     var onNewGame: () -> Void = {}
+    var onHelp: () -> Void = {}
     var onChange: () -> Void = {}
     private(set) var isVisible = false
 
@@ -97,12 +98,13 @@ final class SettingsPanel {
                               set: { settings.debugCityAcceleration = $0 * 0.5 })))
         #endif
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
+        specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))
         specs.append((fixed("ZURÜCK"), .button(action: { [weak self] in self?.onClose() })))
 
         var y = y0 + 34
         for (label, kind) in specs {
             if case .section = kind, y > y0 + 40 { y += 4 }
-            if case .button = kind, !rows.contains(where: { if case .button = $0.kind { return true }; return false }) { y += 8 }
+            if case .button = kind, !rows.contains(where: { if case .button = $0.kind { return true }; return false }) { y += 3 }
             let s = SKSpriteNode()
             s.anchorPoint = CGPoint(x: 0, y: 1)
             s.position = world(x0 + 8, y)
@@ -110,7 +112,7 @@ final class SettingsPanel {
             rows.append(Row(label: label, kind: kind, y: y, sprite: s))
             switch kind {
             case .section: y += 9
-            case .button: y += 20
+            case .button: y += 19
             default: y += 14
             }
         }

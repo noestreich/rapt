@@ -52,8 +52,8 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
   dasselbe hintereinander (Bombe 32, Farbtilger 22, Strudel 18, Atombombe 16, Fresser 12). Jeder sechste Sprung
   bringt garantiert Fresser oder Atombombe, dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
-- Kurz vor dem Absturz brummt leise ein Netzbrummen und die Figur glüht rot, beides stärker je näher am Rand
-  (Sound-Labor-Platz `danger`, läuft als Schleife).
+- Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
+  setzt ein und die Musik wird leiser; alles stärker je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
 
@@ -151,7 +151,8 @@ derselbe hintereinander. Eine eigene Datei im Sound-Labor auf dem Platz „Hinte
 ## Einstellungen
 
 Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
-Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Haptik (iPhone), „Neues Spiel“ zur Moduswahl.
+Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Hinweise, Haptik (iPhone), „Neues Spiel“ zur
+Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit und Wirkung) und Spezialsteinen.
 Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) lassen sich abschalten.
 Im Debug-Build zusätzlich **Stadt-Tempo** (0,2–4 px/s) und **Beschleunigung** (0–50 % pro Spielminute, relativ zum
 Tempo) zum Experimentieren; die Werte gelten sofort.

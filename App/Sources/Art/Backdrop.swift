@@ -171,6 +171,17 @@ enum Backdrop {
         return c.texture(smooth: true)
     }
 
+    /// Verlauf für den Bildschirmrand: links deckend, nach rechts ausblendend (oder unten → oben bei `vertical`).
+    static func edgeGradient(vertical: Bool) -> SKTexture {
+        let n = 48
+        var c = vertical ? PixelCanvas(width: 1, height: n) : PixelCanvas(width: n, height: 1)
+        for i in 0..<n {
+            let a = pow(1 - Double(i) / Double(n - 1), 1.8)
+            if vertical { c.set(0, n - 1 - i, RGBA(255, 255, 255, a * 255)) } else { c.set(i, 0, RGBA(255, 255, 255, a * 255)) }
+        }
+        return c.texture(smooth: true)
+    }
+
     /// Senkrechter Verlauf, transparent – weiß – transparent. Für Strahlen quer übers Brett.
     static func beam() -> SKTexture {
         var c = PixelCanvas(width: 1, height: 32)

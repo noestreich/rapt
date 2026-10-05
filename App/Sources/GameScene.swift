@@ -113,6 +113,11 @@ final class GameScene: SKScene {
     private var hyperFrames: [SKTexture] = []
     private var splash: SplashPresenter!
     private var settingsPanel: SettingsPanel!
+    private var helpPanel: HelpPanel!
+    /// Roter Rahmen am Bildschirmrand bei Absturzgefahr (in Bildschirmkoordinaten, nicht skaliert).
+    private let edgeGlow = SKNode()
+    private var edgeSprites: [SKSpriteNode] = []
+    private var musicDuck: Float = 1
     /// Zahnrad auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
     private let gearRect = CGRect(x: 172, y: 4, width: 22, height: 20)
     private var armed: Armed?
@@ -387,6 +392,35 @@ final class GameScene: SKScene {
             if !GameSettings.shared.hintsEnabled { self.place(self.hintCursor, at: nil) }
         }
         shaker.addChild(settingsPanel.node)
+        helpPanel = makeHelpPanel()
+        helpPanel.node.zPosition = 85
+        helpPanel.onClose = { [weak self] in
+            self?.audio.play(.select, volume: 0.5)
+            self?.helpPanel.hide()
+        }
+        settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        shaker.addChild(helpPanel.node)
+
+        // Roter Rahmen um das ganze Display
+        let horizontal = Backdrop.edgeGradient(vertical: false), vertical = Backdrop.edgeGradient(vertical: true)
+        for (texture, flip) in [(horizontal, false), (horizontal, true), (vertical, false), (vertical, true)] {
+            let edge = SKSpriteNode(texture: texture)
+            edge.color = Palette.red.skColor
+            edge.colorBlendFactor = 1
+            edge.blendMode = .add
+            if texture === horizontal {
+                edge.anchorPoint = CGPoint(x: 0, y: 0.5)
+                if flip { edge.xScale = -1 }
+            } else {
+                edge.anchorPoint = CGPoint(x: 0.5, y: 0)
+                if flip { edge.yScale = -1 }
+            }
+            edgeGlow.addChild(edge)
+            edgeSprites.append(edge)
+        }
+        edgeGlow.zPosition = 200
+        edgeGlow.alpha = 0
+        addChild(edgeGlow)
         let gearRows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
         var gearCanvas = PixelCanvas(width: 7, height: 7)
         for (y, row) in gearRows.enumerated() {
@@ -434,6 +468,18 @@ final class GameScene: SKScene {
     /// Skaliert das Design-Raster ganzzahlig auf echte Pixel und zentriert es im sicheren Bereich.
     private func layoutWorld() {
         guard isBuilt, size.width > 1, size.height > 1 else { return }
+        // Roter Rahmen: links, rechts, unten, oben
+        let band = min(size.width, size.height) * 0.14
+        if edgeSprites.count == 4 {
+            edgeSprites[0].size = CGSize(width: band, height: size.height)
+            edgeSprites[0].position = CGPoint(x: 0, y: size.height / 2)
+            edgeSprites[1].size = CGSize(width: band, height: size.height)
+            edgeSprites[1].position = CGPoint(x: size.width, y: size.height / 2)
+            edgeSprites[2].size = CGSize(width: size.width, height: band)
+            edgeSprites[2].position = CGPoint(x: size.width / 2, y: 0)
+            edgeSprites[3].size = CGSize(width: size.width, height: band)
+            edgeSprites[3].position = CGPoint(x: size.width / 2, y: size.height)
+        }
         let px = pixelScale
         let availW = max(1, size.width - safeInsets.left - safeInsets.right)
         let availH = max(1, size.height - safeInsets.top - safeInsets.bottom)
@@ -1047,6 +1093,57 @@ final class GameScene: SKScene {
         return sprite
     }
 
+    /// Musik weich absenken (z. B. bei Absturzgefahr) und wieder anheben.
+    private func duckMusic(_ target: Float, dt: TimeInterval) {
+        var next = musicDuck + (target - musicDuck) * Float(min(1, dt * 3))
+        if abs(next - target) < 0.002 { next = target }
+        guard next != musicDuck else { return }
+        musicDuck = next
+        AudioCenter.shared.music.duck = next
+    }
+
+    private func makeHelpPanel() -> HelpPanel {
+        let total = Game.rewardWeights.values.reduce(0, +)
+        func percent(_ kind: PowerUp) -> String {
+            "\(Int(((Game.rewardWeights[kind] ?? 0) / total * 100).rounded()))%"
+        }
+        func icon(_ kind: PowerUp) -> SKNode {
+            SKSpriteNode(texture: iconTextures[kind], size: CGSize(width: 16, height: 16))
+        }
+        let powerUps: [HelpPanel.Entry] = [
+            .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
+                  lines: ["FELD ANTIPPEN: SPRENGT 3X3."]),
+            .init(icon: icon(.farbtilger), title: "FARBTILGER", badge: percent(.farbtilger),
+                  lines: ["STEIN ANTIPPEN: ALLE STEINE", "DIESER FARBE VERSCHWINDEN."]),
+            .init(icon: icon(.strudel), title: "STRUDEL", badge: percent(.strudel),
+                  lines: ["MISCHT DAS BRETT NEU. DANACH", "IST IMMER EIN ZUG MÖGLICH."]),
+            .init(icon: icon(.atom), title: "ATOMBOMBE", badge: percent(.atom),
+                  lines: ["FELD ANTIPPEN: SPRENGT 5X5."]),
+            .init(icon: icon(.fresser), title: "FRESSER", badge: percent(.fresser),
+                  lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."]),
+        ]
+
+        let lineStone = SKNode()
+        let flames = SKSpriteNode(texture: SpecialArt.lineFlames(ramp: sprites[.kristall]!.ramp, horizontal: true).first)
+        flames.size = CGSize(width: 28, height: 18)
+        lineStone.addChild(flames)
+        lineStone.addChild(SKSpriteNode(texture: sprites[.kristall]!.texture, size: CGSize(width: 18, height: 18)))
+        let bombStone = SKSpriteNode(texture: sprites[.orden]!.texture, size: CGSize(width: 22, height: 22))
+        bombStone.addChild(SKSpriteNode(texture: bombOverlay, size: CGSize(width: 22, height: 22)))
+        let hyper = SKSpriteNode(texture: hyperFrames.first, size: CGSize(width: 22, height: 22))
+        hyper.run(.repeatForever(.animate(with: hyperFrames, timePerFrame: 0.08)))
+        let specials: [HelpPanel.Entry] = [
+            .init(icon: lineStone, title: "LINIEN-STEIN", badge: "",
+                  lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."]),
+            .init(icon: bombStone, title: "BOMBEN-STEIN", badge: "",
+                  lines: ["L- ODER T-FORM. SPRENGT 3X3."]),
+            .init(icon: hyper, title: "HYPERSTEIN", badge: "",
+                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."]),
+        ]
+        return HelpPanel(designHeight: Layout.height, powerUps: powerUps, specials: specials,
+                         footnote: "JEDER 6. SPRUNG: FRESSER ODER ATOM.")
+    }
+
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
     private func toggleRandomWindow() {
         guard let sprite = buildingSprites.values.randomElement() else { return }
@@ -1636,6 +1733,10 @@ final class GameScene: SKScene {
         idleTime = 0
         place(hintCursor, at: nil)
         let d = CGPoint(x: point.x, y: Layout.height - point.y)
+        if helpPanel.isVisible {
+            helpPanel.pointerDown(d)
+            return
+        }
         if settingsPanel.isVisible {
             settingsPanel.pointerDown(d)
             return
@@ -1680,6 +1781,7 @@ final class GameScene: SKScene {
     }
 
     private func pointerMoved(_ point: CGPoint) {
+        if helpPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerMoved(CGPoint(x: point.x, y: Layout.height - point.y))
             return
@@ -1709,6 +1811,7 @@ final class GameScene: SKScene {
 
     private func pointerUp(_ point: CGPoint) {
         swipeStart = nil
+        if helpPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerUp()
             return
@@ -1817,9 +1920,14 @@ final class GameScene: SKScene {
             let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
             dangerAura.alpha = CGFloat(Double(level) * 0.85 * pulse)
             dangerAura.setScale(CGFloat(0.9 + 0.5 * Double(level)))
+            // Rahmen sofort sichtbar, sobald Gefahr besteht, und stärker je näher der Rand
+            edgeGlow.alpha = danger ? CGFloat((0.35 + 0.55 * Double(level)) * pulse) : 0
+            duckMusic(danger ? 0.45 : 1, dt: dt)
         } else {
             audio.setDanger(0)
             dangerAura.alpha = 0
+            edgeGlow.alpha = 0
+            duckMusic(1, dt: dt)
         }
 
         if !busy && !game.isOver && pointerStart == nil && armed == nil && game.hasValidMove {

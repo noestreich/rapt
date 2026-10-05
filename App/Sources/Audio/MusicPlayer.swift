@@ -19,7 +19,12 @@ final class MusicPlayer {
         didSet { if fadeTimer == nil { player.volume = effectiveVolume } }
     }
 
-    private var effectiveVolume: Float { volume * Float(library.gain(for: .music)) }
+    /// Absenkung, z. B. bei Absturzgefahr (1 = normal).
+    var duck: Float = 1 {
+        didSet { if fadeTimer == nil && isPlaying { player.volume = effectiveVolume } }
+    }
+
+    private var effectiveVolume: Float { volume * duck * Float(library.gain(for: .music)) }
 
     init(library: SoundLibrary) {
         self.library = library
