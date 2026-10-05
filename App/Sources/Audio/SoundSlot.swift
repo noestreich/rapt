@@ -18,6 +18,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
     case purge
     case chomp
     case gameOver
+    case voiceKira
+    case voiceBoris
+    case voiceJuki
+    case voiceZora
+    case voiceK9
+    case voiceRobo
     case music
 
     var id: String { rawValue }
@@ -41,6 +47,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .purge: return "Farbtilger"
         case .chomp: return "Fresser frisst"
         case .gameOver: return "Keine Züge mehr"
+        case .voiceKira: return "Funk: KIRA"
+        case .voiceBoris: return "Funk: BORIS"
+        case .voiceJuki: return "Funk: JUKI"
+        case .voiceZora: return "Funk: MAMA ZORA"
+        case .voiceK9: return "Funk: K-9"
+        case .voiceRobo: return "Funk: ROBO-7"
         case .music: return "Hintergrundmusik"
         }
     }
@@ -65,11 +77,20 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .purge: return "Der Farbtilger schlägt in alle Steine einer Farbe ein."
         case .chomp: return "Der Fresser frisst einen Stein. Wird mit jedem Bissen etwas höher."
         case .gameOver: return "Kein Zug und kein Power-up mehr, Spielende."
+        case .voiceKira: return "KIRA übergibt einen Linien-Stein. Eigene Aufnahmen bekommen automatisch Funkklang."
+        case .voiceBoris: return "BORIS übergibt einen Bomben-Stein oder eine Bombe."
+        case .voiceJuki: return "JUKI übergibt den Farbtilger."
+        case .voiceZora: return "MAMA ZORA übergibt einen Hyperstein oder den Strudel."
+        case .voiceK9: return "K-9 übergibt den Fresser."
+        case .voiceRobo: return "ROBO-7 übergibt die Atombombe."
         case .music: return "Läuft in Schleife, solange Musik eingeschaltet ist."
         }
     }
 
     var isMusic: Bool { self == .music }
+
+    /// Stimmen bekommen Funkklang und haben keinen eingebauten Ersatzton (der Plapper-Synthesizer springt ein).
+    var isVoice: Bool { rawValue.hasPrefix("voice") }
 
     static let audioExtensions = ["wav", "mp3", "m4a", "aif", "aiff", "caf"]
 }

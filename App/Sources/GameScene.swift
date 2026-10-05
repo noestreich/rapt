@@ -88,7 +88,7 @@ final class GameScene: SKScene {
     private var isBuilt = false
 
     // Power-ups
-    private enum Armed { case bomb, purge }
+    private enum Armed { case bomb, atom, purge }
 
     private struct Direction: Equatable {
         let dc: Int
@@ -107,6 +107,10 @@ final class GameScene: SKScene {
         var shownSeconds = -1
     }
 
+    private var lineOverlays: [Bool: SKTexture] = [:]
+    private var bombOverlay = SKTexture()
+    private var hyperFrames: [SKTexture] = []
+    private var splash: SplashPresenter!
     private var armed: Armed?
     private var armedSlot = 0
     private var fresser: FresserState?
@@ -197,6 +201,9 @@ final class GameScene: SKScene {
             stoneTextures[gem] = GemArt.makeSprite(gem, petrified: true).texture
         }
         for kind in PowerUp.allCases { iconTextures[kind] = PowerUpArt.icon(kind) }
+        lineOverlays = [true: SpecialArt.lineOverlay(horizontal: true), false: SpecialArt.lineOverlay(horizontal: false)]
+        bombOverlay = SpecialArt.bombOverlay()
+        hyperFrames = SpecialArt.hyperFrames()
         chomperFrames = PowerUpArt.chomperFrames()
         let frames = PowerUpArt.figureFrames()
         figureIdle = frames.idle
@@ -312,6 +319,13 @@ final class GameScene: SKScene {
 
         buildBracket(cursor, color: RGBA(hex: 0xFFD27A).skColor)
         buildBracket(hintCursor, color: RGBA(hex: 0x9FB4FF).skColor)
+        splash = SplashPresenter(topLeft: design(8, 10), width: 184, height: 68)
+        splash.onSpeak = { [weak self] contact in
+            AudioCenter.shared.speak(contact)
+            self?.haptics.select()
+        }
+        shaker.addChild(splash.node)
+
         buildBracket(armedBracket, color: RGBA(hex: 0xFF6A3D).skColor, size: Layout.slotSize)
         armedBracket.zPosition = 46
         shaker.addChild(armedBracket)
@@ -498,12 +512,31 @@ final class GameScene: SKScene {
         }
     }
 
-    private func makeGem(_ gem: Gem, at p: Pos) -> GemNode {
+    private func makeGem(_ gem: Gem, at p: Pos, special: Special? = nil) -> GemNode {
         let node = GemNode(gem: gem, texture: sprites[gem]!.texture, glowTexture: glowTexture)
+        applySpecial(special, to: node)
         node.position = center(of: p)
         gemLayer.addChild(node)
         glowLayer.addChild(node.glow)
         return node
+    }
+
+    private func applySpecial(_ special: Special?, to node: GemNode) {
+        var overlay: SKTexture?
+        switch special {
+        case .line(let horizontal)?: overlay = lineOverlays[horizontal]
+        case .bomb?: overlay = bombOverlay
+        default: overlay = nil
+        }
+        node.setSpecial(special, overlay: overlay, hyperFrames: hyperFrames)
+    }
+
+    private func itemTexture(for special: Special) -> SKTexture {
+        switch special {
+        case .hyper: return hyperFrames.first ?? SKTexture()
+        case .bomb: return iconTextures[.bombe] ?? SKTexture()
+        case .line: return lineOverlays[true] ?? SKTexture()
+        }
     }
 
     /// Fall mit Erdbeschleunigung (52 Felder/s²) und 1-px-Nachfedern.
@@ -620,7 +653,19 @@ final class GameScene: SKScene {
         let combo = step.combo
         guard !step.runs.isEmpty else {
             explodeCells(step)
+            playDetonations(step.detonations)
             return
+        }
+        playDetonations(step.detonations)
+        for creation in step.created {
+            guard let node = gems[creation.pos] else { continue }
+            applySpecial(creation.special, to: node)
+            let c = center(of: creation.pos)
+            fx.warpRing(at: c, color: GemArt.glowColor(creation.gem), radius: 26)
+            fx.flash(at: c, color: .white)
+            audio.play(.powerUp, volume: 0.45)
+            let delivery = SplashPresenter.Delivery(contact: Contact.contact(for: creation.special), item: itemTexture(for: creation.special))
+            splash.present(delivery, at: clock, force: creation.special == .hyper)
         }
         for p in step.cleared {
             if let node = gems.removeValue(forKey: p) { pop(node) }
@@ -677,6 +722,40 @@ final class GameScene: SKScene {
             haptics.match(combo: combo)
         }
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
+    }
+
+    /// Wirkung ausgelöster Spezialsteine: Strahlen, Explosionen, Blitze.
+    private func playDetonations(_ detonations: [Detonation]) {
+        guard !detonations.isEmpty else { return }
+        let boardMid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        for (i, d) in detonations.enumerated() {
+            let c = center(of: d.pos)
+            let color = GemArt.glowColor(d.gem)
+            let delay = Double(i) * 0.06
+            run(.sequence([.wait(forDuration: delay), .run { [weak self] in
+                guard let self else { return }
+                switch d.special {
+                case .line(let horizontal):
+                    let beamCenter = horizontal ? CGPoint(x: boardMid.x, y: c.y) : CGPoint(x: c.x, y: boardMid.y)
+                    self.fx.beam(horizontal: horizontal, center: beamCenter, length: CGFloat(Layout.boardSize), color: color)
+                    self.audio.play(.warp, volume: 0.45)
+                case .bomb:
+                    self.fx.explosion(at: c, scale: 1.6)
+                    self.warp(at: c, strength: 5, color: SKColor(red: 1, green: 0.55, blue: 0.2, alpha: 1))
+                    self.audio.play(.bomb, volume: 0.7)
+                    self.shake(strength: 2)
+                case .hyper:
+                    self.fx.warpRing(at: c, color: .white, radius: 80)
+                    for (k, q) in d.cells.enumerated() where q != d.pos {
+                        self.fx.lightning(from: c, to: self.center(of: q), color: color, delay: Double(k) * 0.015)
+                    }
+                    self.audio.play(.purge, volume: 0.8)
+                    self.shake(strength: 2)
+                }
+            }]))
+        }
+        audio.play(.explosion, volume: min(1, 0.5 + 0.1 * Float(detonations.count)))
+        haptics.explosion()
     }
 
     /// Stufe ohne Reihen: Steine, die ein Power-up entfernt (Bombe, Farbtilger, Fresser).
@@ -798,6 +877,8 @@ final class GameScene: SKScene {
         case .bombe: return "BOMBE"
         case .farbtilger: return "FARBTILGER"
         case .fresser: return "FRESSER"
+        case .strudel: return "STRUDEL"
+        case .atom: return "ATOMBOMBE"
         }
     }
 
@@ -852,6 +933,8 @@ final class GameScene: SKScene {
             setStatus("WISCHEN ZUM LENKEN", color: Palette.amber)
         } else if armed == .bomb {
             setStatus("BOMBE: ZIEL WÄHLEN", color: Palette.amber)
+        } else if armed == .atom {
+            setStatus("ATOMBOMBE: ZIEL WÄHLEN", color: Palette.amber)
         } else if armed == .purge {
             setStatus("FARBTILGER: FARBE WÄHLEN", color: Palette.amber)
         } else if !game.isOver && !game.hasValidMove {
@@ -884,6 +967,11 @@ final class GameScene: SKScene {
             setArmed(armed == .bomb && armedSlot == i ? nil : .bomb, slot: i)
         case .farbtilger:
             setArmed(armed == .purge && armedSlot == i ? nil : .purge, slot: i)
+        case .atom:
+            setArmed(armed == .atom && armedSlot == i ? nil : .atom, slot: i)
+        case .strudel:
+            setArmed(nil)
+            shuffleBoard()
         case .fresser:
             setArmed(nil)
             startFresser()
@@ -908,9 +996,28 @@ final class GameScene: SKScene {
             shake(strength: 3)
             run(.sequence([.wait(forDuration: 0.12), .run { [weak self] in self?.play(result, index: 0) }]))
 
+        case .atom:
+            let result = game.useAtom(at: p)
+            guard result.isValid else { return }
+            busy = true
+            updateSlots()
+            audio.play(.bomb, volume: 1)
+            audio.play(.explosion, volume: 1)
+            audio.play(.warp, volume: 0.8)
+            haptics.explosion()
+            fx.explosion(at: c, scale: 3.4)
+            for _ in 0..<6 {
+                fx.explosion(at: CGPoint(x: c.x + CGFloat.random(in: -40...40), y: c.y + CGFloat.random(in: -40...40)), scale: 1.2)
+            }
+            let flash = fx.glow(at: c, color: .white, size: 400, alpha: 0.6)
+            flash.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()]))
+            warp(at: c, strength: 12, color: SKColor(red: 0.95, green: 0.85, blue: 0.3, alpha: 1))
+            shake(strength: 4)
+            run(.sequence([.wait(forDuration: 0.18), .run { [weak self] in self?.play(result, index: 0) }]))
+
         case .purge:
-            guard let color = game.board[p] else { return }
-            let targets = game.board.positions.filter { game.board[$0] == color }
+            guard let color = game.board.color(at: p) else { return }
+            let targets = game.board.positions.filter { game.board.color(at: $0) == color }
             let result = game.usePurge(color)
             guard result.isValid else { return }
             busy = true
@@ -926,6 +1033,71 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Strudel: alle Steine wirbeln an neue Plätze.
+    private func shuffleBoard() {
+        guard !busy else { return }
+        let result = game.useShuffle()
+        guard result.isValid else { return }
+        busy = true
+        setSelected(nil)
+        updateSlots()
+        audio.play(.warp, volume: 0.8)
+        audio.play(.steam, volume: 0.5)
+        haptics.warp()
+        let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        fx.warpRing(at: mid, color: SKColor(red: 0.7, green: 0.35, blue: 0.9, alpha: 1), radius: 120)
+
+        if result.replacedBoard {
+            gems.values.forEach { node in
+                fx.steam(at: node.position)
+                node.removeWithGlow()
+            }
+            gems = [:]
+            var longest = 0.0
+            for p in game.board.positions {
+                guard let tile = game.board[tile: p] else { continue }
+                let node = makeGem(tile.gem, at: Pos(p.col, p.row - Layout.count - 1), special: tile.special)
+                gems[p] = node
+                let delay = Double(p.col) * 0.03
+                longest = max(longest, drop(node, to: p, rows: Layout.count + 1, delay: delay) + delay)
+            }
+            run(.sequence([.wait(forDuration: longest + 0.05), .run { [weak self] in self?.afterShuffle(result.isGameOver) }]))
+            return
+        }
+
+        var moved: [Pos: GemNode] = [:]
+        for (from, to) in result.moves {
+            guard let node = gems[from] else { continue }
+            moved[to] = node
+            // Bogen über die Brettmitte
+            let start = node.position, end = center(of: to)
+            let swirl = SKAction.customAction(withDuration: 0.55) { n, elapsed in
+                let t = elapsed / 0.55
+                let e = t * t * (3 - 2 * t)
+                let angle = (1 - e) * .pi * 1.2
+                let base = CGPoint(x: start.x + (end.x - start.x) * e, y: start.y + (end.y - start.y) * e)
+                let pull = sin(.pi * e) * 0.35
+                let dx = base.x - mid.x, dy = base.y - mid.y
+                n.position = CGPoint(x: (mid.x + (dx * cos(angle) - dy * sin(angle)) * (1 - pull)).rounded(),
+                                     y: (mid.y + (dx * sin(angle) + dy * cos(angle)) * (1 - pull)).rounded())
+            }
+            node.removeAllActions()
+            node.run(.sequence([swirl, .move(to: end, duration: 0.05)]))
+        }
+        gems = moved
+        run(.sequence([.wait(forDuration: 0.65), .run { [weak self] in self?.afterShuffle(result.isGameOver) }]))
+    }
+
+    private func afterShuffle(_ isGameOver: Bool) {
+        audio.play(.land, volume: 0.5)
+        if isGameOver {
+            showGameOver()
+        } else {
+            busy = false
+        }
+        refreshStatus()
+    }
+
     // MARK: Fresser
 
     private func startFresser() {
@@ -933,7 +1105,7 @@ final class GameScene: SKScene {
         busy = true
         setSelected(nil)
         updateSlots()
-        for node in gems.values where round.stones.contains(node.gem) {
+        for node in gems.values where node.special != .hyper && round.stones.contains(node.gem) {
             node.isPetrified = true
             node.body.texture = stoneTextures[node.gem]
             fx.flash(at: node.position, color: SKColor(white: 0.7, alpha: 1))
@@ -960,7 +1132,7 @@ final class GameScene: SKScene {
     }
 
     private func passable(_ p: Pos, _ round: FresserRound) -> Bool {
-        guard let gem = game.board.contains(p) ? game.board[p] : nil else { return false }
+        guard let gem = game.board.contains(p) ? game.board.color(at: p) : nil else { return false }
         return !round.stones.contains(gem)
     }
 
@@ -1021,6 +1193,7 @@ final class GameScene: SKScene {
         for node in gems.values where node.isPetrified {
             node.isPetrified = false
             node.body.texture = sprites[node.gem]!.texture
+            applySpecial(node.special, to: node)
             fx.flash(at: node.position, color: GemArt.glowColor(node.gem))
         }
         audio.play(.cascade, volume: 0.6)
@@ -1083,6 +1256,8 @@ final class GameScene: SKScene {
             let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
             if let kind = reward.powerUp {
                 self.audio.play(.powerUp, volume: 0.7)
+                let delivery = SplashPresenter.Delivery(contact: Contact.contact(for: kind), item: self.iconTextures[kind] ?? SKTexture())
+                self.splash.present(delivery, at: self.clock, force: true)
                 self.fx.popup("+ " + Self.name(kind), at: slotLabel, color: Palette.amber)
                 self.flashSlot((self.game.powerUps.lastIndex(of: kind)) ?? 0)
             } else if reward.bonusPoints > 0 {

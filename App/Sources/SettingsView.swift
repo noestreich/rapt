@@ -13,11 +13,12 @@ struct SettingsView: View {
                 Slider(value: $settings.musicVolume, in: 0...1) { Text("Lautstärke Musik") }
                     .disabled(!settings.musicEnabled)
             }
-            #if os(iOS)
-            Section("Gefühl") {
+            Section("Spiel") {
+                Toggle("Funksprüche der Kontakte", isOn: $settings.splashesEnabled)
+                #if os(iOS)
                 Toggle("Haptik", isOn: $settings.hapticsEnabled)
+                #endif
             }
-            #endif
         }
     }
 }

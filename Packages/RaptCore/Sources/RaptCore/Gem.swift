@@ -49,3 +49,26 @@ public struct Pos: Hashable, Sendable, CustomStringConvertible {
 
     public var description: String { "(\(col),\(row))" }
 }
+
+/// Spezialsteine entstehen aus besonderen Reihen und lösen beim Abräumen eine Wirkung aus.
+public enum Special: Equatable, Hashable, Sendable {
+    /// Aus einer Viererreihe. Räumt die ganze Zeile (`horizontal`) oder Spalte ab.
+    case line(horizontal: Bool)
+    /// Aus einer L- oder T-Form. Sprengt 3×3.
+    case bomb
+    /// Aus einer Fünferreihe. Hat keine Farbe; getauscht löscht er alle Steine der anderen Farbe.
+    case hyper
+}
+
+/// Inhalt eines Feldes.
+public struct Tile: Equatable, Sendable {
+    public var gem: Gem
+    public var special: Special?
+
+    public init(_ gem: Gem, _ special: Special? = nil) {
+        self.gem = gem
+        self.special = special
+    }
+
+    public var isHyper: Bool { special == .hyper }
+}

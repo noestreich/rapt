@@ -9,6 +9,7 @@ final class GameSettings: ObservableObject {
     @Published var musicEnabled: Bool { didSet { save(musicEnabled, "musicEnabled") } }
     @Published var musicVolume: Double { didSet { save(musicVolume, "musicVolume") } }
     @Published var hapticsEnabled: Bool { didSet { save(hapticsEnabled, "hapticsEnabled") } }
+    @Published var splashesEnabled: Bool { didSet { save(splashesEnabled, "splashesEnabled") } }
 
     private init() {
         let defaults = UserDefaults.standard
@@ -18,12 +19,14 @@ final class GameSettings: ObservableObject {
             "rapt.musicEnabled": true,
             "rapt.musicVolume": 0.6,
             "rapt.hapticsEnabled": true,
+            "rapt.splashesEnabled": true,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
         musicEnabled = defaults.bool(forKey: "rapt.musicEnabled")
         musicVolume = defaults.double(forKey: "rapt.musicVolume")
         hapticsEnabled = defaults.bool(forKey: "rapt.hapticsEnabled")
+        splashesEnabled = defaults.bool(forKey: "rapt.splashesEnabled")
     }
 
     private func save(_ value: Any, _ key: String) {

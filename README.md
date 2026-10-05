@@ -41,9 +41,40 @@ hochskaliert. Licht und Partikel rendern in voller Auflösung darüber.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr. Jeder erfüllte Plan lässt die Figur auf den Plattenbauten
   ein Dach weiterspringen und legt ein Power-up ins Lager (drei Plätze unter der Plan-Leiste).
-- Reihenfolge pro Runde über die Dächer: **Bombe → Farbtilger → Bombe → Fresser** (letztes Dach, mit Feuerwerk).
+- Reihenfolge pro Runde über die Dächer: **Bombe → Farbtilger → Strudel → Bombe → Atombombe → Fresser** (letztes Dach, mit Feuerwerk).
   Danach beginnt die Figur wieder vorne. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
+
+### Spezialsteine
+
+| Entsteht aus | Spezialstein | Wirkung beim Abräumen |
+|---|---|---|
+| Viererreihe | Linien-Stein | räumt die ganze Zeile bzw. Spalte ab |
+| L- oder T-Form | Bomben-Stein | sprengt 3 × 3 |
+| Fünferreihe | Hyperstein | mit einem Nachbarn tauschen: alle Steine dieser Farbe verschwinden; zwei Hypersteine räumen das ganze Brett |
+
+Spezialsteine lösen sich gegenseitig aus (Kettenreaktionen) und werden auch von Bombe und Atombombe gezündet.
+
+### Funksprüche
+
+Beim Hyperstein, bei jedem Power-up und (höchstens alle 20 Sekunden) bei Linien- und Bomben-Steinen schiebt sich
+eine Funk-Einblendung über die Punkteplatte: ein Kontakt reicht dir den Gegenstand, dazu ein unverständlicher
+Funkspruch. Das Spiel läuft dabei weiter. Abschaltbar in den Einstellungen.
+
+| Kontakt | Liefert |
+|---|---|
+| KIRA | Linien-Stein |
+| BORIS | Bomben-Stein, Bombe |
+| JUKI | Farbtilger |
+| MAMA ZORA | Hyperstein, Strudel |
+| K-9 | Fresser |
+| ROBO-7 | Atombombe |
+
+- **Porträts:** Platzhalter werden im Code erzeugt. Eigene Bilder als `App/Resources/portrait_<id>.png`
+  (`kira`, `boris`, `juki`, `zora`, `k9`, `robo`), 48 × 48 Pixel, danach `xcodegen generate`.
+- **Stimmen:** Ohne Datei spricht ein Plapper-Synthesizer (Vokal-Formanten, pro Figur eigene Tonhöhe und Tempo).
+  Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang
+  (Bandpass, Verzerrung, Rauschen, Klicken der Sendetaste).
 
 ### Power-ups
 
@@ -53,6 +84,8 @@ Im Lager antippen, dann:
 |---|---|
 | Bombe | Feld antippen: sprengt 3 × 3 Steine |
 | Farbtilger | Stein antippen: alle Steine dieser Farbe verschwinden |
+| Strudel | Startet sofort: alle Steine wirbeln an neue Plätze, danach ist garantiert ein Zug möglich |
+| Atombombe | Feld antippen: sprengt 5 × 5 Steine |
 | Fresser | Startet sofort: zwei Farben versteinern, 10 Sekunden lang lenkst du den Fressautomaten per Wischen und frisst alle anderen Steine |
 
 ## Sound-Labor (Mac)
@@ -87,6 +120,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `bomb` | Bombe zündet |
 | `purge` | Farbtilger schlägt ein |
 | `chomp` | Fresser frisst einen Stein (wird pro Bissen höher) |
+| `voiceKira` … `voiceRobo` | Funkspruch des jeweiligen Kontakts (bekommt automatisch Funkklang) |
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
 

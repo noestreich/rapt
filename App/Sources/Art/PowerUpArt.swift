@@ -88,7 +88,44 @@ enum PowerUpArt {
         case .bombe: return bombIcon().texture()
         case .farbtilger: return purgeIcon().texture()
         case .fresser: return chomper(mouth: 30, size: 16)
+        case .strudel: return spiralIcon().texture()
+        case .atom: return atomIcon().texture()
         }
+    }
+
+    /// Violetter Strudel.
+    private static func spiralIcon() -> PixelCanvas {
+        var c = PixelCanvas(width: 16, height: 16)
+        let ramp: [RGBA] = [0x2A1238, 0x6A2A8A, 0xA858D8, 0xE0B0FF].map { RGBA(hex: $0) }
+        for y in 0..<16 {
+            for x in 0..<16 {
+                let dx = Double(x) - 7.5, dy = Double(y) - 7.5
+                let d = (dx * dx + dy * dy).squareRoot()
+                guard d <= 7.4 else { continue }
+                let arm = sin(atan2(dy, dx) * 2 + d * 0.9)
+                let level = clamp(Int((arm * 0.5 + 0.5) * 3.2 + (1 - d / 7.4) * 1.2), 0, 3)
+                c.set(x, y, d > 6.6 ? RGBA(hex: 0x120E18) : ramp[level])
+            }
+        }
+        return c
+    }
+
+    /// Strahlenwarnzeichen.
+    private static func atomIcon() -> PixelCanvas {
+        var c = PixelCanvas(width: 16, height: 16)
+        for y in 0..<16 {
+            for x in 0..<16 {
+                let dx = Double(x) - 7.5, dy = Double(y) - 7.5
+                let d = (dx * dx + dy * dy).squareRoot()
+                guard d <= 7.6 else { continue }
+                var a = atan2(dy, dx) + .pi / 2 + .pi / 6
+                a = (a.truncatingRemainder(dividingBy: 2 * .pi / 3) + 2 * .pi / 3).truncatingRemainder(dividingBy: 2 * .pi / 3)
+                let blade = a < .pi / 3 && d > 2.6 && d < 6.4
+                let color: UInt32 = d > 6.8 ? 0x120E18 : (d < 1.6 || blade ? 0x1A1418 : 0xF0C23A)
+                c.set(x, y, RGBA(hex: color))
+            }
+        }
+        return c
     }
 
     private static func bombIcon() -> PixelCanvas {

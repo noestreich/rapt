@@ -9,30 +9,41 @@ final class PowerUpTests: XCTestCase {
         "RRNK",
     ])
 
+    /// Setzt alle Power-ups im Lager ein, damit wieder Platz ist.
+    private func emptyStorage(_ game: inout Game) {
+        while let kind = game.powerUps.first {
+            switch kind {
+            case .bombe: _ = game.useBomb(at: Pos(4, 4))
+            case .atom: _ = game.useAtom(at: Pos(4, 4))
+            case .farbtilger: _ = game.usePurge(game.board.color(at: Pos(0, 0)) ?? .orden)
+            case .strudel: _ = game.useShuffle()
+            case .fresser:
+                guard let round = game.startFresser() else { return }
+                _ = game.finishFresser(round, eaten: [round.start])
+            }
+        }
+    }
+
     func testPlansWalkTheRoofsAndFillStorage() {
         var game = Game(seed: 7)
-        // Plan 2, 3, 4 und 5 auf einmal: Bombe, Farbtilger, Bombe, dann Fresser auf dem letzten Dach
-        let rewards = game.award(points: Game.planThreshold(5))
-        XCTAssertEqual(rewards.map(\.plan), [2, 3, 4, 5])
-        XCTAssertEqual(rewards.map(\.roof), [1, 2, 3, 4])
-        XCTAssertEqual(game.powerUps, [.bombe, .farbtilger, .bombe])
-        // Lager voll: statt Fresser gibt es Bonuspunkte
-        let last = rewards[3]
-        XCTAssertTrue(last.reachedTop)
-        XCTAssertNil(last.powerUp)
-        XCTAssertEqual(last.bonusPoints, Game.fullStorageBonus)
-        XCTAssertEqual(game.score, Game.planThreshold(5) + Game.fullStorageBonus)
+        let top = Game.roofCount - 1
+        let rewards = game.award(points: Game.planThreshold(top + 1))
+        XCTAssertEqual(rewards.map(\.plan), Array(2...(top + 1)))
+        XCTAssertEqual(rewards.map(\.roof), Array(1...top))
+        XCTAssertEqual(game.powerUps, Array(Game.roofRewards.prefix(Game.maxPowerUps)))
+        let overflow = rewards.count - Game.maxPowerUps
+        XCTAssertTrue(rewards.suffix(overflow).allSatisfy { $0.powerUp == nil && $0.bonusPoints == Game.fullStorageBonus })
+        XCTAssertTrue(rewards.last!.reachedTop)
+        XCTAssertEqual(game.score, Game.planThreshold(top + 1) + overflow * Game.fullStorageBonus)
         XCTAssertEqual(game.roof, 0, "Nach dem letzten Dach beginnt die Figur wieder vorne")
     }
 
     func testTopRoofGrantsFresserWhenThereIsRoom() {
         var game = Game(seed: 7)
-        _ = game.award(points: Game.planThreshold(4))
-        XCTAssertEqual(game.powerUps, [.bombe, .farbtilger, .bombe])
-        XCTAssertTrue(game.useBomb(at: Pos(3, 3)).isValid)
-        XCTAssertEqual(game.powerUps.count, 2)
-        let rewards = game.award(points: max(0, Game.planThreshold(5) - game.score))
-        XCTAssertEqual(rewards.last?.powerUp, .fresser)
+        _ = game.award(points: Game.planThreshold(Game.roofCount - 1))
+        emptyStorage(&game)
+        let rewards = game.award(points: max(0, Game.planThreshold(Game.roofCount) - game.score))
+        XCTAssertTrue(rewards.contains { $0.reachedTop && $0.powerUp == .fresser })
         XCTAssertTrue(game.powerUps.contains(.fresser))
     }
 
@@ -58,29 +69,59 @@ final class PowerUpTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(result.steps.first).cleared.count, 4)
     }
 
+    func testAtomClearsFiveByFive() throws {
+        var game = Game(seed: 9)
+        let atomRoof = try XCTUnwrap(Game.roofRewards.firstIndex(of: .atom)) + 1
+        _ = game.award(points: Game.planThreshold(atomRoof))
+        emptyStorage(&game)
+        _ = game.award(points: max(0, Game.planThreshold(atomRoof + 1) - game.score))
+        XCTAssertTrue(game.powerUps.contains(.atom))
+        let result = game.useAtom(at: Pos(4, 4))
+        XCTAssertEqual(try XCTUnwrap(result.steps.first).cleared.count, 25)
+    }
+
     func testPurgeRemovesEveryGemOfOneColor() throws {
         var game = Game(seed: 11)
         _ = game.award(points: Game.planThreshold(3))
-        let color = try XCTUnwrap(game.board[Pos(0, 0)])
-        let count = game.board.positions.filter { game.board[$0] == color }.count
+        let color = try XCTUnwrap(game.board.color(at: Pos(0, 0)))
+        let count = game.board.positions.filter { game.board.color(at: $0) == color }.count
         let result = game.usePurge(color)
         let first = try XCTUnwrap(result.steps.first)
         XCTAssertEqual(first.cleared.count, count)
         XCTAssertFalse(game.powerUps.contains(.farbtilger))
     }
 
+    func testShuffleKeepsGemsAndLeavesAMove() {
+        var game = Game(seed: 4)
+        _ = game.award(points: Game.planThreshold(4))
+        XCTAssertTrue(game.powerUps.contains(.strudel))
+        let before = game.board
+        let result = game.useShuffle()
+        XCTAssertTrue(result.isValid)
+        XCTAssertFalse(game.powerUps.contains(.strudel))
+        XCTAssertTrue(game.board.runs().isEmpty)
+        XCTAssertTrue(game.board.hasValidMove)
+        if !result.replacedBoard {
+            XCTAssertEqual(result.moves.count, 64)
+            for (from, to) in result.moves {
+                XCTAssertEqual(before[tile: from], game.board[tile: to])
+            }
+        }
+    }
+
     func testFresserPetrifiesTwoColorsAndIgnoresEatenStones() throws {
         var game = Game(seed: 5)
         _ = game.award(points: Game.planThreshold(3))
         XCTAssertNil(game.startFresser(), "Ohne Fresser im Lager startet keine Runde")
-        _ = game.useBomb(at: Pos(1, 1))
-        _ = game.award(points: Game.planThreshold(5) - game.score)
+        _ = game.award(points: Game.planThreshold(Game.roofCount - 1) - game.score)
+        emptyStorage(&game)
+        _ = game.award(points: max(0, Game.planThreshold(Game.roofCount) - game.score))
         let round = try XCTUnwrap(game.startFresser())
         XCTAssertEqual(round.stones.count, 2)
         let startGem = try XCTUnwrap(game.board[round.start])
         XCTAssertFalse(round.stones.contains(startGem))
 
-        let stone = try XCTUnwrap(game.board.positions.first { game.board[$0].map(round.stones.contains) ?? false })
+        let stone = try XCTUnwrap(game.board.positions.first { game.board.color(at: $0).map(round.stones.contains) ?? false })
         let result = game.finishFresser(round, eaten: [round.start, stone])
         XCTAssertEqual(try XCTUnwrap(result.steps.first).cleared, [round.start])
         XCTAssertFalse(game.powerUps.contains(.fresser))

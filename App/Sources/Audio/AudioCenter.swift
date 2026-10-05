@@ -42,7 +42,16 @@ final class AudioCenter {
                 }
             }
         default:
-            effects.play(slot)
+            if slot.isVoice, let contact = Contact.all.first(where: { $0.voiceSlot == slot }) {
+                speak(contact)
+            } else {
+                effects.play(slot)
+            }
         }
+    }
+
+    func speak(_ contact: Contact) {
+        let v = contact.voice
+        effects.voice(contact.voiceSlot, pitch: v.pitch, speed: v.speed, melody: v.melody, vibrato: v.vibrato, ring: v.ring)
     }
 }

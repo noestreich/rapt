@@ -27,8 +27,8 @@ extension Board {
         for row in 0..<rows {
             var start = 0
             for col in 1...cols {
-                if col < cols, let g = self[col: col, row: row], g == self[col: start, row: row] { continue }
-                if col - start >= 3, let g = self[col: start, row: row] {
+                if col < cols, let g = color(at: Pos(col, row)), g == color(at: Pos(start, row)) { continue }
+                if col - start >= 3, let g = color(at: Pos(start, row)) {
                     out.append(Run(gem: g, cells: (start..<col).map { Pos($0, row) }, isHorizontal: true))
                 }
                 start = col
@@ -37,8 +37,8 @@ extension Board {
         for col in 0..<cols {
             var start = 0
             for row in 1...rows {
-                if row < rows, let g = self[col: col, row: row], g == self[col: col, row: start] { continue }
-                if row - start >= 3, let g = self[col: col, row: start] {
+                if row < rows, let g = color(at: Pos(col, row)), g == color(at: Pos(col, start)) { continue }
+                if row - start >= 3, let g = color(at: Pos(col, start)) {
                     out.append(Run(gem: g, cells: (start..<row).map { Pos(col, $0) }, isHorizontal: false))
                 }
                 start = row
@@ -49,24 +49,27 @@ extension Board {
 
     /// Liegt `p` in einer Reihe aus mindestens drei gleichen Steinen?
     func hasRun(through p: Pos) -> Bool {
-        guard let g = self[p] else { return false }
+        guard let g = color(at: p) else { return false }
         var h = 1
         var c = p.col - 1
-        while c >= 0, self[col: c, row: p.row] == g { h += 1; c -= 1 }
+        while c >= 0, color(at: Pos(c, p.row)) == g { h += 1; c -= 1 }
         c = p.col + 1
-        while c < cols, self[col: c, row: p.row] == g { h += 1; c += 1 }
+        while c < cols, color(at: Pos(c, p.row)) == g { h += 1; c += 1 }
         if h >= 3 { return true }
         var v = 1
         var r = p.row - 1
-        while r >= 0, self[col: p.col, row: r] == g { v += 1; r -= 1 }
+        while r >= 0, color(at: Pos(p.col, r)) == g { v += 1; r -= 1 }
         r = p.row + 1
-        while r < rows, self[col: p.col, row: r] == g { v += 1; r += 1 }
+        while r < rows, color(at: Pos(p.col, r)) == g { v += 1; r += 1 }
         return v >= 3
     }
 
+    /// Ein Tausch ist gültig, wenn er eine Reihe ergibt oder ein Hyperstein beteiligt ist.
     public func isValidMove(_ a: Pos, _ b: Pos) -> Bool {
         guard contains(a), contains(b), a.isAdjacent(to: b),
-              let ga = self[a], let gb = self[b], ga != gb else { return false }
+              let ta = self[tile: a], let tb = self[tile: b] else { return false }
+        if ta.isHyper || tb.isHyper { return true }
+        guard ta.gem != tb.gem else { return false }
         var copy = self
         copy.swapAt(a, b)
         return copy.hasRun(through: a) || copy.hasRun(through: b)

@@ -4,8 +4,24 @@ public enum PowerUp: String, CaseIterable, Sendable {
     case bombe
     /// Entfernt alle Steine einer Farbe.
     case farbtilger
+    /// Mischt das Brett neu, sodass wieder Züge möglich sind.
+    case strudel
+    /// Sprengt ein 5×5-Feld.
+    case atom
     /// Zwei Farben versteinern, zehn Sekunden lang frisst ein Automat alle anderen Steine.
     case fresser
+}
+
+/// Ergebnis des Strudels.
+public struct ShuffleResult: Equatable, Sendable {
+    public let isValid: Bool
+    /// Alte Position → neue Position jedes Steins.
+    public let moves: [Pos: Pos]
+    /// Mischen hat nichts gebracht; das Brett wurde komplett neu gefüllt.
+    public let replacedBoard: Bool
+    public let isGameOver: Bool
+
+    public static let invalid = ShuffleResult(isValid: false, moves: [:], replacedBoard: false, isGameOver: false)
 }
 
 /// Ergebnis eines erfüllten Plans.

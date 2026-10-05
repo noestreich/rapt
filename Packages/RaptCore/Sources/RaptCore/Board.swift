@@ -2,7 +2,7 @@
 public struct Board: Equatable, Sendable {
     public let cols: Int
     public let rows: Int
-    private var cells: [Gem?]
+    private var cells: [Tile?]
 
     public init(cols: Int, rows: Int) {
         precondition(cols > 0 && rows > 0)
@@ -12,20 +12,34 @@ public struct Board: Equatable, Sendable {
     }
 
     /// Oberste Zeile zuerst. Jedes Zeichen ist ein Stein (O Z S U K R N), "." ist leer.
-    public init(_ lines: [String]) {
+    /// `specials` setzt Spezialsteine auf einzelne Felder.
+    public init(_ lines: [String], specials: [Pos: Special] = [:]) {
         let rowCount = lines.count
         let colCount = lines.first?.count ?? 0
-        let parsed: [Gem?] = lines.flatMap { line in line.map { Gem(symbol: $0) } }
+        let parsed: [Tile?] = lines.flatMap { line in line.map { Gem(symbol: $0).map { Tile($0) } } }
         precondition(colCount > 0 && rowCount > 0)
         precondition(parsed.count == colCount * rowCount, "Alle Zeilen müssen gleich lang sein")
         rows = rowCount
         cols = colCount
         cells = parsed
+        for (p, special) in specials { cells[p.row * cols + p.col]?.special = special }
     }
 
+    /// Farbe des Steins (auch bei Spezialsteinen). Setzen erzeugt einen normalen Stein.
     public subscript(_ p: Pos) -> Gem? {
+        get { cells[p.row * cols + p.col]?.gem }
+        set { cells[p.row * cols + p.col] = newValue.map { Tile($0) } }
+    }
+
+    public subscript(tile p: Pos) -> Tile? {
         get { cells[p.row * cols + p.col] }
         set { cells[p.row * cols + p.col] = newValue }
+    }
+
+    /// Farbe, mit der der Stein Reihen bildet. Hypersteine haben keine.
+    public func color(at p: Pos) -> Gem? {
+        guard let tile = self[tile: p], !tile.isHyper else { return nil }
+        return tile.gem
     }
 
     public subscript(col col: Int, row row: Int) -> Gem? {

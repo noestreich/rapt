@@ -35,7 +35,7 @@ final class SoundBank {
         engine.mainMixerNode.outputVolume = 0.8
 
         synthMatches = Self.scale.map { makeMatch(frequency: 392 * pow(2, $0 / 12)) }
-        for slot in SoundSlot.allCases where !slot.isMusic && slot != .match {
+        for slot in SoundSlot.allCases where !slot.isMusic && !slot.isVoice && slot != .match {
             synth[slot] = make(slot)
         }
         reload()
@@ -53,7 +53,7 @@ final class SoundBank {
         custom = [:]
         for slot in SoundSlot.allCases where !slot.isMusic {
             if let url = library.url(for: slot), let buffer = Self.load(url, as: format) {
-                custom[slot] = buffer
+                custom[slot] = slot.isVoice ? makeBuffer(RadioVoice.radio(samples(of: buffer))) : buffer
             }
         }
     }
@@ -68,6 +68,35 @@ final class SoundBank {
         let semitones = Double(count % 12)
         guard let buffer = custom[.chomp] ?? synth[.chomp] else { return }
         schedule(buffer, volume: volume * Float(library.gain(for: .chomp)), semitones: semitones)
+    }
+
+    /// Funkspruch eines Kontakts: eigene Aufnahme (mit Funkklang) oder Plapper-Synthesizer.
+    func voice(_ slot: SoundSlot, pitch: Double, speed: Double, melody: Double, vibrato: Double, ring: Double, volume: Float = 0.8) {
+        let gain = volume * Float(library.gain(for: slot))
+        if let file = custom[slot] {
+            schedule(file, volume: gain, semitones: Double.random(in: -0.5...0.5))
+            return
+        }
+        let babble = RadioVoice.babble(pitch: pitch, speed: speed, melody: melody, vibrato: vibrato, ring: ring,
+                                       sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
+        schedule(makeBuffer(RadioVoice.radio(babble, sampleRate: Self.sampleRate)), volume: gain, semitones: 0)
+    }
+
+    private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer {
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(max(1, samples.count)))!
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        for channel in 0..<2 {
+            let out = buffer.floatChannelData![channel]
+            for (i, v) in samples.enumerated() { out[i] = v }
+        }
+        return buffer
+    }
+
+    private func samples(of buffer: AVAudioPCMBuffer) -> [Float] {
+        let n = Int(buffer.frameLength)
+        let left = buffer.floatChannelData![0]
+        let right = buffer.format.channelCount > 1 ? buffer.floatChannelData![1] : left
+        return (0..<n).map { (left[$0] + right[$0]) * 0.5 }
     }
 
     /// Trefferton; `step` 0 ist der erste Treffer, jede Kaskadenstufe klingt höher.
@@ -186,7 +215,7 @@ final class SoundBank {
                 return Self.square(phase) * 0.22 * tremolo * min(1, t / 0.02) * exp(-t * 2.5)
             }
 
-        case .match, .music:
+        case .match, .music, .voiceKira, .voiceBoris, .voiceJuki, .voiceZora, .voiceK9, .voiceRobo:
             return buffer(0.01) { _ in 0 }
 
         case .jump:
