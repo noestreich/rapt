@@ -1,3 +1,11 @@
+/// Spielmodi.
+public enum GameMode: String, CaseIterable, Sendable {
+    /// Klassisch: kein Zeitdruck, keine Figur, keine Power-ups. Ende, wenn kein Zug mehr möglich ist.
+    case endless
+    /// Die Stadt wandert, die Figur springt mit jedem Plan ein Haus weiter und bringt Power-ups.
+    case rooftop
+}
+
 /// Belohnungen für erfüllte Pläne. Die Figur auf den Dächern bestimmt, welches es gibt.
 public enum PowerUp: String, CaseIterable, Sendable {
     /// Sprengt ein 3×3-Feld.
@@ -28,12 +36,14 @@ public struct ShuffleResult: Equatable, Sendable {
 public struct PlanReward: Equatable, Sendable {
     /// Der neu erreichte Plan.
     public let plan: Int
-    /// Dach, auf das die Figur springt (1 ... roofCount - 1).
+    /// Stelle im Belohnungszyklus (1 ... roofCount - 1).
     public let roof: Int
+    /// Index des Hauses, auf das die Figur springt (`City.buildings`). `nil` im Modus Endlos.
+    public let building: Int?
     /// `nil`, wenn das Lager voll war; dann gibt es stattdessen `bonusPoints`.
     public let powerUp: PowerUp?
     public let bonusPoints: Int
-    /// Die Figur hat das letzte Dach erreicht und beginnt danach wieder vorne.
+    /// Letzte Stelle im Zyklus (Fresser); danach beginnt der Zyklus von vorn.
     public let reachedTop: Bool
 }
 

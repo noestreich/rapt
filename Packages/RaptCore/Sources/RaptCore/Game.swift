@@ -66,24 +66,48 @@ public struct Game: Sendable {
     public static let maxPowerUps = 3
     public static let fullStorageBonus = 500
 
+    public let mode: GameMode
     public private(set) var board: Board
     public private(set) var score = 0
     public private(set) var isOver = false
     public private(set) var powerUps: [PowerUp] = []
-    /// Dach, auf dem die Figur gerade steht.
+    /// Stelle im Belohnungszyklus.
     public private(set) var roof = 0
+    /// Häuserzeile mit der Figur.
+    public private(set) var city: City
+    /// Die Figur wurde links aus dem Bild geschoben.
+    public private(set) var hasFallen = false
     private var rewardedPlan = 1
     private var rng: SplitMix64
 
-    public init(seed: UInt64, cols: Int = 8, rows: Int = 8) {
+    public init(seed: UInt64, mode: GameMode = .rooftop, cols: Int = 8, rows: Int = 8) {
+        self.mode = mode
         rng = SplitMix64(seed: seed)
+        city = City(seed: seed)
         board = Board.random(cols: cols, rows: rows, using: &rng)
     }
 
-    public init(board: Board, seed: UInt64) {
+    public init(board: Board, seed: UInt64, mode: GameMode = .rooftop) {
+        self.mode = mode
         self.board = board
         rng = SplitMix64(seed: seed)
+        city = City(seed: seed)
         updateOver()
+    }
+
+    /// Lässt die Stadt `seconds` weiterwandern. Gibt `true` zurück, wenn die Figur gerade abgestürzt ist.
+    public mutating func tick(_ seconds: Double) -> Bool {
+        guard !isOver, mode == .rooftop else { return false }
+        city.advance(by: seconds, plan: plan)
+        guard city.isFigureLost else { return false }
+        hasFallen = true
+        isOver = true
+        return true
+    }
+
+    /// Sorgt dafür, dass Häuser bis `x` (Bildschirmkoordinate) existieren, z. B. für breite Mac-Fenster.
+    public mutating func extendCity(toScreenX x: Double) {
+        city.extend(to: city.offset + x)
     }
 
     public var hasValidMove: Bool { board.hasValidMove }
@@ -356,7 +380,7 @@ public struct Game: Sendable {
     }
 
     private mutating func updateOver() {
-        isOver = !board.hasValidMove && powerUps.isEmpty
+        isOver = hasFallen || (!board.hasValidMove && powerUps.isEmpty)
     }
 
     public static func points(for runs: [Run], combo: Int) -> Int {
@@ -415,11 +439,15 @@ public struct Game: Sendable {
         return Double(score - lo) / Double(hi - lo)
     }
 
-    /// Jeder neue Plan: Figur springt ein Dach weiter und bringt das Power-up dieses Dachs (`roofRewards`).
+    /// Jeder neue Plan: Figur springt ein Haus weiter und bringt das nächste Power-up aus `roofRewards`.
     private mutating func collectRewards() -> [PlanReward] {
         var rewards: [PlanReward] = []
         while plan > rewardedPlan {
             rewardedPlan += 1
+            guard mode == .rooftop else {
+                rewards.append(PlanReward(plan: rewardedPlan, roof: 0, building: nil, powerUp: nil, bonusPoints: 0, reachedTop: false))
+                continue
+            }
             roof += 1
             let top = roof >= Self.roofCount - 1
             let kind = Self.roofRewards[roof - 1]
@@ -432,7 +460,8 @@ public struct Game: Sendable {
                 bonus = Self.fullStorageBonus
                 score += bonus
             }
-            rewards.append(PlanReward(plan: rewardedPlan, roof: roof, powerUp: granted, bonusPoints: bonus, reachedTop: top))
+            let building = city.jump()
+            rewards.append(PlanReward(plan: rewardedPlan, roof: roof, building: building, powerUp: granted, bonusPoints: bonus, reachedTop: top))
             if top { roof = 0 }
         }
         return rewards

@@ -40,7 +40,7 @@ final class GameScene: SKScene {
         didSet { if safeInsets != oldValue { layoutWorld() } }
     }
 
-    private var game = Game(seed: UInt64.random(in: 0...UInt64.max))
+    private var game = Game(seed: UInt64.random(in: 0...UInt64.max), mode: GameScene.savedMode)
     private let audio = AudioCenter.shared.effects
     private let haptics = Haptics.shared
     private let fx = Effects()
@@ -60,7 +60,6 @@ final class GameScene: SKScene {
     private let skyline = SKSpriteNode()
     private let beacon = SKSpriteNode(color: SKColor(red: 1, green: 0.23, blue: 0.16, alpha: 1), size: CGSize(width: 1, height: 1))
     private var beaconGlow: SKSpriteNode?
-    private var windowGlows: [SKSpriteNode] = []
     private var stars: [SKSpriteNode] = []
 
     private let scoreLabel = SKSpriteNode()
@@ -77,7 +76,8 @@ final class GameScene: SKScene {
     private var shownScore = -1
     private var shownPlan = 0
     private var lastCombo = 1
-    private var highscore = Highscore.load()
+    private var mode = GameScene.savedMode
+    private var highscore = Highscore.load(GameScene.savedMode)
     private var busy = false
     private var selected: Pos?
     private var pointerStart: (pos: Pos, point: CGPoint)?
@@ -128,9 +128,25 @@ final class GameScene: SKScene {
     private let figure = SKSpriteNode()
     private var figureIdle: [SKTexture] = []
     private var figureJump = SKTexture()
-    private var roofPoints: [CGPoint] = []
-    private var figureRoof = 0
+    private var figureJumping = false
+    private var figureFalling = false
+    private var wasInDanger = false
+    private var dangerBeep: TimeInterval = 0
 
+    // Stadt
+    private var buildingSprites: [Int: SKSpriteNode] = [:]
+    private var visibleLeft: CGFloat = 0
+    private var visibleRight: CGFloat = Layout.width
+    private var skyBottom: CGFloat = Layout.height
+
+    // Menü (Moduswahl, Spielende)
+    private var menuButtons: [(rect: CGRect, mode: GameMode)] = []
+    private var menuVisible = false
+    private var slotFrames: [SKSpriteNode] = []
+
+    private static var savedMode: GameMode {
+        GameMode(rawValue: UserDefaults.standard.string(forKey: "rapt.mode") ?? "") ?? .endless
+    }
     // MARK: Lebenszyklus
 
     override func didMove(to view: SKView) {
@@ -139,7 +155,8 @@ final class GameScene: SKScene {
         if !isBuilt {
             build()
             isBuilt = true
-            startNewGame(animated: true)
+            startNewGame(mode: mode, animated: true)
+            showMenu(gameOver: false)
         }
         layoutWorld()
     }
@@ -299,6 +316,7 @@ final class GameScene: SKScene {
             frame.anchorPoint = CGPoint(x: 0, y: 1)
             frame.position = design(Layout.slotX(i), Layout.slotY)
             hudLayer.addChild(frame)
+            slotFrames.append(frame)
             let icon = SKSpriteNode()
             icon.size = CGSize(width: 16, height: 16)
             icon.anchorPoint = CGPoint(x: 0, y: 1)
@@ -409,22 +427,12 @@ final class GameScene: SKScene {
         skyline.position = design(left, bottom)
         beacon.position = design(left + sky.beacon.x, skyTop + sky.beacon.y)
 
-        // Fünf Dächer im sichtbaren Spielbereich, von links nach rechts
-        let candidates = sky.roofs
-            .map { CGPoint(x: CGFloat(left + $0.x) + CGFloat($0.width) / 2, y: Layout.height - CGFloat(skyTop + $0.top)) }
-            .filter { $0.x >= 8 && $0.x <= Layout.width - 8 }
-            .sorted { $0.x < $1.x }
-        if candidates.isEmpty {
-            roofPoints = []
-        } else {
-            roofPoints = (0..<Game.roofCount).map { i in
-                let index = Int((Double(i) * Double(candidates.count - 1) / Double(Game.roofCount - 1)).rounded())
-                let p = candidates[index]
-                return CGPoint(x: p.x.rounded(), y: p.y)
-            }
-        }
-        figure.position = roofPoint(figureRoof)
-        figure.isHidden = roofPoints.isEmpty
+        // Vordere Häuserreihe: wird in updateCity() laufend positioniert
+        visibleLeft = CGFloat(left)
+        visibleRight = CGFloat(right)
+        skyBottom = CGFloat(bottom)
+        game.extendCity(toScreenX: Double(right) + 40)
+        updateCity()
 
         beaconGlow?.removeFromParent()
         let glow = SKSpriteNode(texture: glowTexture, color: SKColor(red: 1, green: 0.25, blue: 0.15, alpha: 1), size: CGSize(width: 22, height: 22))
@@ -437,17 +445,6 @@ final class GameScene: SKScene {
         ])))
         glowLayer.addChild(glow)
         beaconGlow = glow
-
-        windowGlows.forEach { $0.removeFromParent() }
-        windowGlows = sky.lights.prefix(60).map { light in
-            let g = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0xE8A94A).skColor, size: CGSize(width: 9, height: 9))
-            g.colorBlendFactor = 1
-            g.blendMode = .add
-            g.alpha = 0.18
-            g.position = design(CGFloat(left + light.x), CGFloat(skyTop + light.y))
-            glowLayer.addChild(g)
-            return g
-        }
 
         // Funkelnde Sterne über dem Brett
         stars.forEach { $0.removeFromParent() }
@@ -469,8 +466,24 @@ final class GameScene: SKScene {
 
     // MARK: Spielablauf
 
-    private func startNewGame(animated: Bool) {
-        game = Game(seed: UInt64.random(in: 0...UInt64.max))
+    private func startNewGame(mode newMode: GameMode, animated: Bool) {
+        mode = newMode
+        UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
+        highscore = Highscore.load(newMode)
+        game = Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
+        game.extendCity(toScreenX: Double(visibleRight) + 40)
+        buildingSprites.values.forEach { $0.removeFromParent() }
+        buildingSprites = [:]
+        figure.removeAllActions()
+        figure.zRotation = 0
+        figure.alpha = 1
+        figureJumping = false
+        figureFalling = false
+        wasInDanger = false
+        startFigureIdle()
+        let rooftop = newMode == .rooftop
+        figure.isHidden = !rooftop
+        slotFrames.forEach { $0.isHidden = !rooftop }
         gems.values.forEach { $0.removeWithGlow() }
         gems = [:]
         overlayLayer.children.filter { $0 !== countdownLabel }.forEach { $0.removeFromParent() }
@@ -479,8 +492,7 @@ final class GameScene: SKScene {
         fresser = nil
         armed = nil
         armedBracket.isHidden = true
-        figureRoof = 0
-        figure.position = roofPoint(0)
+        updateCity()
         updateSlots()
         refreshStatus()
         selected = nil
@@ -632,7 +644,7 @@ final class GameScene: SKScene {
     private func finish(_ result: SwapResult) {
         if game.score > highscore {
             highscore = game.score
-            Highscore.save(highscore)
+            Highscore.save(highscore, for: mode)
         }
         updateHUD()
         updateSlots()
@@ -835,40 +847,161 @@ final class GameScene: SKScene {
 
     private func showGameOver() {
         audio.play(.gameOver, volume: 0.7)
-        let shade = SKSpriteNode(color: SKColor(red: 0.03, green: 0.02, blue: 0.06, alpha: 0.85),
+        busy = true
+        run(.sequence([.wait(forDuration: 0.5), .run { [weak self] in self?.showMenu(gameOver: true) }]))
+    }
+
+    /// Moduswahl über dem Brett: beim Start und nach jedem Spielende.
+    private func showMenu(gameOver: Bool) {
+        overlayLayer.children.filter { $0 !== countdownLabel }.forEach { $0.removeFromParent() }
+        menuButtons = []
+        menuVisible = true
+        busy = true
+        setArmed(nil)
+        setSelected(nil)
+
+        let shade = SKSpriteNode(color: SKColor(red: 0.03, green: 0.02, blue: 0.06, alpha: 0.86),
                                  size: CGSize(width: Layout.boardSize, height: Layout.boardSize))
         shade.anchorPoint = CGPoint(x: 0, y: 1)
         shade.position = design(Layout.boardX, Layout.boardY)
         shade.alpha = 0
         overlayLayer.addChild(shade)
-        shade.run(.fadeIn(withDuration: 0.4))
+        shade.run(.fadeIn(withDuration: 0.3))
 
-        let lines: [(String, RGBA, CGFloat, Int)] = [
-            ("KEINE ZÜGE", Palette.amber, 2, 62),
-            ("PUNKTE " + String(game.score), Palette.cream, 1, 84),
-            (Self.newGameHint, Palette.label, 1, 108),
-        ]
-        for (text, color, scale, y) in lines {
-            let canvas = PixelFont.render(text, color: color, shadow: RGBA(hex: 0x050409))
+        func text(_ string: String, color: RGBA, scale: CGFloat, y: Int) {
+            let canvas = PixelFont.render(string, color: color, shadow: RGBA(hex: 0x050409))
             let node = SKSpriteNode(texture: canvas.texture(),
                                     size: CGSize(width: CGFloat(canvas.width) * scale, height: CGFloat(canvas.height) * scale))
             node.anchorPoint = CGPoint(x: 0, y: 1)
             let width = Int(CGFloat(canvas.width) * scale)
             node.position = design(Layout.boardX + (Layout.boardSize - width) / 2, Layout.boardY + y)
-            node.alpha = 0
+            node.zPosition = 1
             overlayLayer.addChild(node)
-            node.run(.sequence([.wait(forDuration: 0.3), .fadeIn(withDuration: 0.3)]))
         }
-        run(.sequence([.wait(forDuration: 0.8), .run { [weak self] in self?.busy = false }]))
+
+        var buttonY = 56
+        if gameOver {
+            text(game.hasFallen ? "ABGESTÜRZT" : "KEINE ZÜGE", color: Palette.amber, scale: 2, y: 18)
+            text("PUNKTE " + String(game.score), color: Palette.cream, scale: 1, y: 36)
+            buttonY = 64
+            text("NOCHMAL:", color: Palette.label, scale: 1, y: buttonY - 12)
+        } else {
+            text("SPIELMODUS", color: Palette.amber, scale: 2, y: 22)
+            text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.endless)) + " / " + String(format: "%08d", Highscore.load(.rooftop)),
+                 color: Palette.label, scale: 1, y: 40)
+        }
+        let options: [(GameMode, String, String)] = [
+            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
+            (.rooftop, "DÄCHERLAUF", "STADT WANDERT - POWER-UPS"),
+        ]
+        for (i, option) in options.enumerated() {
+            let w = 150, h = 28
+            let x = Layout.boardX + (Layout.boardSize - w) / 2
+            let y = Layout.boardY + buttonY + i * (h + 8)
+            let selected = option.0 == mode
+            var canvas = PixelCanvas(width: w, height: h, fill: RGBA(hex: selected ? 0x2A1A14 : 0x1B1A24))
+            let border = selected ? Palette.amber : RGBA(hex: 0x4A4B56)
+            canvas.fillRect(0, 0, w, 1, border)
+            canvas.fillRect(0, h - 1, w, 1, border)
+            canvas.fillRect(0, 0, 1, h, border)
+            canvas.fillRect(w - 1, 0, 1, h, border)
+            let title = PixelFont.render(option.1, color: selected ? Palette.amber : Palette.cream)
+            for yy in 0..<title.height * 2 {
+                for xx in 0..<title.width * 2 where title.get(xx / 2, yy / 2).a > 0 {
+                    canvas.set((w - title.width * 2) / 2 + xx, 5 + yy, title.get(xx / 2, yy / 2))
+                }
+            }
+            PixelFont.draw(option.2, into: &canvas, x: (w - PixelFont.width(option.2)) / 2, y: 19, color: Palette.label)
+            let node = SKSpriteNode(texture: canvas.texture(), size: canvas.size)
+            node.anchorPoint = CGPoint(x: 0, y: 1)
+            node.position = design(x, y)
+            node.zPosition = 1
+            node.alpha = 0
+            node.run(.sequence([.wait(forDuration: 0.1 + Double(i) * 0.08), .fadeIn(withDuration: 0.2)]))
+            overlayLayer.addChild(node)
+            menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.0))
+        }
+        text(Self.newGameHint, color: Palette.label, scale: 1, y: buttonY + 2 * 36 + 4)
+    }
+
+    private func handleMenu(_ point: CGPoint) {
+        let p = CGPoint(x: point.x, y: Layout.height - point.y)
+        guard let choice = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
+        menuVisible = false
+        menuButtons = []
+        audio.play(.select, volume: 0.6)
+        startNewGame(mode: choice.mode, animated: true)
+    }
+
+    // MARK: Stadt
+
+    /// Positioniert die Plattenbauten der vorderen Reihe und die Figur.
+    private func updateCity() {
+        let city = game.city
+        var visible = Set<Int>()
+        for (i, b) in city.buildings.enumerated() {
+            let x = CGFloat(city.screenX(b.x)).rounded()
+            guard x + CGFloat(b.width) >= visibleLeft - 4, x <= visibleRight + 4 else { continue }
+            visible.insert(i)
+            let sprite = buildingSprites[i] ?? makeBuilding(b, index: i)
+            sprite.position = design(x, skyBottom)
+        }
+        for (i, sprite) in buildingSprites where !visible.contains(i) {
+            sprite.removeFromParent()
+            buildingSprites[i] = nil
+        }
+        if !figureJumping && !figureFalling {
+            figure.position = design(CGFloat(city.figureX).rounded(), skyBottom - CGFloat(city.figureBuilding.height))
+        }
+    }
+
+    private func makeBuilding(_ b: Building, index: Int) -> SKSpriteNode {
+        let art = Backdrop.building(width: b.width, height: b.height, seed: index * 7 + 3)
+        let sprite = SKSpriteNode(texture: art.canvas.texture(), size: art.canvas.size)
+        sprite.anchorPoint = CGPoint(x: 0, y: 0)
+        sprite.zPosition = 3.5
+        for light in art.lights.prefix(6) {
+            let g = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0xE8A94A).skColor, size: CGSize(width: 9, height: 9))
+            g.colorBlendFactor = 1
+            g.blendMode = .add
+            g.alpha = 0.18
+            g.position = CGPoint(x: CGFloat(light.x) + 0.5, y: CGFloat(b.height - light.y) - 0.5)
+            sprite.addChild(g)
+        }
+        backLayer.addChild(sprite)
+        buildingSprites[index] = sprite
+        return sprite
+    }
+
+    /// Figur wird links aus dem Bild geschoben und stürzt ab.
+    private func figureFall() {
+        figureFalling = true
+        fresser?.node.removeFromParent()
+        fresser = nil
+        countdownLabel.isHidden = true
+        setArmed(nil)
+        figure.removeAction(forKey: "idle")
+        figure.texture = figureJump
+        audio.play(.jump, volume: 0.6)
+        haptics.explosion()
+        let start = figure.position
+        let fall = SKAction.customAction(withDuration: 1.2) { node, elapsed in
+            let t = elapsed
+            node.position = CGPoint(x: (start.x - 14 * t).rounded(), y: (start.y + 30 * t - 160 * t * t).rounded())
+            node.zRotation = -t * 5
+        }
+        figure.run(.sequence([fall, .fadeOut(withDuration: 0.1)]))
+        fx.popup("ABSTURZ!", at: CGPoint(x: max(30, start.x + 20), y: start.y + 16), color: Palette.red, scale: 2)
+        showGameOver()
     }
 
     // MARK: Power-ups
 
     private static var newGameHint: String {
         #if os(iOS)
-        return "TIPPEN: NEUES SPIEL"
+        return "MODUS ANTIPPEN"
         #else
-        return "KLICKEN: NEUES SPIEL"
+        return "MODUS ANKLICKEN"
         #endif
     }
 
@@ -893,7 +1026,7 @@ final class GameScene: SKScene {
 
     private func updateSlots() {
         for (i, icon) in slotIcons.enumerated() {
-            if i < game.powerUps.count {
+            if mode == .rooftop && i < game.powerUps.count {
                 icon.texture = iconTextures[game.powerUps[i]]
                 icon.isHidden = false
             } else {
@@ -929,7 +1062,9 @@ final class GameScene: SKScene {
     }
 
     private func refreshStatus() {
-        if fresser != nil {
+        if mode == .rooftop && !game.isOver && game.city.isInDanger {
+            setStatus("ABSTURZGEFAHR!", color: Palette.red, blink: true)
+        } else if fresser != nil {
             setStatus("WISCHEN ZUM LENKEN", color: Palette.amber)
         } else if armed == .bomb {
             setStatus("BOMBE: ZIEL WÄHLEN", color: Palette.amber)
@@ -939,7 +1074,7 @@ final class GameScene: SKScene {
             setStatus("FARBTILGER: FARBE WÄHLEN", color: Palette.amber)
         } else if !game.isOver && !game.hasValidMove {
             setStatus("KEINE ZÜGE: POWER-UP!", color: Palette.red, blink: true)
-        } else if !game.powerUps.isEmpty {
+        } else if mode == .rooftop && !game.powerUps.isEmpty {
             setStatus("POWER-UP ANTIPPEN")
         } else {
             setStatus("")
@@ -1204,43 +1339,45 @@ final class GameScene: SKScene {
 
     // MARK: Plan, Figur, Belohnungen
 
-    private func roofPoint(_ i: Int) -> CGPoint {
-        guard !roofPoints.isEmpty else { return .zero }
-        return roofPoints[clamp(i, 0, roofPoints.count - 1)]
-    }
-
     private func startFigureIdle() {
         figure.texture = figureIdle[0]
         figure.run(.repeatForever(.animate(with: figureIdle, timePerFrame: 0.5)), withKey: "idle")
     }
 
-    private func jumpFigure(to roof: Int, then completion: @escaping () -> Void) {
-        let from = figure.position, to = roofPoint(roof)
-        figureRoof = roof
-        guard !roofPoints.isEmpty else {
+    /// Sprung auf das Haus mit Index `building`. Das Ziel wandert während des Sprungs mit.
+    private func jumpFigure(to building: Int, then completion: @escaping () -> Void) {
+        guard building < game.city.buildings.count, !figureFalling else {
             completion()
             return
         }
+        figureJumping = true
         audio.play(.jump, volume: 0.6)
         figure.removeAction(forKey: "idle")
         figure.texture = figureJump
-        let height = 18 + abs(to.y - from.y) / 2
+        let from = figure.position
         let duration: CGFloat = 0.6
-        let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
+        let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
+            guard let self else { return }
+            let b = self.game.city.buildings[building]
+            let to = self.design(CGFloat(self.game.city.screenX(b.center)), self.skyBottom - CGFloat(b.height))
+            let height = 18 + abs(to.y - from.y) / 2
             let t = min(1, elapsed / duration)
             node.position = CGPoint(x: (from.x + (to.x - from.x) * t).rounded(),
                                     y: (from.y + (to.y - from.y) * t + sin(.pi * t) * height).rounded())
         }
         figure.run(.sequence([arc, .run { [weak self] in
             guard let self else { return }
-            self.figure.position = to
+            self.figureJumping = false
+            self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
+            self.fx.steam(at: self.figure.position)
+            self.refreshStatus()
             completion()
         }]))
     }
 
-    /// Plan erfüllt: Fanfare, Konfetti, Figur springt, Power-up landet im Lager.
+    /// Plan erfüllt: Fanfare und Konfetti. Im Dächerlauf springt die Figur und bringt ein Power-up.
     private func celebrate(_ reward: PlanReward) {
         audio.play(.plan, volume: 0.7)
         haptics.plan()
@@ -1251,7 +1388,8 @@ final class GameScene: SKScene {
             let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
             fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
         }
-        jumpFigure(to: reward.roof) { [weak self] in
+        guard let building = reward.building else { return }
+        jumpFigure(to: building) { [weak self] in
             guard let self else { return }
             let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
             if let kind = reward.powerUp {
@@ -1263,30 +1401,22 @@ final class GameScene: SKScene {
             } else if reward.bonusPoints > 0 {
                 self.fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
             }
-            if reward.reachedTop { self.summit() }
+            if reward.reachedTop { self.heroFireworks() }
         }
     }
 
-    /// Letztes Dach erreicht: Feuerwerk über der Stadt, dann zurück an den Anfang.
-    private func summit() {
+    /// Ende eines Belohnungszyklus: Feuerwerk über der Stadt.
+    private func heroFireworks() {
         let top = figure.position
-        fx.popup("GIPFEL ERREICHT!", at: CGPoint(x: min(max(top.x, 40), Layout.width - 40), y: top.y + 22), color: Palette.amber)
+        fx.popup("HELD DER ARBEIT!", at: CGPoint(x: min(max(top.x, 50), Layout.width - 50), y: top.y + 22), color: Palette.amber)
         let colors = Gem.allCases.map { GemArt.glowColor($0) }
         for i in 0..<6 {
-            let p = CGPoint(x: top.x + CGFloat.random(in: -70...20), y: top.y + CGFloat.random(in: 25...70))
+            let p = CGPoint(x: top.x + CGFloat.random(in: -60...40), y: top.y + CGFloat.random(in: 25...70))
             run(.sequence([.wait(forDuration: Double(i) * 0.22), .run { [weak self] in
                 self?.fx.firework(at: p, colors: colors)
                 self?.audio.play(.shrapnel, volume: 0.5)
             }]))
         }
-        run(.sequence([.wait(forDuration: 1.8), .run { [weak self] in
-            guard let self else { return }
-            self.fx.steam(at: self.figure.position)
-            self.figureRoof = 0
-            self.figure.position = self.roofPoint(0)
-            self.fx.steam(at: self.figure.position)
-            self.audio.play(.steam, volume: 0.5)
-        }]))
     }
 
     // MARK: Eingabe
@@ -1294,14 +1424,15 @@ final class GameScene: SKScene {
     private func pointerDown(_ point: CGPoint) {
         idleTime = 0
         place(hintCursor, at: nil)
+        if menuVisible {
+            handleMenu(point)
+            return
+        }
         if fresser != nil {
             swipeStart = point
             return
         }
-        if game.isOver {
-            if !busy { startNewGame(animated: true) }
-            return
-        }
+        if game.isOver { return }
         if let slot = slotIndex(at: point) {
             pointerStart = nil
             handleSlot(slot)
@@ -1423,6 +1554,27 @@ final class GameScene: SKScene {
         }
 
         updateFresser(dt)
+
+        if mode == .rooftop && !menuVisible && !figureFalling {
+            if game.tick(dt) {
+                busy = true
+                figureFall()
+            }
+            updateCity()
+            let danger = game.city.isInDanger && !game.isOver
+            if danger != wasInDanger {
+                wasInDanger = danger
+                refreshStatus()
+            }
+            if danger {
+                dangerBeep -= dt
+                if dangerBeep <= 0 {
+                    dangerBeep = 1.6
+                    audio.play(.invalid, volume: 0.35)
+                    fx.flash(at: figure.position, color: Palette.red.skColor)
+                }
+            }
+        }
 
         if !busy && !game.isOver && pointerStart == nil && armed == nil && game.hasValidMove {
             idleTime += dt

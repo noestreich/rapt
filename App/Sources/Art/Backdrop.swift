@@ -30,49 +30,23 @@ enum Backdrop {
 
     struct Skyline {
         let canvas: PixelCanvas
-        /// Erleuchtete Fenster (für weiches Licht), in Canvas-Koordinaten.
-        let lights: [(x: Int, y: Int)]
         let beacon: (x: Int, y: Int)
-        /// Dächer der vorderen Häuser: linke Kante, Breite, Oberkante (Canvas-Koordinaten).
-        let roofs: [(x: Int, width: Int, top: Int)]
     }
 
-    /// Plattenbauten und Fernsehturm, unten bündig.
+    /// Hintere Häuserreihe und Fernsehturm, unten bündig. Die vordere Reihe wandert und entsteht über `building`.
     static func skyline(width: Int, seed: UInt64) -> Skyline {
         let height = 96
         var c = PixelCanvas(width: width, height: height)
         var rng = SplitMix64(seed: seed)
-        var lights: [(x: Int, y: Int)] = []
-        var roofs: [(x: Int, width: Int, top: Int)] = []
         func ri(_ n: Int) -> Int { Int(rng.unit() * Double(n)) }
 
-        for layer in 0...1 {
-            var x = -6
-            while x < width {
-                let near = layer == 1
-                let w = near ? 22 + ri(18) : 14 + ri(16)
-                let h = near ? 26 + ri(34) : 40 + ri(30)
-                let y = height - h
-                c.fillRect(x, y, w, h, RGBA(hex: near ? 0x232330 : 0x14131C))
-                c.fillRect(x, y, w, 1, RGBA(hex: near ? 0x33333F : 0x1B1A25))
-                if near {
-                    roofs.append((x, w, y))
-                    c.fillRect(x + w - 2, y + 1, 2, h, RGBA(hex: 0x1B1B26))
-                    var wy = y + 4
-                    while wy < height - 3 {
-                        var wx = x + 3
-                        while wx < x + w - 4 {
-                            let lit = rng.unit() < 0.26
-                            let col = lit ? (rng.unit() < 0.85 ? 0xE8A94A : 0x9FB4FF) : 0x121119
-                            c.fillRect(wx, wy, 2, 2, RGBA(hex: UInt32(col)))
-                            if lit && rng.unit() < 0.3 { lights.append((wx + 1, wy + 1)) }
-                            wx += 4
-                        }
-                        wy += 5
-                    }
-                }
-                x += w + (near ? 2 + ri(4) : ri(6))
-            }
+        var x = -6
+        while x < width {
+            let w = 14 + ri(16)
+            let h = 40 + ri(30)
+            c.fillRect(x, height - h, w, h, RGBA(hex: 0x14131C))
+            c.fillRect(x, height - h, w, 1, RGBA(hex: 0x1B1A25))
+            x += w + ri(6)
         }
         // Fernsehturm
         let tx = Int(Double(width) * 0.86)
@@ -80,7 +54,30 @@ enum Backdrop {
         c.fillRect(tx, 23, 3, height - 23, tower)
         c.fillRect(tx - 4, 41, 11, 4, tower)
         c.fillRect(tx + 1, 13, 1, 10, tower)
-        return Skyline(canvas: c, lights: lights, beacon: (tx + 1, 12), roofs: roofs)
+        return Skyline(canvas: c, beacon: (tx + 1, 12))
+    }
+
+    /// Ein Plattenbau der vorderen Reihe mit Fensterraster. `lights` sind erleuchtete Fenster für weiches Licht.
+    static func building(width: Int, height: Int, seed: Int) -> (canvas: PixelCanvas, lights: [(x: Int, y: Int)]) {
+        var c = PixelCanvas(width: width, height: height)
+        var lights: [(x: Int, y: Int)] = []
+        c.fillRect(0, 0, width, height, RGBA(hex: 0x232330))
+        c.fillRect(0, 0, width, 1, RGBA(hex: 0x33333F))
+        c.fillRect(width - 2, 1, 2, height - 1, RGBA(hex: 0x1B1B26))
+        var wy = 4
+        while wy < height - 3 {
+            var wx = 3
+            while wx < width - 4 {
+                let h = Noise.hash(wx, wy, seed)
+                let lit = h < 0.26
+                let color: UInt32 = lit ? (Noise.hash(wx, wy, seed + 1) < 0.85 ? 0xE8A94A : 0x9FB4FF) : 0x121119
+                c.fillRect(wx, wy, 2, 2, RGBA(hex: color))
+                if lit && Noise.hash(wx, wy, seed + 2) < 0.3 { lights.append((wx + 1, wy + 1)) }
+                wx += 4
+            }
+            wy += 5
+        }
+        return (c, lights)
     }
 
     /// Betonfläche mit Dithering; helle Oberkante, dunkle Unter- und Rechtskante.

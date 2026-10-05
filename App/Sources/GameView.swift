@@ -29,6 +29,7 @@ struct GameView: View {
             }
             .accessibilityLabel("Einstellungen")
         }
+        .onChange(of: showsSettings) { _, open in scene.isPaused = open }
         .sheet(isPresented: $showsSettings) {
             NavigationStack {
                 SettingsView()

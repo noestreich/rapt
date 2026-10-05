@@ -37,12 +37,20 @@ hochskaliert. Licht und Partikel rendern in voller Auflösung darüber.
 
 ## Spiel
 
-- Endlos-Modus: Steine tauschen (wischen oder zweimal tippen). Das Spiel endet, wenn kein Zug **und** kein Power-up mehr übrig ist.
+Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen eigenen Rekord.
+
+| Modus | Ablauf |
+|---|---|
+| **Endlos** | Klassisch: kein Zeitdruck, keine Figur, keine Power-ups. Ende, wenn kein Zug mehr möglich ist. |
+| **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,45 px/s, +0,04 pro Plan), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
+
+- Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
-- „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr. Jeder erfüllte Plan lässt die Figur auf den Plattenbauten
-  ein Dach weiterspringen und legt ein Power-up ins Lager (drei Plätze unter der Plan-Leiste).
-- Reihenfolge pro Runde über die Dächer: **Bombe → Farbtilger → Strudel → Bombe → Atombombe → Fresser** (letztes Dach, mit Feuerwerk).
-  Danach beginnt die Figur wieder vorne. Ist das Lager voll, gibt es 500 Bonuspunkte.
+- „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr.
+- Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), im Zyklus
+  **Bombe → Farbtilger → Strudel → Bombe → Atombombe → Fresser** (mit Feuerwerk „HELD DER ARBEIT!“).
+  Ist das Lager voll, gibt es 500 Bonuspunkte.
+- Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
 
 ### Spezialsteine
@@ -76,7 +84,7 @@ Funkspruch. Das Spiel läuft dabei weiter. Abschaltbar in den Einstellungen.
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang
   (Bandpass, Verzerrung, Rauschen, Klicken der Sendetaste).
 
-### Power-ups
+### Power-ups (Dächerlauf)
 
 Im Lager antippen, dann:
 
