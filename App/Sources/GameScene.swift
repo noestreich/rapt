@@ -23,6 +23,10 @@ final class GameScene: SKScene {
         static let boardX = 12
         static let boardY = 96
         static var boardSize: Int { tile * count }
+        static var planY: Int { boardY + boardSize + 10 }
+        static var slotY: Int { planY + 10 }
+        static let slotSize = 20
+        static func slotX(_ i: Int) -> Int { boardX + i * (slotSize + 2) }
     }
 
     private enum Palette {
@@ -82,6 +86,46 @@ final class GameScene: SKScene {
     private var clock: TimeInterval = 0
     private var backdropKey = ""
     private var isBuilt = false
+
+    // Power-ups
+    private enum Armed { case bomb, purge }
+
+    private struct Direction: Equatable {
+        let dc: Int
+        let dr: Int
+    }
+
+    private struct FresserState {
+        let round: FresserRound
+        let node: SKSpriteNode
+        var pos: Pos
+        var dir = Direction(dc: 1, dr: 0)
+        var queued: Direction?
+        var eaten: Set<Pos> = []
+        var timeLeft = FresserRound.duration
+        var stepTimer = 0.2
+        var shownSeconds = -1
+    }
+
+    private var armed: Armed?
+    private var armedSlot = 0
+    private var fresser: FresserState?
+    private var swipeStart: CGPoint?
+    private var stoneTextures: [Gem: SKTexture] = [:]
+    private var iconTextures: [PowerUp: SKTexture] = [:]
+    private var chomperFrames: [SKTexture] = []
+    private var slotIcons: [SKSpriteNode] = []
+    private let armedBracket = SKNode()
+    private let statusLabel = SKSpriteNode()
+    private let countdownLabel = SKSpriteNode()
+    private var statusText = ""
+
+    // Figur auf den Dächern
+    private let figure = SKSpriteNode()
+    private var figureIdle: [SKTexture] = []
+    private var figureJump = SKTexture()
+    private var roofPoints: [CGPoint] = []
+    private var figureRoof = 0
 
     // MARK: Lebenszyklus
 
@@ -148,7 +192,15 @@ final class GameScene: SKScene {
     }
 
     private func build() {
-        for gem in Gem.allCases { sprites[gem] = GemArt.makeSprite(gem) }
+        for gem in Gem.allCases {
+            sprites[gem] = GemArt.makeSprite(gem)
+            stoneTextures[gem] = GemArt.makeSprite(gem, petrified: true).texture
+        }
+        for kind in PowerUp.allCases { iconTextures[kind] = PowerUpArt.icon(kind) }
+        chomperFrames = PowerUpArt.chomperFrames()
+        let frames = PowerUpArt.figureFrames()
+        figureIdle = frames.idle
+        figureJump = frames.jump
         glowTexture = Backdrop.glow()
 
         addChild(world)
@@ -171,6 +223,12 @@ final class GameScene: SKScene {
         backLayer.addChild(nebula)
         backLayer.addChild(skyline)
         backLayer.addChild(beacon)
+        figure.texture = figureIdle[0]
+        figure.size = CGSize(width: 7, height: 10)
+        figure.anchorPoint = CGPoint(x: 0.5, y: 0)
+        figure.zPosition = 4
+        backLayer.addChild(figure)
+        startFigureIdle()
         let blink = SKAction.repeatForever(.sequence([
             .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.7),
             .fadeAlpha(to: 0.2, duration: 0), .wait(forDuration: 0.7),
@@ -181,7 +239,7 @@ final class GameScene: SKScene {
         hudLayer.addChild(pixelSprite(Backdrop.hudPlate(), topLeft: design(8, 10)))
         hudLayer.addChild(pixelSprite(Backdrop.boardFrame(tile: Layout.tile, count: Layout.count),
                                       topLeft: design(Layout.boardX - 6, Layout.boardY - 6)))
-        let planY = Layout.boardY + Layout.boardSize + 10
+        let planY = Layout.planY
         let labels: [(SKSpriteNode, CGPoint, CGPoint)] = [
             (scoreLabel, CGPoint(x: 0, y: 1), design(24, 33)),
             (comboLabel, CGPoint(x: 1, y: 1), design(176, 33)),
@@ -202,7 +260,7 @@ final class GameScene: SKScene {
         glowLayer.addChild(scoreGlow)
 
         // Plan-Leiste
-        let barStart = Layout.boardX + PixelFont.width("ПЛАН 00") + 5
+        let barStart = Layout.boardX + PixelFont.width("PLAN 00") + 5
         let barEnd = Layout.boardX + Layout.boardSize
         let bar = SKSpriteNode(color: RGBA(hex: 0x0B0A11).skColor, size: CGSize(width: barEnd - barStart, height: 7))
         bar.anchorPoint = CGPoint(x: 0, y: 1)
@@ -227,12 +285,40 @@ final class GameScene: SKScene {
         boardCrop.addChild(gemLayer)
         fx.floorY = Layout.height - CGFloat(Layout.boardY + Layout.boardSize)
 
+        // Lager für Power-ups unter der Plan-Leiste
+        let frameTexture = PowerUpArt.slotFrame().texture()
+        for i in 0..<Game.maxPowerUps {
+            let frame = SKSpriteNode(texture: frameTexture, size: CGSize(width: Layout.slotSize, height: Layout.slotSize))
+            frame.anchorPoint = CGPoint(x: 0, y: 1)
+            frame.position = design(Layout.slotX(i), Layout.slotY)
+            hudLayer.addChild(frame)
+            let icon = SKSpriteNode()
+            icon.size = CGSize(width: 16, height: 16)
+            icon.anchorPoint = CGPoint(x: 0, y: 1)
+            icon.position = design(Layout.slotX(i) + 2, Layout.slotY + 2)
+            icon.zPosition = 1
+            icon.isHidden = true
+            hudLayer.addChild(icon)
+            slotIcons.append(icon)
+        }
+        statusLabel.anchorPoint = CGPoint(x: 0, y: 1)
+        statusLabel.position = design(Layout.slotX(Game.maxPowerUps) + 3, Layout.slotY + 8)
+        statusLabel.zPosition = 1
+        hudLayer.addChild(statusLabel)
+        countdownLabel.anchorPoint = CGPoint(x: 0.5, y: 1)
+        countdownLabel.position = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + 6)
+        countdownLabel.isHidden = true
+        overlayLayer.addChild(countdownLabel)
+
         buildBracket(cursor, color: RGBA(hex: 0xFFD27A).skColor)
         buildBracket(hintCursor, color: RGBA(hex: 0x9FB4FF).skColor)
+        buildBracket(armedBracket, color: RGBA(hex: 0xFF6A3D).skColor, size: Layout.slotSize)
+        armedBracket.zPosition = 46
+        shaker.addChild(armedBracket)
     }
 
-    private func buildBracket(_ node: SKNode, color: SKColor) {
-        let t = Layout.tile
+    private func buildBracket(_ node: SKNode, color: SKColor, size: Int = Layout.tile) {
+        let t = size
         let rects: [(Int, Int, Int, Int)] = [
             (0, 0, 3, 1), (0, 0, 1, 3), (t - 3, 0, 3, 1), (t - 1, 0, 1, 3),
             (0, t - 1, 3, 1), (0, t - 3, 1, 3), (t - 3, t - 1, 3, 1), (t - 1, t - 3, 1, 3),
@@ -309,6 +395,23 @@ final class GameScene: SKScene {
         skyline.position = design(left, bottom)
         beacon.position = design(left + sky.beacon.x, skyTop + sky.beacon.y)
 
+        // Fünf Dächer im sichtbaren Spielbereich, von links nach rechts
+        let candidates = sky.roofs
+            .map { CGPoint(x: CGFloat(left + $0.x) + CGFloat($0.width) / 2, y: Layout.height - CGFloat(skyTop + $0.top)) }
+            .filter { $0.x >= 8 && $0.x <= Layout.width - 8 }
+            .sorted { $0.x < $1.x }
+        if candidates.isEmpty {
+            roofPoints = []
+        } else {
+            roofPoints = (0..<Game.roofCount).map { i in
+                let index = Int((Double(i) * Double(candidates.count - 1) / Double(Game.roofCount - 1)).rounded())
+                let p = candidates[index]
+                return CGPoint(x: p.x.rounded(), y: p.y)
+            }
+        }
+        figure.position = roofPoint(figureRoof)
+        figure.isHidden = roofPoints.isEmpty
+
         beaconGlow?.removeFromParent()
         let glow = SKSpriteNode(texture: glowTexture, color: SKColor(red: 1, green: 0.25, blue: 0.15, alpha: 1), size: CGSize(width: 22, height: 22))
         glow.colorBlendFactor = 1
@@ -356,7 +459,16 @@ final class GameScene: SKScene {
         game = Game(seed: UInt64.random(in: 0...UInt64.max))
         gems.values.forEach { $0.removeWithGlow() }
         gems = [:]
-        overlayLayer.removeAllChildren()
+        overlayLayer.children.filter { $0 !== countdownLabel }.forEach { $0.removeFromParent() }
+        countdownLabel.isHidden = true
+        fresser?.node.removeFromParent()
+        fresser = nil
+        armed = nil
+        armedBracket.isHidden = true
+        figureRoof = 0
+        figure.position = roofPoint(0)
+        updateSlots()
+        refreshStatus()
         selected = nil
         place(cursor, at: nil)
         place(hintCursor, at: nil)
@@ -365,7 +477,7 @@ final class GameScene: SKScene {
         lastCombo = 1
         idleTime = 0
         shownPlan = game.plan
-        updateHUD(celebrate: false)
+        updateHUD()
 
         var longest = 0.0
         for p in game.board.positions {
@@ -445,20 +557,20 @@ final class GameScene: SKScene {
         gems[a] = nb
         gems[b] = na
         run(.sequence([.wait(forDuration: 0.15), .run { [weak self] in
-            self?.play(result.steps, index: 0, gameOver: result.isGameOver)
+            self?.play(result, index: 0)
         }]))
     }
 
-    private func play(_ steps: [CascadeStep], index: Int, gameOver: Bool) {
-        guard index < steps.count else {
-            finish(gameOver: gameOver)
+    private func play(_ result: SwapResult, index: Int) {
+        guard index < result.steps.count else {
+            finish(result)
             return
         }
-        let step = steps[index]
+        let step = result.steps[index]
         lastCombo = step.combo
         explode(step)
         run(.sequence([.wait(forDuration: 0.17), .run { [weak self] in
-            self?.collapse(step) { self?.play(steps, index: index + 1, gameOver: gameOver) }
+            self?.collapse(step) { self?.play(result, index: index + 1) }
         }]))
     }
 
@@ -484,23 +596,32 @@ final class GameScene: SKScene {
         ]))
     }
 
-    private func finish(gameOver: Bool) {
+    private func finish(_ result: SwapResult) {
         if game.score > highscore {
             highscore = game.score
             Highscore.save(highscore)
         }
-        updateHUD(celebrate: true)
-        if gameOver {
+        updateHUD()
+        updateSlots()
+        for (i, reward) in result.rewards.enumerated() {
+            run(.sequence([.wait(forDuration: Double(i) * 1.4), .run { [weak self] in self?.celebrate(reward) }]))
+        }
+        if result.isGameOver {
             showGameOver()
         } else {
             busy = false
         }
+        refreshStatus()
     }
 
     // MARK: Effekte
 
     private func explode(_ step: CascadeStep) {
         let combo = step.combo
+        guard !step.runs.isEmpty else {
+            explodeCells(step)
+            return
+        }
         for p in step.cleared {
             if let node = gems.removeValue(forKey: p) { pop(node) }
         }
@@ -537,7 +658,7 @@ final class GameScene: SKScene {
         let anchor = center(of: step.runs[0].center)
         fx.popup("+\(step.points)", at: CGPoint(x: anchor.x, y: anchor.y + 6), color: Palette.cream)
         if combo >= 2 {
-            fx.popup("КАСКАД x\(combo)", at: design(100, Layout.boardY + 24), color: Palette.amber, scale: 2)
+            fx.popup("KASKADE x\(combo)", at: design(100, Layout.boardY + 24), color: Palette.amber, scale: 2)
         }
 
         audio.play(.shrapnel, volume: Float(min(1, 0.35 + 0.1 * Double(combo))))
@@ -555,6 +676,27 @@ final class GameScene: SKScene {
         } else {
             haptics.match(combo: combo)
         }
+        setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
+    }
+
+    /// Stufe ohne Reihen: Steine, die ein Power-up entfernt (Bombe, Farbtilger, Fresser).
+    private func explodeCells(_ step: CascadeStep) {
+        var sum = CGPoint.zero
+        for p in step.cleared {
+            let c = center(of: p)
+            sum.x += c.x
+            sum.y += c.y
+            guard let node = gems.removeValue(forKey: p) else { continue }
+            fx.flash(at: c, color: GemArt.glowColor(node.gem))
+            fx.explosion(at: c, scale: 0.5)
+            fx.shrapnel(at: c, colors: sprites[node.gem]!.ramp.suffix(3).map(\.skColor), count: 6)
+            pop(node)
+        }
+        guard !step.cleared.isEmpty else { return }
+        let n = CGFloat(step.cleared.count)
+        fx.popup("+\(step.points)", at: CGPoint(x: (sum.x / n).rounded(), y: (sum.y / n).rounded() + 6), color: Palette.cream, scale: 2)
+        audio.match(step: 0)
+        audio.play(.shrapnel, volume: 0.7)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
     }
 
@@ -600,30 +742,16 @@ final class GameScene: SKScene {
 
     // MARK: Anzeige
 
-    private func updateHUD(celebrate: Bool) {
-        setText(recordLabel, "РЕКОРД " + String(format: "%08d", highscore), color: Palette.label)
+    private func updateHUD() {
+        setText(recordLabel, "HOCHPUNKTE " + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
         let plan = game.plan
-        setText(planLabel, "ПЛАН " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
+        setText(planLabel, "PLAN " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
         let filled = Int((game.planProgress * Double(planSegments.count)).rounded(.down))
         for (i, seg) in planSegments.enumerated() {
             seg.color = (i < filled ? Palette.amber : RGBA(hex: 0x221E2A)).skColor
         }
-        if celebrate && plan > shownPlan { celebratePlan() }
         shownPlan = plan
-    }
-
-    /// Plan erfüllt: Fanfare, Konfetti in allen Steinfarben, Warp-Ring.
-    private func celebratePlan() {
-        audio.play(.plan, volume: 0.7)
-        haptics.plan()
-        let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
-        fx.warpRing(at: mid, color: Palette.amber.skColor, radius: 130)
-        fx.popup("ПЛАН ВЫПОЛНЕН!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
-        for (i, gem) in Gem.allCases.enumerated() {
-            let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
-            fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
-        }
     }
 
     private func showGameOver() {
@@ -637,9 +765,9 @@ final class GameScene: SKScene {
         shade.run(.fadeIn(withDuration: 0.4))
 
         let lines: [(String, RGBA, CGFloat, Int)] = [
-            ("НЕТ ХОДОВ", Palette.amber, 2, 62),
-            ("ОЧКИ " + String(game.score), Palette.cream, 1, 84),
-            ("НАЖМИ ДЛЯ НОВОЙ ИГРЫ", Palette.label, 1, 108),
+            ("KEINE ZÜGE", Palette.amber, 2, 62),
+            ("PUNKTE " + String(game.score), Palette.cream, 1, 84),
+            (Self.newGameHint, Palette.label, 1, 108),
         ]
         for (text, color, scale, y) in lines {
             let canvas = PixelFont.render(text, color: color, shadow: RGBA(hex: 0x050409))
@@ -655,13 +783,363 @@ final class GameScene: SKScene {
         run(.sequence([.wait(forDuration: 0.8), .run { [weak self] in self?.busy = false }]))
     }
 
+    // MARK: Power-ups
+
+    private static var newGameHint: String {
+        #if os(iOS)
+        return "TIPPEN: NEUES SPIEL"
+        #else
+        return "KLICKEN: NEUES SPIEL"
+        #endif
+    }
+
+    private static func name(_ kind: PowerUp) -> String {
+        switch kind {
+        case .bombe: return "BOMBE"
+        case .farbtilger: return "FARBTILGER"
+        case .fresser: return "FRESSER"
+        }
+    }
+
+    private func slotIndex(at point: CGPoint) -> Int? {
+        let x = Int(floor(point.x)), y = Int(floor(Layout.height - point.y))
+        guard y >= Layout.slotY, y < Layout.slotY + Layout.slotSize else { return nil }
+        for i in 0..<Game.maxPowerUps where x >= Layout.slotX(i) && x < Layout.slotX(i) + Layout.slotSize {
+            return i
+        }
+        return nil
+    }
+
+    private func updateSlots() {
+        for (i, icon) in slotIcons.enumerated() {
+            if i < game.powerUps.count {
+                icon.texture = iconTextures[game.powerUps[i]]
+                icon.isHidden = false
+            } else {
+                icon.isHidden = true
+            }
+        }
+    }
+
+    private func flashSlot(_ i: Int) {
+        guard i >= 0, i < slotIcons.count else { return }
+        let p = design(Layout.slotX(i) + Layout.slotSize / 2, Layout.slotY + Layout.slotSize / 2)
+        fx.flash(at: p, color: Palette.amber.skColor)
+        fx.shrapnel(at: p, colors: [Palette.amber.skColor, .white, Palette.red.skColor], count: 10, power: 0.6, bounces: false)
+    }
+
+    private func setStatus(_ text: String, color: RGBA = Palette.label, blink: Bool = false) {
+        statusLabel.removeAction(forKey: "blink")
+        statusLabel.alpha = 1
+        guard text != statusText || blink else { return }
+        statusText = text
+        if text.isEmpty {
+            statusLabel.isHidden = true
+            return
+        }
+        statusLabel.isHidden = false
+        setText(statusLabel, text, color: color)
+        if blink {
+            statusLabel.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.5),
+                .fadeAlpha(to: 0.3, duration: 0), .wait(forDuration: 0.3),
+            ])), withKey: "blink")
+        }
+    }
+
+    private func refreshStatus() {
+        if fresser != nil {
+            setStatus("WISCHEN ZUM LENKEN", color: Palette.amber)
+        } else if armed == .bomb {
+            setStatus("BOMBE: ZIEL WÄHLEN", color: Palette.amber)
+        } else if armed == .purge {
+            setStatus("FARBTILGER: FARBE WÄHLEN", color: Palette.amber)
+        } else if !game.isOver && !game.hasValidMove {
+            setStatus("KEINE ZÜGE: POWER-UP!", color: Palette.red, blink: true)
+        } else if !game.powerUps.isEmpty {
+            setStatus("POWER-UP ANTIPPEN")
+        } else {
+            setStatus("")
+        }
+    }
+
+    private func setArmed(_ mode: Armed?, slot: Int = 0) {
+        armed = mode
+        armedSlot = slot
+        if mode == nil {
+            armedBracket.isHidden = true
+        } else {
+            armedBracket.position = design(Layout.slotX(slot), Layout.slotY)
+            armedBracket.isHidden = false
+            setSelected(nil)
+        }
+        refreshStatus()
+    }
+
+    private func handleSlot(_ i: Int) {
+        guard !busy, fresser == nil, i < game.powerUps.count else { return }
+        let kind = game.powerUps[i]
+        switch kind {
+        case .bombe:
+            setArmed(armed == .bomb && armedSlot == i ? nil : .bomb, slot: i)
+        case .farbtilger:
+            setArmed(armed == .purge && armedSlot == i ? nil : .purge, slot: i)
+        case .fresser:
+            setArmed(nil)
+            startFresser()
+        }
+        if armed != nil { audio.play(.select, volume: 0.5) }
+    }
+
+    private func fire(_ mode: Armed, at p: Pos) {
+        setArmed(nil)
+        let c = center(of: p)
+        switch mode {
+        case .bomb:
+            let result = game.useBomb(at: p)
+            guard result.isValid else { return }
+            busy = true
+            updateSlots()
+            audio.play(.bomb, volume: 0.9)
+            audio.play(.explosion, volume: 1)
+            haptics.explosion()
+            fx.explosion(at: c, scale: 2.2)
+            warp(at: c, strength: 8, color: SKColor(red: 1, green: 0.55, blue: 0.2, alpha: 1))
+            shake(strength: 3)
+            run(.sequence([.wait(forDuration: 0.12), .run { [weak self] in self?.play(result, index: 0) }]))
+
+        case .purge:
+            guard let color = game.board[p] else { return }
+            let targets = game.board.positions.filter { game.board[$0] == color }
+            let result = game.usePurge(color)
+            guard result.isValid else { return }
+            busy = true
+            updateSlots()
+            audio.play(.purge, volume: 0.9)
+            haptics.warp()
+            let tint = GemArt.glowColor(color)
+            fx.warpRing(at: c, color: tint, radius: 70)
+            for (i, q) in targets.enumerated() where q != p {
+                fx.lightning(from: c, to: center(of: q), color: tint, delay: Double(i) * 0.025)
+            }
+            run(.sequence([.wait(forDuration: 0.4), .run { [weak self] in self?.play(result, index: 0) }]))
+        }
+    }
+
+    // MARK: Fresser
+
+    private func startFresser() {
+        guard !busy, let round = game.startFresser() else { return }
+        busy = true
+        setSelected(nil)
+        updateSlots()
+        for node in gems.values where round.stones.contains(node.gem) {
+            node.isPetrified = true
+            node.body.texture = stoneTextures[node.gem]
+            fx.flash(at: node.position, color: SKColor(white: 0.7, alpha: 1))
+        }
+        let chomper = SKSpriteNode(texture: chomperFrames[0], size: CGSize(width: 18, height: 18))
+        chomper.position = center(of: round.start)
+        chomper.zPosition = 5
+        chomper.run(.repeatForever(.animate(with: chomperFrames, timePerFrame: 0.06)))
+        let light = SKSpriteNode(texture: glowTexture, color: Palette.amber.skColor, size: CGSize(width: 44, height: 44))
+        light.colorBlendFactor = 1
+        light.blendMode = .add
+        light.alpha = 0.45
+        chomper.addChild(light)
+        fx.pixelLayer.addChild(chomper)
+
+        fresser = FresserState(round: round, node: chomper, pos: round.start)
+        eat(at: round.start)
+        countdownLabel.isHidden = false
+        audio.play(.powerUp, volume: 0.7)
+        audio.play(.warp, volume: 0.5)
+        haptics.warp()
+        fx.warpRing(at: chomper.position, color: Palette.amber.skColor, radius: 60)
+        refreshStatus()
+    }
+
+    private func passable(_ p: Pos, _ round: FresserRound) -> Bool {
+        guard let gem = game.board.contains(p) ? game.board[p] : nil else { return false }
+        return !round.stones.contains(gem)
+    }
+
+    private func eat(at p: Pos) {
+        guard let f = fresser, !f.eaten.contains(p), let node = gems[p], !node.isPetrified else { return }
+        fresser?.eaten.insert(p)
+        gems.removeValue(forKey: p)
+        let c = center(of: p)
+        fx.flash(at: c, color: GemArt.glowColor(node.gem))
+        fx.shrapnel(at: c, colors: sprites[node.gem]!.ramp.suffix(3).map(\.skColor), count: 5, power: 0.7)
+        node.removeWithGlow()
+        audio.chomp(count: f.eaten.count)
+        if f.eaten.count % 3 == 0 { haptics.select() }
+    }
+
+    private func orient(_ node: SKSpriteNode, _ d: Direction) {
+        node.xScale = d.dc < 0 ? -1 : 1
+        node.zRotation = d.dr == 0 ? 0 : (d.dr < 0 ? .pi / 2 : -.pi / 2)
+    }
+
+    private func updateFresser(_ dt: TimeInterval) {
+        guard let current = fresser else { return }
+        fresser?.timeLeft -= dt
+        fresser?.stepTimer -= dt
+        if current.stepTimer - dt <= 0 {
+            fresser?.stepTimer += 0.13
+            for d in [current.queued, current.dir].compactMap({ $0 }) {
+                let next = Pos(current.pos.col + d.dc, current.pos.row + d.dr)
+                guard passable(next, current.round) else { continue }
+                fresser?.dir = d
+                if d == current.queued { fresser?.queued = nil }
+                fresser?.pos = next
+                current.node.run(.move(to: center(of: next), duration: 0.12))
+                orient(current.node, d)
+                eat(at: next)
+                break
+            }
+        }
+        guard let f = fresser else { return }
+        let seconds = max(0, Int(ceil(f.timeLeft)))
+        if seconds != f.shownSeconds {
+            fresser?.shownSeconds = seconds
+            setText(countdownLabel, "FRESSER \(seconds)", color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
+            if seconds <= 3 && seconds > 0 { audio.play(.select, volume: 0.5) }
+        }
+        let edible = game.board.positions.filter { passable($0, f.round) }.count
+        if f.timeLeft <= 0 || f.eaten.count >= edible {
+            endFresser()
+        }
+    }
+
+    private func endFresser() {
+        guard let f = fresser else { return }
+        fresser = nil
+        countdownLabel.isHidden = true
+        fx.steam(at: f.node.position)
+        f.node.run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))
+        for node in gems.values where node.isPetrified {
+            node.isPetrified = false
+            node.body.texture = sprites[node.gem]!.texture
+            fx.flash(at: node.position, color: GemArt.glowColor(node.gem))
+        }
+        audio.play(.cascade, volume: 0.6)
+        refreshStatus()
+        let result = game.finishFresser(f.round, eaten: f.eaten)
+        run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in self?.play(result, index: 0) }]))
+    }
+
+    // MARK: Plan, Figur, Belohnungen
+
+    private func roofPoint(_ i: Int) -> CGPoint {
+        guard !roofPoints.isEmpty else { return .zero }
+        return roofPoints[clamp(i, 0, roofPoints.count - 1)]
+    }
+
+    private func startFigureIdle() {
+        figure.texture = figureIdle[0]
+        figure.run(.repeatForever(.animate(with: figureIdle, timePerFrame: 0.5)), withKey: "idle")
+    }
+
+    private func jumpFigure(to roof: Int, then completion: @escaping () -> Void) {
+        let from = figure.position, to = roofPoint(roof)
+        figureRoof = roof
+        guard !roofPoints.isEmpty else {
+            completion()
+            return
+        }
+        audio.play(.jump, volume: 0.6)
+        figure.removeAction(forKey: "idle")
+        figure.texture = figureJump
+        let height = 18 + abs(to.y - from.y) / 2
+        let duration: CGFloat = 0.6
+        let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
+            let t = min(1, elapsed / duration)
+            node.position = CGPoint(x: (from.x + (to.x - from.x) * t).rounded(),
+                                    y: (from.y + (to.y - from.y) * t + sin(.pi * t) * height).rounded())
+        }
+        figure.run(.sequence([arc, .run { [weak self] in
+            guard let self else { return }
+            self.figure.position = to
+            self.startFigureIdle()
+            self.audio.play(.land, volume: 0.5)
+            completion()
+        }]))
+    }
+
+    /// Plan erfüllt: Fanfare, Konfetti, Figur springt, Power-up landet im Lager.
+    private func celebrate(_ reward: PlanReward) {
+        audio.play(.plan, volume: 0.7)
+        haptics.plan()
+        let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        fx.warpRing(at: mid, color: Palette.amber.skColor, radius: 130)
+        fx.popup("PLAN \(String(format: "%02d", reward.plan)) ERFÜLLT!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
+        for (i, gem) in Gem.allCases.enumerated() {
+            let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
+            fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
+        }
+        jumpFigure(to: reward.roof) { [weak self] in
+            guard let self else { return }
+            let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
+            if let kind = reward.powerUp {
+                self.audio.play(.powerUp, volume: 0.7)
+                self.fx.popup("+ " + Self.name(kind), at: slotLabel, color: Palette.amber)
+                self.flashSlot((self.game.powerUps.lastIndex(of: kind)) ?? 0)
+            } else if reward.bonusPoints > 0 {
+                self.fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
+            }
+            if reward.reachedTop { self.summit() }
+        }
+    }
+
+    /// Letztes Dach erreicht: Feuerwerk über der Stadt, dann zurück an den Anfang.
+    private func summit() {
+        let top = figure.position
+        fx.popup("GIPFEL ERREICHT!", at: CGPoint(x: min(max(top.x, 40), Layout.width - 40), y: top.y + 22), color: Palette.amber)
+        let colors = Gem.allCases.map { GemArt.glowColor($0) }
+        for i in 0..<6 {
+            let p = CGPoint(x: top.x + CGFloat.random(in: -70...20), y: top.y + CGFloat.random(in: 25...70))
+            run(.sequence([.wait(forDuration: Double(i) * 0.22), .run { [weak self] in
+                self?.fx.firework(at: p, colors: colors)
+                self?.audio.play(.shrapnel, volume: 0.5)
+            }]))
+        }
+        run(.sequence([.wait(forDuration: 1.8), .run { [weak self] in
+            guard let self else { return }
+            self.fx.steam(at: self.figure.position)
+            self.figureRoof = 0
+            self.figure.position = self.roofPoint(0)
+            self.fx.steam(at: self.figure.position)
+            self.audio.play(.steam, volume: 0.5)
+        }]))
+    }
+
     // MARK: Eingabe
 
     private func pointerDown(_ point: CGPoint) {
         idleTime = 0
         place(hintCursor, at: nil)
+        if fresser != nil {
+            swipeStart = point
+            return
+        }
         if game.isOver {
             if !busy { startNewGame(animated: true) }
+            return
+        }
+        if let slot = slotIndex(at: point) {
+            pointerStart = nil
+            handleSlot(slot)
+            return
+        }
+        if let mode = armed {
+            pointerStart = nil
+            guard !busy else { return }
+            if let p = cell(at: point) {
+                fire(mode, at: p)
+            } else {
+                setArmed(nil)
+            }
             return
         }
         guard !busy, let p = cell(at: point) else {
@@ -672,6 +1150,16 @@ final class GameScene: SKScene {
     }
 
     private func pointerMoved(_ point: CGPoint) {
+        if fresser != nil {
+            guard let start = swipeStart else { return }
+            let dx = point.x - start.x, dy = point.y - start.y
+            guard max(abs(dx), abs(dy)) >= 6 else { return }
+            fresser?.queued = abs(dx) > abs(dy)
+                ? Direction(dc: dx > 0 ? 1 : -1, dr: 0)
+                : Direction(dc: 0, dr: dy > 0 ? -1 : 1)
+            swipeStart = point
+            return
+        }
         guard let start = pointerStart, !busy else { return }
         let dx = point.x - start.point.x, dy = point.y - start.point.y
         guard max(abs(dx), abs(dy)) >= 7 else { return }
@@ -686,6 +1174,7 @@ final class GameScene: SKScene {
     }
 
     private func pointerUp(_ point: CGPoint) {
+        swipeStart = nil
         guard let start = pointerStart else { return }
         pointerStart = nil
         guard let current = selected else {
@@ -745,7 +1234,7 @@ final class GameScene: SKScene {
             let v = gem.visualPosition
             gem.glow.position = v
             if gem.isDying { continue }
-            gem.glow.isHidden = gem.position.y > boardTop
+            gem.glow.isHidden = gem.position.y > boardTop || gem.isPetrified
             gem.glow.alpha = CGFloat(0.16 + 0.05 * sin(clock * 2.2 + Double(v.x) / 22 * 0.9 + Double(v.y) / 22 * 1.3))
         }
 
@@ -758,7 +1247,9 @@ final class GameScene: SKScene {
             setText(scoreLabel, String(format: "%08d", shown), color: Palette.amber, scale: 2)
         }
 
-        if !busy && !game.isOver && pointerStart == nil {
+        updateFresser(dt)
+
+        if !busy && !game.isOver && pointerStart == nil && armed == nil && game.hasValidMove {
             idleTime += dt
             if idleTime > 7, hintCursor.isHidden, let move = game.hint() {
                 place(hintCursor, at: move.a)

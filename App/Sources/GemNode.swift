@@ -8,6 +8,8 @@ final class GemNode: SKNode {
     let body: SKSpriteNode
     let glow: SKSpriteNode
     var isDying = false
+    /// Während einer Fresser-Runde versteinert.
+    var isPetrified = false
 
     init(gem: Gem, texture: SKTexture, glowTexture: SKTexture) {
         self.gem = gem

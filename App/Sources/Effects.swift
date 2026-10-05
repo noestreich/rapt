@@ -22,6 +22,7 @@ final class Effects {
         var life: CGFloat
         let maxLife: CGFloat
         let gravity: CGFloat
+        let canBounce: Bool
         var bounced = false
     }
 
@@ -85,7 +86,7 @@ final class Effects {
     }
 
     /// Schrapnell-Konfetti in den Farben des Steins: kleine, rotierende Splitter, die am Brettboden abprallen.
-    func shrapnel(at p: CGPoint, colors: [SKColor], count: Int, power: CGFloat = 1) {
+    func shrapnel(at p: CGPoint, colors: [SKColor], count: Int, power: CGFloat = 1, bounces: Bool = true) {
         let shapes: [CGSize] = [CGSize(width: 1, height: 1), CGSize(width: 2, height: 1), CGSize(width: 2, height: 2), CGSize(width: 3, height: 1)]
         for i in 0..<count {
             let color = colors.randomElement() ?? .white
@@ -97,7 +98,8 @@ final class Effects {
             let life = CGFloat.random(in: 0.5...1.1)
             particles.append(Particle(node: node, glow: light, x: p.x, y: p.y,
                                       vx: cos(angle) * speed, vy: sin(angle) * speed + 45,
-                                      spin: CGFloat.random(in: -18...18), life: life, maxLife: life, gravity: 230))
+                                      spin: CGFloat.random(in: -18...18), life: life, maxLife: life, gravity: 230,
+                                      canBounce: bounces && p.y >= floorY))
         }
     }
 
@@ -113,7 +115,7 @@ final class Effects {
             let life = CGFloat.random(in: 0.6...1.3)
             particles.append(Particle(node: node, glow: glow(at: p, color: color, size: 7, alpha: 0.8), x: p.x, y: p.y,
                                       vx: cos(angle) * speed, vy: sin(angle) * speed + 20,
-                                      spin: 0, life: life, maxLife: life, gravity: -25))
+                                      spin: 0, life: life, maxLife: life, gravity: -25, canBounce: false))
         }
     }
 
@@ -149,7 +151,60 @@ final class Effects {
         }
     }
 
-    /// Aufsteigende Pixeltext-Einblendung, z. B. Punkte oder „КАСКАД x3“.
+    /// Zuckender Blitz zwischen zwei Punkten (Farbtilger).
+    func lightning(from a: CGPoint, to b: CGPoint, color: SKColor, delay: TimeInterval = 0) {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let length = max(1, (dx * dx + dy * dy).squareRoot())
+        let nx = -dy / length, ny = dx / length
+        func bolt() -> CGPath {
+            let path = CGMutablePath()
+            path.move(to: a)
+            let segments = max(3, Int(length / 9))
+            for i in 1..<segments {
+                let k = CGFloat(i) / CGFloat(segments)
+                let j = CGFloat.random(in: -4...4)
+                path.addLine(to: CGPoint(x: a.x + dx * k + nx * j, y: a.y + dy * k + ny * j))
+            }
+            path.addLine(to: b)
+            return path
+        }
+        let glow = SKShapeNode(path: bolt())
+        glow.strokeColor = color
+        glow.lineWidth = 3
+        glow.glowWidth = 3
+        glow.blendMode = .add
+        glow.alpha = 0
+        let core = SKShapeNode(path: bolt())
+        core.strokeColor = .white
+        core.lineWidth = 1
+        core.blendMode = .add
+        core.alpha = 0
+        for node in [glow, core] {
+            lightLayer.addChild(node)
+            node.run(.sequence([
+                .wait(forDuration: delay),
+                .fadeAlpha(to: 1, duration: 0),
+                .wait(forDuration: 0.06), .fadeAlpha(to: 0.3, duration: 0),
+                .wait(forDuration: 0.04), .fadeAlpha(to: 1, duration: 0),
+                .fadeOut(withDuration: 0.3),
+                .removeFromParent(),
+            ]))
+        }
+        if delay == 0 {
+            glow.run(.repeat(.sequence([.wait(forDuration: 0.05), .run { glow.path = bolt() }]), count: 6))
+        }
+    }
+
+    /// Feuerwerk am Himmel: Lichtblitz und Funken in mehreren Farben.
+    func firework(at p: CGPoint, colors: [SKColor]) {
+        let color = colors.randomElement() ?? .white
+        let flare = glow(at: p, color: color, size: 26, alpha: 1)
+        flare.run(.sequence([.group([.scale(to: 2.5, duration: 0.5), .fadeOut(withDuration: 0.5)]), .removeFromParent()]))
+        shrapnel(at: p, colors: colors, count: 22, power: 0.9, bounces: false)
+        embers(at: p, count: 6)
+    }
+
+    /// Aufsteigende Pixeltext-Einblendung, z. B. Punkte oder „KASKADE x3“.
     func popup(_ text: String, at p: CGPoint, color: RGBA, scale: CGFloat = 1) {
         let canvas = PixelFont.render(text, color: color, shadow: RGBA(hex: 0x1A0A06))
         let node = SKSpriteNode(texture: canvas.texture(), size: CGSize(width: CGFloat(canvas.width) * scale, height: CGFloat(canvas.height) * scale))
@@ -170,7 +225,7 @@ final class Effects {
             p.vy -= p.gravity * dt
             p.x += p.vx * dt
             p.y += p.vy * dt
-            if p.gravity > 0, !p.bounced, p.y < floorY, p.vy < 0 {
+            if p.canBounce, !p.bounced, p.y < floorY, p.vy < 0 {
                 p.y = floorY
                 p.vy = -p.vy * 0.35
                 p.vx *= 0.6

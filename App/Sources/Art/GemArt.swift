@@ -71,8 +71,9 @@ enum GemArt {
         return (d, h)
     }
 
-    static func makeSprite(_ gem: Gem, size: Int = tile) -> Sprite {
-        let style = look(gem)
+    /// `petrified`: graue Steinversion für den Fresser.
+    static func makeSprite(_ gem: Gem, size: Int = tile, petrified: Bool = false) -> Sprite {
+        let style = petrified ? Look(hue: 30, sat: 6, light: 40) : look(gem)
         let steps = 5
         let ramp: [RGBA] = (0..<steps).map { i in
             let k = Double(i) / Double(steps - 1)

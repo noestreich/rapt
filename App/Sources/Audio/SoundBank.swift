@@ -63,6 +63,13 @@ final class SoundBank {
         schedule(buffer, volume: volume * Float(library.gain(for: slot)), semitones: 0)
     }
 
+    /// Bissen des Fressers; jeder weitere Bissen etwas höher.
+    func chomp(count: Int, volume: Float = 0.5) {
+        let semitones = Double(count % 12)
+        guard let buffer = custom[.chomp] ?? synth[.chomp] else { return }
+        schedule(buffer, volume: volume * Float(library.gain(for: .chomp)), semitones: semitones)
+    }
+
     /// Trefferton; `step` 0 ist der erste Treffer, jede Kaskadenstufe klingt höher.
     func match(step: Int, volume: Float = 0.5) {
         let i = clamp(step, 0, Self.scale.count - 1)
@@ -181,6 +188,46 @@ final class SoundBank {
 
         case .match, .music:
             return buffer(0.01) { _ in 0 }
+
+        case .jump:
+            return buffer(0.2) { t in
+                phase += (280 + 900 * t / 0.2) * dt
+                return Self.square(phase) * 0.25 * exp(-t * 9)
+            }
+
+        case .powerUp:
+            let notes: [Double] = [0, 7, 12, 19, 24, 31]
+            return buffer(0.6) { t in
+                let idx = min(notes.count - 1, Int(t / 0.05))
+                let lt = t - Double(idx) * 0.05
+                phase += 659.25 * pow(2, notes[idx] / 12) * dt
+                let sparkle = noise.next() * 0.08 * exp(-lt * 30)
+                let env = idx == notes.count - 1 ? exp(-lt * 4) : exp(-lt * 10)
+                return (Self.square(phase) * 0.18 + Self.triangle(phase * 2) * 0.15) * env + sparkle
+            }
+
+        case .bomb:
+            return buffer(0.35) { t in
+                // Zündschnur-Zischen, dann Knall
+                let fuse = t < 0.12 ? noise.next() * 0.25 * (0.5 + 0.5 * sin(t * 300)) : 0
+                phase += (140 * exp(-t * 8) + 40) * dt
+                let crack = t >= 0.12 ? (noise.next() * 0.7 + sin(2 * .pi * phase) * 0.6) * exp(-(t - 0.12) * 14) : 0
+                return fuse + crack
+            }
+
+        case .purge:
+            return buffer(0.55) { t in
+                phase += (1800 * exp(-t * 5) + 120) * dt
+                let zap = Self.square(phase) * (0.5 + 0.5 * Self.square(t * 40))
+                return (zap * 0.22 + noise.next() * 0.12) * exp(-t * 4)
+            }
+
+        case .chomp:
+            return buffer(0.1) { t in
+                let f = 160 + 260 * sin(.pi * t / 0.1)
+                phase += f * dt
+                return Self.triangle(phase) * 0.45 * min(1, t / 0.005) * exp(-t * 12)
+            }
 
         case .swap:
             return buffer(0.08) { t in

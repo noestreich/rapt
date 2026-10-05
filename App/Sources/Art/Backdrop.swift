@@ -33,6 +33,8 @@ enum Backdrop {
         /// Erleuchtete Fenster (für weiches Licht), in Canvas-Koordinaten.
         let lights: [(x: Int, y: Int)]
         let beacon: (x: Int, y: Int)
+        /// Dächer der vorderen Häuser: linke Kante, Breite, Oberkante (Canvas-Koordinaten).
+        let roofs: [(x: Int, width: Int, top: Int)]
     }
 
     /// Plattenbauten und Fernsehturm, unten bündig.
@@ -41,6 +43,7 @@ enum Backdrop {
         var c = PixelCanvas(width: width, height: height)
         var rng = SplitMix64(seed: seed)
         var lights: [(x: Int, y: Int)] = []
+        var roofs: [(x: Int, width: Int, top: Int)] = []
         func ri(_ n: Int) -> Int { Int(rng.unit() * Double(n)) }
 
         for layer in 0...1 {
@@ -53,6 +56,7 @@ enum Backdrop {
                 c.fillRect(x, y, w, h, RGBA(hex: near ? 0x232330 : 0x14131C))
                 c.fillRect(x, y, w, 1, RGBA(hex: near ? 0x33333F : 0x1B1A25))
                 if near {
+                    roofs.append((x, w, y))
                     c.fillRect(x + w - 2, y + 1, 2, h, RGBA(hex: 0x1B1B26))
                     var wy = y + 4
                     while wy < height - 3 {
@@ -76,7 +80,7 @@ enum Backdrop {
         c.fillRect(tx, 23, 3, height - 23, tower)
         c.fillRect(tx - 4, 41, 11, 4, tower)
         c.fillRect(tx + 1, 13, 1, 10, tower)
-        return Skyline(canvas: c, lights: lights, beacon: (tx + 1, 12))
+        return Skyline(canvas: c, lights: lights, beacon: (tx + 1, 12), roofs: roofs)
     }
 
     /// Betonfläche mit Dithering; helle Oberkante, dunkle Unter- und Rechtskante.
@@ -107,7 +111,19 @@ enum Backdrop {
                 c.set(x, y, ((x + y) >> 2) & 1 == 1 ? RGBA(hex: 0xB8321F) : RGBA(hex: 0x1A1418))
             }
         }
-        PixelFont.draw("ОЧКИ", into: &c, x: 12, y: 7, color: RGBA(hex: 0x9A9CAB))
+        // Spielname als Logo: 2-fach, mit Schatten
+        var logo = PixelCanvas(width: PixelFont.width("RAPT"), height: PixelFont.lineHeight)
+        PixelFont.draw("RAPT", into: &logo, x: 0, y: 0, color: .white)
+        for y in 0..<logo.height * 2 {
+            for x in 0..<logo.width * 2 where logo.get(x / 2, y / 2).a > 0 {
+                c.set(12 + x + 1, 3 + y + 1, RGBA(hex: 0x3A0E08))
+            }
+        }
+        for y in 0..<logo.height * 2 {
+            for x in 0..<logo.width * 2 where logo.get(x / 2, y / 2).a > 0 {
+                c.set(12 + x, 3 + y, y < 5 ? RGBA(hex: 0xFF6A3D) : RGBA(hex: 0xD8341E))
+            }
+        }
         return c
     }
 

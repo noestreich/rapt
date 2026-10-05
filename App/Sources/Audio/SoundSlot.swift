@@ -12,6 +12,11 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
     case explosion
     case warp
     case plan
+    case jump
+    case powerUp
+    case bomb
+    case purge
+    case chomp
     case gameOver
     case music
 
@@ -30,6 +35,11 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .explosion: return "Explosion"
         case .warp: return "Warp"
         case .plan: return "Plan erfüllt"
+        case .jump: return "Sprung"
+        case .powerUp: return "Power-up erhalten"
+        case .bomb: return "Bombe"
+        case .purge: return "Farbtilger"
+        case .chomp: return "Fresser frisst"
         case .gameOver: return "Keine Züge mehr"
         case .music: return "Hintergrundmusik"
         }
@@ -49,7 +59,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .explosion: return "Reihe ab vier Steinen, mit Strahl und Schockwelle."
         case .warp: return "Schockwelle bei Viererreihen und Kaskaden ab Stufe 3."
         case .plan: return "Ein Plan (Stufe) ist erfüllt."
-        case .gameOver: return "Kein Zug mehr möglich, Spielende."
+        case .jump: return "Die Figur springt aufs nächste Hochhausdach."
+        case .powerUp: return "Ein Power-up landet im Lager."
+        case .bomb: return "Die Bombe zündet (zusätzlich zur Explosion)."
+        case .purge: return "Der Farbtilger schlägt in alle Steine einer Farbe ein."
+        case .chomp: return "Der Fresser frisst einen Stein. Wird mit jedem Bissen etwas höher."
+        case .gameOver: return "Kein Zug und kein Power-up mehr, Spielende."
         case .music: return "Läuft in Schleife, solange Musik eingeschaltet ist."
         }
     }

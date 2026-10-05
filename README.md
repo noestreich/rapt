@@ -27,7 +27,7 @@ Nach Änderungen an `project.yml` oder neuen Dateien `xcodegen generate` erneut 
 | `Packages/RaptCore` | Spiellogik ohne Grafik: Brett, Reihen, Züge, Schwerkraft, Kaskaden, Punkte, Plan-Stufen. Mit Tests. |
 | `App/Sources/GameScene.swift` | SpriteKit-Szene: Eingabe, Ablauf, Effekt-Choreografie, Anzeige |
 | `App/Sources/Effects.swift` | Pixel-Explosionen, Dampf, Schrapnell-Konfetti, Glutfunken, Strahlen, Warp-Ringe |
-| `App/Sources/Art/` | Prozedurale Grafik: Steine, Nebel, Plattenbauten, Beton, Pixelschrift (Kyrillisch) |
+| `App/Sources/Art/` | Prozedurale Grafik: Steine, Nebel, Plattenbauten, Beton, Pixelschrift, Power-up-Symbole, Figur, Fresser |
 | `App/Sources/Audio/` | Synthesizer, Sound-Plätze, Dateizuordnung, Musik |
 | `App/Sources/SoundLabView.swift` | Sound-Labor (nur Mac, nur Debug-Build) |
 | `tools/make_icon.py` | Erzeugt das App-Icon |
@@ -37,10 +37,23 @@ hochskaliert. Licht und Partikel rendern in voller Auflösung darüber.
 
 ## Spiel
 
-- Endlos-Modus: Steine tauschen (wischen oder zweimal tippen), bis kein Zug mehr möglich ist.
+- Endlos-Modus: Steine tauschen (wischen oder zweimal tippen). Das Spiel endet, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
-- „Plan“-Stufen: alle 1500 × n Punkte ist ein Plan erfüllt (Fanfare, Konfetti).
+- „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr. Jeder erfüllte Plan lässt die Figur auf den Plattenbauten
+  ein Dach weiterspringen und legt ein Power-up ins Lager (drei Plätze unter der Plan-Leiste).
+- Reihenfolge pro Runde über die Dächer: **Bombe → Farbtilger → Bombe → Fresser** (letztes Dach, mit Feuerwerk).
+  Danach beginnt die Figur wieder vorne. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
+
+### Power-ups
+
+Im Lager antippen, dann:
+
+| Power-up | Wirkung |
+|---|---|
+| Bombe | Feld antippen: sprengt 3 × 3 Steine |
+| Farbtilger | Stein antippen: alle Steine dieser Farbe verschwinden |
+| Fresser | Startet sofort: zwei Farben versteinern, 10 Sekunden lang lenkst du den Fressautomaten per Wischen und frisst alle anderen Steine |
 
 ## Sound-Labor (Mac)
 
@@ -69,7 +82,12 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `explosion` | Reihe ab vier Steinen |
 | `warp` | Schockwelle (Viererreihe, Kaskade ab Stufe 3) |
 | `plan` | Plan erfüllt |
-| `gameOver` | Kein Zug mehr möglich |
+| `jump` | Figur springt aufs nächste Dach |
+| `powerUp` | Power-up landet im Lager |
+| `bomb` | Bombe zündet |
+| `purge` | Farbtilger schlägt ein |
+| `chomp` | Fresser frisst einen Stein (wird pro Bissen höher) |
+| `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
 
 ## Einstellungen
