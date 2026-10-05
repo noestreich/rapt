@@ -111,11 +111,11 @@ final class SoundBank {
     }
 
     /// Funkspruch eines Kontakts: eigene Aufnahme (mit Funkklang) oder Plapper-Synthesizer.
-    func voice(_ slot: SoundSlot, spec: VoiceSpec, volume: Float = 1) {
+    func voice(_ slot: SoundSlot?, spec: VoiceSpec, volume: Float = 1) {
         guard isEnabled else { return }
-        let gain = volume * Float(library.gain(for: slot))
+        let gain = volume * Float(slot.map { library.gain(for: $0) } ?? 1)
         let buffer: AVAudioPCMBuffer
-        if let file = custom[slot] {
+        if let slot, let file = custom[slot] {
             buffer = file
         } else {
             let babble = RadioVoice.babble(spec, sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))

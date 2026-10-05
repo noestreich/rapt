@@ -51,10 +51,11 @@ public struct Board: Equatable, Sendable {
         p.col >= 0 && p.col < cols && p.row >= 0 && p.row < rows
     }
 
+    /// Tauscht zwei Felder samt Spezialstein.
     public mutating func swapAt(_ a: Pos, _ b: Pos) {
-        let t = self[a]
-        self[a] = self[b]
-        self[b] = t
+        let t = self[tile: a]
+        self[tile: a] = self[tile: b]
+        self[tile: b] = t
     }
 
     public var isFull: Bool { cells.allSatisfy { $0 != nil } }

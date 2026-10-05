@@ -48,7 +48,7 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
-- „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr.
+- Sprung-Leiste unter dem Brett: Sprung n braucht 1500 × n Punkte (Sprung 1: 1500, Sprung 2: +3000 …).
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
   dasselbe hintereinander (Bombe 32, Farbtilger 22, Strudel 18, Atombombe 16, Fresser 12). Jeder sechste Sprung
   bringt garantiert Fresser oder Atombombe, dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
@@ -87,6 +87,9 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
   Querformat 184 × 121 und füllen die Einblendung in voller Breite. Neue Bilder (beliebige Größe, ca. 3:2) mit
   `python3 tools/import_portraits.py <Ordner>` aufs Pixelraster bringen, danach `xcodegen generate`.
   Fehlt eine Datei, erzeugt das Spiel einen 48 × 48-Platzhalter.
+- **Varianten:** `portrait_<kontakt>--<name>--<stimme>.png` (z. B. `portrait_boris--ivan--mann-tief.png`) vertritt den
+  Kontakt zufällig, mit eigenem Namen und eigener Stimme. Stimmen: `mann`, `mann-tief`, `frau`, `maedchen`, `junge`,
+  `alt`, `hund`, `roboter`. Ebenfalls mit `tools/import_portraits.py` einspielen.
 - **Stimmen:** Ohne Datei spricht ein Synthesizer: KIRA und JUKI hell (Mädchen), MAMA ZORA (Frau, mit Vibrato),
   BORIS tief (Mann), K-9 bellt, knurrt und winselt, ROBO-7 spricht in Tonstufen mit Piepsern.
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang

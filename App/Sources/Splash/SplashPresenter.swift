@@ -32,7 +32,7 @@ final class SplashPresenter {
         self.width = width
         self.height = height
         node.zPosition = 95
-        for contact in Contact.all { portraits[contact.id] = PortraitArt.texture(for: contact) }
+        for contact in Contact.allWithVariants { portraits[contact.id] = PortraitArt.texture(for: contact) }
     }
 
     /// `force`: immer zeigen (Power-ups, Hyperstein), sonst nur nach Ablauf der Sperre.

@@ -4,6 +4,10 @@ Aufruf: python3 tools/import_portraits.py <Ordner mit portrait_*.png>
 Erwartet Querformat-Bilder (ca. 3:2). Ausgabe: App/Resources/portrait_<id>.png in 184 × 121 Kunst-Pixeln,
 Palette auf 128 Farben reduziert, damit sie neben der übrigen Pixel-Art bestehen.
 Dateinamen werden auf die Kontakt-IDs abgebildet (mama-zora → zora, robo-7 → robo).
+
+Varianten (alternative Porträts, die einen Kontakt zufällig vertreten):
+    portrait_<kontakt>--<name>--<stimme>.png    z. B. portrait_boris--ivan--mann-tief.png
+Stimmen: mann, mann-tief, frau, maedchen, junge, alt, hund, roboter
 """
 import sys
 from pathlib import Path
@@ -13,13 +17,25 @@ OUT = Path(__file__).resolve().parent.parent / "App/Resources"
 SIZE = (184, 121)
 ALIASES = {"mama-zora": "zora", "mamazora": "zora", "robo-7": "robo", "robo7": "robo", "k-9": "k9"}
 IDS = {"kira", "boris", "juki", "zora", "k9", "robo"}
+VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "roboter"}
 
 
 def convert(src: Path) -> Path | None:
     name = src.stem.lower().removeprefix("portrait_")
-    cid = ALIASES.get(name, name)
+    parts = name.split("--")
+    cid = ALIASES.get(parts[0], parts[0])
     if cid not in IDS:
-        print(f"übersprungen: {src.name} (unbekannter Kontakt)")
+        print(f"übersprungen: {src.name} (unbekannter Kontakt „{parts[0]}“)")
+        return None
+    if len(parts) == 3:
+        variant = parts[1].replace(" ", "-").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")
+        voice = parts[2].replace("ä", "ae")
+        if voice not in VOICES:
+            print(f"übersprungen: {src.name} (unbekannte Stimme „{voice}“, erlaubt: {', '.join(sorted(VOICES))})")
+            return None
+        cid = f"{cid}--{variant}--{voice}"
+    elif len(parts) != 1:
+        print(f"übersprungen: {src.name} (Format: portrait_<kontakt>--<name>--<stimme>.png)")
         return None
     im = Image.open(src).convert("RGB")
     # auf Seitenverhältnis zuschneiden, mittig

@@ -318,7 +318,7 @@ final class GameScene: SKScene {
         glowLayer.addChild(scoreGlow)
 
         // Plan-Leiste
-        let barStart = Layout.boardX + PixelFont.width("PLAN 00") + 5
+        let barStart = Layout.boardX + PixelFont.width("SPRUNG 00") + 5
         let barEnd = Layout.boardX + Layout.boardSize
         let bar = SKSpriteNode(color: RGBA(hex: 0x0B0A11).skColor, size: CGSize(width: barEnd - barStart, height: 7))
         bar.anchorPoint = CGPoint(x: 0, y: 1)
@@ -585,6 +585,7 @@ final class GameScene: SKScene {
         startFigureIdle()
         let rooftop = newMode == .rooftop
         figure.isHidden = !rooftop
+        if rooftop && animated { dropFigureIn(after: 0.5) }
         slotFrames.forEach { $0.isHidden = !rooftop }
         gems.values.forEach { $0.removeWithGlow() }
         gems = [:]
@@ -787,7 +788,7 @@ final class GameScene: SKScene {
             fx.flash(at: c, color: .white)
             audio.play(.powerUp, volume: 0.45)
             if creation.special == .hyper {
-                var delivery = SplashPresenter.Delivery(contact: Contact.contact(for: creation.special), item: itemTexture(for: creation.special))
+                var delivery = SplashPresenter.Delivery(contact: Contact.random(for: Contact.contact(for: creation.special)), item: itemTexture(for: creation.special))
                 delivery.onHandover = { [weak self, weak node] start in
                     guard let self, let node else { return }
                     self.flyItem(self.itemTexture(for: .hyper), from: start, to: { [weak node] in node?.position }) { [weak self, weak node] in
@@ -957,7 +958,7 @@ final class GameScene: SKScene {
         setText(recordLabel, "HOCHPUNKTE " + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
         let plan = game.plan
-        setText(planLabel, "PLAN " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
+        setText(planLabel, "SPRUNG " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
         let filled = Int((game.planProgress * Double(planSegments.count)).rounded(.down))
         for (i, seg) in planSegments.enumerated() {
             seg.color = (i < filled ? Palette.amber : RGBA(hex: 0x221E2A)).skColor
@@ -1139,7 +1140,7 @@ final class GameScene: SKScene {
         func radio(_ contact: Contact, _ item: SKTexture?) -> () -> Void {
             { [weak self] in
                 guard let self else { return }
-                let delivery = SplashPresenter.Delivery(contact: contact, item: item ?? SKTexture())
+                let delivery = SplashPresenter.Delivery(contact: Contact.random(for: contact), item: item ?? SKTexture())
                 self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
             }
         }
@@ -1179,7 +1180,7 @@ final class GameScene: SKScene {
         let info: [HelpPanel.Block] = [
             .init(title: "SO GEHT DER DÄCHERLAUF", lines: [
                 "DIE HÄUSER WANDERN LANGSAM NACH LINKS.",
-                "PUNKTE FÜLLEN DEN PLAN-BALKEN UNTER",
+                "PUNKTE FÜLLEN DEN SPRUNG-BALKEN UNTER",
                 "DEM BRETT. IST ER VOLL SPRINGT DIE",
                 "FIGUR AUFS NÄCHSTE DACH UND BRINGT",
                 "EIN POWER-UP. WIRD SIE LINKS AUS DEM",
@@ -1190,8 +1191,8 @@ final class GameScene: SKScene {
                 "JEDER STEIN ÜBER 3 IN DER REIHE: +100",
                 "KASKADEN: STUFE 2 DOPPELT - 3 DREIFACH",
                 "SPEZIALSTEIN AUSGELÖST: +200 JE STUFE",
-                "PLAN 2 BRAUCHT 1500 PUNKTE. JEDER",
-                "WEITERE PLAN 1500 MEHR ALS DER LETZTE.",
+                "SPRUNG 1 BRAUCHT 1500 PUNKTE. JEDER",
+                "WEITERE SPRUNG 1500 MEHR ALS DER LETZTE.",
             ]),
             .init(title: "MACHER", lines: [
                 "SPIEL: NICOLAS OESTREICH",
@@ -1345,7 +1346,7 @@ final class GameScene: SKScene {
                 self.haptics.select()
             }
         }
-        var delivery = SplashPresenter.Delivery(contact: Contact.contact(for: kind), item: icon)
+        var delivery = SplashPresenter.Delivery(contact: Contact.random(for: Contact.contact(for: kind)), item: icon)
         delivery.onHandover = land
         if !splash.present(delivery, at: clock, force: true) {
             land(CGPoint(x: figure.position.x, y: figure.position.y + 6))
@@ -1706,6 +1707,32 @@ final class GameScene: SKScene {
         figure.xScale = 1
     }
 
+    /// Spielstart: die Figur fällt aus dem Nichts auf ihr erstes Dach.
+    private func dropFigureIn(after delay: TimeInterval) {
+        figureJumping = true
+        stopFigureIdle()
+        figure.texture = figureJump
+        figure.alpha = 0
+        let duration: CGFloat = 0.55
+        let fall = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
+            guard let self else { return }
+            let b = self.game.city.buildings[min(self.shownBuilding, self.game.city.buildings.count - 1)]
+            let target = self.design(CGFloat(self.game.city.screenX(b.center)).rounded(), self.skyBottom - CGFloat(b.height))
+            let t = min(1, elapsed / duration)
+            node.alpha = min(1, t * 4)
+            node.position = CGPoint(x: target.x, y: (target.y + 80 * (1 - t * t)).rounded())
+        }
+        figure.run(.sequence([.wait(forDuration: delay), fall, .run { [weak self] in
+            guard let self else { return }
+            self.figureJumping = false
+            self.updateCity()
+            self.startFigureIdle()
+            self.audio.play(.land, volume: 0.6)
+            self.fx.steam(at: self.figure.position)
+            self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
+        }]))
+    }
+
     /// Sprung auf das Haus mit Index `building`. Das Ziel wandert während des Sprungs mit.
     private func jumpFigure(to building: Int, then completion: @escaping () -> Void) {
         guard building < game.city.buildings.count, !figureFalling else {
@@ -1749,7 +1776,7 @@ final class GameScene: SKScene {
         haptics.plan()
         let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
         fx.warpRing(at: mid, color: Palette.amber.skColor, radius: 130)
-        fx.popup("PLAN \(String(format: "%02d", reward.plan)) ERFÜLLT!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
+        fx.popup("SPRUNG \(reward.plan - 1) GESCHAFFT!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
         for (i, gem) in Gem.allCases.enumerated() {
             let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
             fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)

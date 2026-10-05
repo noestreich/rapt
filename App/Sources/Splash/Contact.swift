@@ -1,3 +1,4 @@
+import Foundation
 import RaptCore
 
 /// Figuren, die dem Spieler per Funk Spezialsteine und Power-ups zustecken.
@@ -14,7 +15,8 @@ struct Contact: Equatable {
     let jacket: UInt32
     let accent: UInt32
     let voice: VoiceSpec
-    let voiceSlot: SoundSlot
+    /// Sound-Labor-Platz für eigene Aufnahmen. Varianten haben keinen und sprechen immer mit dem Synthesizer.
+    let voiceSlot: SoundSlot?
 
     static let kira = Contact(id: "kira", name: "KIRA", look: .bob, skin: 0xE8B58A, hair: 0x15121C, jacket: 0x1E2236, accent: 0x3FD8FF,
                               voice: VoiceSpec(pitch: 290, speed: 1.3, melody: 0.25, formant: 1.3, breath: 0.15), voiceSlot: .voiceKira)
@@ -30,6 +32,47 @@ struct Contact: Equatable {
                               voice: VoiceSpec(style: .robot, pitch: 110, speed: 1, melody: 0, ring: 0.7), voiceSlot: .voiceRobo)
 
     static let all = [kira, boris, juki, zora, k9, robo]
+
+    // MARK: Varianten
+
+    /// Stimmvorlagen für Varianten, Schlüssel wie im Dateinamen.
+    static let voicePresets: [String: VoiceSpec] = [
+        "mann": VoiceSpec(pitch: 110, speed: 0.95, melody: 0.12, formant: 0.92, breath: 0.08),
+        "mann-tief": VoiceSpec(pitch: 85, speed: 0.85, melody: 0.1, formant: 0.85, breath: 0.08),
+        "frau": VoiceSpec(pitch: 210, speed: 1.0, melody: 0.18, formant: 1.15, breath: 0.2),
+        "maedchen": VoiceSpec(pitch: 300, speed: 1.35, melody: 0.28, formant: 1.3, breath: 0.15),
+        "junge": VoiceSpec(pitch: 250, speed: 1.3, melody: 0.25, formant: 1.22, breath: 0.12),
+        "alt": VoiceSpec(pitch: 150, speed: 0.85, melody: 0.14, vibrato: 0.06, formant: 1.05, breath: 0.3),
+        "hund": VoiceSpec(style: .dog, pitch: 150),
+        "roboter": VoiceSpec(style: .robot, pitch: 110, speed: 1, melody: 0, ring: 0.7),
+    ]
+
+    /// Alternative Porträts aus dem Bundle: `portrait_<kontakt>--<name>--<stimme>.png`,
+    /// z. B. `portrait_boris--ivan--mann-tief.png`. Sie vertreten den Kontakt zufällig.
+    static let variants: [String: [Contact]] = {
+        var out: [String: [Contact]] = [:]
+        let files = Bundle.main.urls(forResourcesWithExtension: "png", subdirectory: nil) ?? []
+        for url in files {
+            let stem = url.deletingPathExtension().lastPathComponent
+            guard stem.hasPrefix("portrait_") else { continue }
+            let parts = stem.dropFirst("portrait_".count).components(separatedBy: "--")
+            guard parts.count == 3, let base = all.first(where: { $0.id == parts[0] }) else { continue }
+            let voice = voicePresets[parts[2]] ?? base.voice
+            let name = parts[1].replacingOccurrences(of: "-", with: " ").uppercased()
+            let variant = Contact(id: String(stem.dropFirst("portrait_".count)), name: name, look: base.look,
+                                  skin: base.skin, hair: base.hair, jacket: base.jacket, accent: base.accent,
+                                  voice: voice, voiceSlot: nil)
+            out[base.id, default: []].append(variant)
+        }
+        return out
+    }()
+
+    static var allWithVariants: [Contact] { all + all.flatMap { variants[$0.id] ?? [] } }
+
+    /// Kontakt oder eine seiner Varianten, zufällig.
+    static func random(for base: Contact) -> Contact {
+        ([base] + (variants[base.id] ?? [])).randomElement() ?? base
+    }
 
     /// Wer welchen Spezialstein liefert.
     static func contact(for special: Special) -> Contact {

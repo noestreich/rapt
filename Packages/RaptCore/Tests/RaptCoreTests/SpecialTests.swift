@@ -2,6 +2,28 @@ import XCTest
 @testable import RaptCore
 
 final class SpecialTests: XCTestCase {
+    /// Linien-Stein wird selbst getauscht und bildet eine Dreierreihe: die ganze Zeile muss weg.
+    func testSwappedLineStoneKeepsItsPowerAndClearsTheRow() throws {
+        var game = Game(board: Board([
+            "KSUNR",
+            "ZNKSU",
+            "OOZKN",
+            "SUOSZ",
+        ], specials: [Pos(2, 3): .line(horizontal: true)]), seed: 1)
+        let result = game.swap(Pos(2, 2), Pos(2, 3))
+        XCTAssertTrue(result.isValid)
+        let first = try XCTUnwrap(result.steps.first)
+        XCTAssertEqual(first.detonations.map(\.special), [.line(horizontal: true)])
+        XCTAssertEqual(Set(first.cleared), Set((0..<5).map { Pos($0, 2) }))
+    }
+
+    func testSwapKeepsSpecials() {
+        var board = Board(["OZ"], specials: [Pos(0, 0): .bomb])
+        board.swapAt(Pos(0, 0), Pos(1, 0))
+        XCTAssertEqual(board[tile: Pos(1, 0)], Tile(.orden, .bomb))
+        XCTAssertEqual(board[tile: Pos(0, 0)], Tile(.zahnrad))
+    }
+
     func testFourInARowCreatesLineAtSwappedCell() throws {
         var game = Game(board: Board([
             "KSUNR",
