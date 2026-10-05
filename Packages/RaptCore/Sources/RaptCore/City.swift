@@ -25,6 +25,8 @@ public struct City: Sendable {
     /// Wie weit die Stadt schon nach links gewandert ist.
     public private(set) var offset = 0.0
     public private(set) var figureIndex = 0
+    /// Gespielte Zeit in Sekunden (für die Beschleunigung über die Spieldauer).
+    public private(set) var elapsed = 0.0
     private var rng: SplitMix64
 
     public init(seed: UInt64, startX: Double = 140) {
@@ -44,12 +46,18 @@ public struct City: Sendable {
     public var isFigureLost: Bool { figureX < 0 }
     public var isInDanger: Bool { figureX < Self.dangerX }
 
-    public static func speed(plan: Int, base: Double = baseSpeed) -> Double {
-        base * (1 + speedGrowthPerPlan * Double(max(0, plan - 1)))
+    /// Tempo aus Grundgeschwindigkeit, Plan und Spielzeit.
+    public static func speed(plan: Int, base: Double = baseSpeed, elapsed: Double = 0, accelerationPerMinute: Double = 0) -> Double {
+        base * (1 + speedGrowthPerPlan * Double(max(0, plan - 1))) * (1 + accelerationPerMinute * elapsed / 60)
     }
 
-    public mutating func advance(by seconds: Double, plan: Int, base: Double = baseSpeed) {
-        offset += Self.speed(plan: plan, base: base) * seconds
+    public func currentSpeed(plan: Int, base: Double, accelerationPerMinute: Double) -> Double {
+        Self.speed(plan: plan, base: base, elapsed: elapsed, accelerationPerMinute: accelerationPerMinute)
+    }
+
+    public mutating func advance(by seconds: Double, plan: Int, base: Double = baseSpeed, accelerationPerMinute: Double = 0) {
+        elapsed += seconds
+        offset += Self.speed(plan: plan, base: base, elapsed: elapsed, accelerationPerMinute: accelerationPerMinute) * seconds
         extend(to: offset + Self.viewWidth + 80)
     }
 

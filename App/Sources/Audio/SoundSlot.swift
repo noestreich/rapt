@@ -17,6 +17,7 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
     case bomb
     case purge
     case chomp
+    case danger
     case gameOver
     case voiceKira
     case voiceBoris
@@ -46,6 +47,7 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .bomb: return "Bombe"
         case .purge: return "Farbtilger"
         case .chomp: return "Fresser frisst"
+        case .danger: return "Absturz-Alarm"
         case .gameOver: return "Keine Züge mehr"
         case .voiceKira: return "Funk: KIRA"
         case .voiceBoris: return "Funk: BORIS"
@@ -76,6 +78,7 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .bomb: return "Die Bombe zündet (zusätzlich zur Explosion)."
         case .purge: return "Der Farbtilger schlägt in alle Steine einer Farbe ein."
         case .chomp: return "Der Fresser frisst einen Stein. Wird mit jedem Bissen etwas höher."
+        case .danger: return "Läuft in Schleife, solange die Figur am linken Rand steht; wird lauter, je näher der Absturz."
         case .gameOver: return "Kein Zug und kein Power-up mehr, Spielende."
         case .voiceKira: return "KIRA übergibt einen Linien-Stein. Eigene Aufnahmen bekommen automatisch Funkklang."
         case .voiceBoris: return "BORIS übergibt einen Bomben-Stein oder eine Bombe."

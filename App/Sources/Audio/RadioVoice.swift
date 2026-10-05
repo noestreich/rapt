@@ -1,6 +1,27 @@
 import Foundation
 
-/// Unverständliche Funksprüche: Silben aus Vokal-Formanten, danach Walkie-Talkie-Klang
+/// Stimmcharakter eines Funkers.
+struct VoiceSpec: Equatable {
+    enum Style: Equatable { case human, dog, robot }
+
+    var style: Style = .human
+    /// Grundtonhöhe in Hz.
+    var pitch: Double
+    /// 1 = normal, größer = schneller.
+    var speed: Double = 1
+    /// Tonhöhenschwankung pro Silbe (0 = monoton).
+    var melody: Double = 0.15
+    var vibrato: Double = 0
+    /// Formant-Verschiebung: 0,9 tiefe Männerstimme, 1,15 Frau, 1,3 Mädchen.
+    var formant: Double = 1
+    /// Hauchanteil 0 … 1.
+    var breath: Double = 0.1
+    /// Ringmodulation für metallischen Klang.
+    var ring: Double = 0
+}
+
+/// Unverständliche Funksprüche: Silben aus Vokal-Formanten (Mensch), Bellen und Knurren (Hund) oder
+/// Tonstufen mit Piepsern (Roboter), danach Walkie-Talkie-Klang
 /// (Bandpass, Verzerrung, Bitreduktion, Rauschen, Rauschsperren-Klicken).
 enum RadioVoice {
     private struct Resonator {
@@ -25,47 +46,152 @@ enum RadioVoice {
     /// Formanten (F1, F2) der Vokale a, e, i, o, u.
     private static let vowels: [(Double, Double)] = [(800, 1200), (450, 1900), (300, 2300), (500, 900), (350, 800)]
 
-    static func babble(pitch: Double, speed: Double, melody: Double, vibrato: Double, ring: Double,
-                       sampleRate: Double, seed: UInt64) -> [Float] {
+    static func babble(_ voice: VoiceSpec, sampleRate: Double, seed: UInt64) -> [Float] {
         var rng = SplitMix64Local(seed: seed)
+        switch voice.style {
+        case .human: return human(voice, sampleRate: sampleRate, rng: &rng)
+        case .dog: return dog(voice, sampleRate: sampleRate, rng: &rng)
+        case .robot: return robot(voice, sampleRate: sampleRate, rng: &rng)
+        }
+    }
+
+    /// Normalisiert ein Stück auf `level` und hängt es an.
+    private static func append(_ part: [Double], to out: inout [Float], level: Double) {
+        let peak = max(0.0001, part.map(abs).max() ?? 1)
+        out.append(contentsOf: part.map { Float($0 / peak * level) })
+    }
+
+    private static func silence(_ seconds: Double, _ sampleRate: Double) -> [Float] {
+        [Float](repeating: 0, count: Int(seconds * sampleRate))
+    }
+
+    private static func human(_ voice: VoiceSpec, sampleRate: Double, rng: inout SplitMix64Local) -> [Float] {
         var out: [Float] = []
-        var phase = 0.0, ringPhase = 0.0
-        var f1 = Resonator(), f2 = Resonator()
+        var phase = 0.0
+        var f1 = Resonator(), f2 = Resonator(), f3 = Resonator()
         let syllables = 5 + Int(rng.unit() * 5)
         for s in 0..<syllables {
-            let length = (0.07 + rng.unit() * 0.06) / speed
+            let length = (0.07 + rng.unit() * 0.06) / voice.speed
             let n = Int(length * sampleRate)
             let vowel = vowels[Int(rng.unit() * Double(vowels.count)) % vowels.count]
-            // Satzmelodie: leicht fallend, mit Sprüngen pro Silbe
-            let contour = 1 + melody * (rng.unit() - 0.5) * 2 - 0.08 * Double(s) / Double(syllables)
+            let contour = 1 + voice.melody * (rng.unit() - 0.5) * 2 - 0.08 * Double(s) / Double(syllables)
             let consonant = rng.unit() < 0.6
-            f1.tune(vowel.0, bandwidth: 90, sampleRate: sampleRate)
-            f2.tune(vowel.1, bandwidth: 120, sampleRate: sampleRate)
-            var syllable: [Double] = []
-            syllable.reserveCapacity(n)
+            f1.tune(vowel.0 * voice.formant, bandwidth: 90 * voice.formant, sampleRate: sampleRate)
+            f2.tune(vowel.1 * voice.formant, bandwidth: 120 * voice.formant, sampleRate: sampleRate)
+            f3.tune(2600 * voice.formant, bandwidth: 200, sampleRate: sampleRate)
+            var part: [Double] = []
+            part.reserveCapacity(n)
             for i in 0..<n {
                 let t = Double(i) / sampleRate
-                let f0 = pitch * contour * (1 + vibrato * sin(t * 2 * .pi * 6))
+                let f0 = voice.pitch * contour * (1 + voice.vibrato * sin(t * 2 * .pi * 6))
                 phase += f0 / sampleRate
+                // Sägezahn, bei hohen Stimmen weicher (Dreieck-Anteil)
                 let saw = 2 * (phase - floor(phase)) - 1
-                var x = f1.process(saw) * 1.0 + f2.process(saw) * 0.6
-                if consonant && t < 0.018 {
-                    x = (rng.unit() * 2 - 1) * 0.35 * (1 - t / 0.018)
-                }
-                let env = min(1, t / 0.01) * min(1, (length - t) / 0.02)
-                if ring > 0 {
-                    ringPhase += 55 / sampleRate
-                    x *= (1 - ring) + ring * sin(2 * .pi * ringPhase * 6)
-                }
-                syllable.append(x * env)
+                let tri = 4 * abs(phase - floor(phase + 0.5)) - 1
+                let soft = min(1, max(0, (voice.formant - 1) * 3))
+                let source = saw * (1 - soft * 0.6) + tri * soft * 0.6 + (rng.unit() * 2 - 1) * voice.breath
+                var x = f1.process(source) + f2.process(source) * 0.6 + f3.process(source) * 0.25
+                if consonant && t < 0.018 { x = (rng.unit() * 2 - 1) * 0.35 * (1 - t / 0.018) }
+                part.append(x * min(1, t / 0.01) * min(1, (length - t) / 0.02))
             }
-            // Resonatoren verstärken je nach Vokal sehr unterschiedlich: pro Silbe normalisieren
-            let peak = max(0.0001, syllable.map(abs).max() ?? 1)
-            let level = 0.55 + rng.unit() * 0.25
-            out.append(contentsOf: syllable.map { Float($0 / peak * level) })
-            // kleine Pause zwischen Silben, manchmal länger (Wortgrenze)
-            let gap = Int((rng.unit() < 0.25 ? 0.07 : 0.015) / speed * sampleRate)
-            out.append(contentsOf: [Float](repeating: 0, count: gap))
+            append(part, to: &out, level: 0.55 + rng.unit() * 0.25)
+            out.append(contentsOf: silence((rng.unit() < 0.25 ? 0.07 : 0.015) / voice.speed, sampleRate))
+        }
+        return out
+    }
+
+    /// Hund: Bellen mit fallender Tonhöhe, Knurren mit rauer Modulation, manchmal Winseln.
+    private static func dog(_ voice: VoiceSpec, sampleRate: Double, rng: inout SplitMix64Local) -> [Float] {
+        var out: [Float] = []
+        var f1 = Resonator(), f2 = Resonator()
+        let sounds = 3 + Int(rng.unit() * 3)
+        for _ in 0..<sounds {
+            let pick = rng.unit()
+            var part: [Double] = []
+            var phase = 0.0
+            if pick < 0.55 {
+                // Bellen „Wuff“
+                let length = 0.1 + rng.unit() * 0.06
+                let start = voice.pitch * (2.6 + rng.unit() * 0.8)
+                f1.tune(650, bandwidth: 180, sampleRate: sampleRate)
+                f2.tune(1400, bandwidth: 260, sampleRate: sampleRate)
+                for i in 0..<Int(length * sampleRate) {
+                    let t = Double(i) / sampleRate
+                    phase += start * (1 - 0.45 * t / length) / sampleRate
+                    let saw = 2 * (phase - floor(phase)) - 1
+                    let source = saw * 0.7 + (rng.unit() * 2 - 1) * 0.5
+                    let x = f1.process(source) + f2.process(source) * 0.7
+                    part.append(x * min(1, t / 0.004) * exp(-t * 14))
+                }
+                append(part, to: &out, level: 0.85)
+                out.append(contentsOf: silence(0.06 + rng.unit() * 0.08, sampleRate))
+            } else if pick < 0.85 {
+                // Knurren
+                let length = 0.25 + rng.unit() * 0.2
+                f1.tune(380, bandwidth: 150, sampleRate: sampleRate)
+                f2.tune(900, bandwidth: 250, sampleRate: sampleRate)
+                for i in 0..<Int(length * sampleRate) {
+                    let t = Double(i) / sampleRate
+                    phase += voice.pitch * 0.65 * (1 + 0.1 * sin(t * 40)) / sampleRate
+                    let saw = 2 * (phase - floor(phase)) - 1
+                    let rough = 0.55 + 0.45 * sin(t * 2 * .pi * 27)
+                    let source = (saw + (rng.unit() * 2 - 1) * 0.3) * rough
+                    let x = f1.process(source) + f2.process(source) * 0.5
+                    part.append(x * min(1, t / 0.03) * min(1, (length - t) / 0.05))
+                }
+                append(part, to: &out, level: 0.6)
+                out.append(contentsOf: silence(0.04, sampleRate))
+            } else {
+                // Winseln
+                let length = 0.22 + rng.unit() * 0.1
+                for i in 0..<Int(length * sampleRate) {
+                    let t = Double(i) / sampleRate
+                    phase += (voice.pitch * 5 + 300 * sin(.pi * t / length)) / sampleRate
+                    part.append(sin(2 * .pi * phase) * sin(.pi * t / length))
+                }
+                append(part, to: &out, level: 0.5)
+                out.append(contentsOf: silence(0.05, sampleRate))
+            }
+        }
+        return out
+    }
+
+    /// Roboter: monotone Tonstufen aus einer Rechteckwelle, Ringmodulation, Piepser zwischen Wörtern.
+    private static func robot(_ voice: VoiceSpec, sampleRate: Double, rng: inout SplitMix64Local) -> [Float] {
+        var out: [Float] = []
+        var f1 = Resonator(), f2 = Resonator()
+        let steps: [Double] = [1, 1, 1.5, 2, 0.75]
+        let syllables = 6 + Int(rng.unit() * 5)
+        var ringPhase = 0.0
+        for s in 0..<syllables {
+            let length = 0.09 / voice.speed
+            let f0 = voice.pitch * steps[Int(rng.unit() * Double(steps.count)) % steps.count]
+            let vowel = vowels[Int(rng.unit() * Double(vowels.count)) % vowels.count]
+            f1.tune(vowel.0, bandwidth: 60, sampleRate: sampleRate)
+            f2.tune(vowel.1, bandwidth: 80, sampleRate: sampleRate)
+            var part: [Double] = []
+            var phase = 0.0
+            for i in 0..<Int(length * sampleRate) {
+                let t = Double(i) / sampleRate
+                phase += f0 / sampleRate
+                let square = phase - floor(phase) < 0.5 ? 1.0 : -1.0
+                var x = f1.process(square) + f2.process(square) * 0.7
+                ringPhase += 330 / sampleRate
+                x *= (1 - voice.ring) + voice.ring * sin(2 * .pi * ringPhase)
+                // harte Kanten wie ein Sprachchip
+                part.append(t < length * 0.85 ? x : 0)
+            }
+            append(part, to: &out, level: 0.7)
+            if s % 3 == 2 || rng.unit() < 0.2 {
+                // Piepser
+                var beep: [Double] = []
+                let freq = 1200 + rng.unit() * 900
+                for i in 0..<Int(0.04 * sampleRate) {
+                    beep.append(sin(2 * .pi * freq * Double(i) / sampleRate))
+                }
+                append(beep, to: &out, level: 0.45)
+            }
+            out.append(contentsOf: silence(0.02 / voice.speed, sampleRate))
         }
         return out
     }

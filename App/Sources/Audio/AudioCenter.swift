@@ -35,6 +35,9 @@ final class AudioCenter {
         switch slot {
         case .music:
             music.isEnabled.toggle()
+        case .danger:
+            effects.setDanger(1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in self?.effects.setDanger(0) }
         case .match:
             for step in 0..<4 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(step) * 0.28) { [weak self] in
@@ -51,7 +54,6 @@ final class AudioCenter {
     }
 
     func speak(_ contact: Contact) {
-        let v = contact.voice
-        effects.voice(contact.voiceSlot, pitch: v.pitch, speed: v.speed, melody: v.melody, vibrato: v.vibrato, ring: v.ring)
+        effects.voice(contact.voiceSlot, spec: contact.voice)
     }
 }

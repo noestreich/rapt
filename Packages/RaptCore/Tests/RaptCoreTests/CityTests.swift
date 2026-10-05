@@ -68,6 +68,14 @@ final class CityTests: XCTestCase {
         XCTAssertTrue(game.powerUps.isEmpty)
     }
 
+    func testAccelerationGrowsWithPlayTime() {
+        var city = City(seed: 8)
+        let start = city.currentSpeed(plan: 1, base: 1, accelerationPerMinute: 0.2)
+        city.advance(by: 120, plan: 1, base: 1, accelerationPerMinute: 0.2)
+        XCTAssertEqual(start, 1, accuracy: 0.0001)
+        XCTAssertEqual(city.currentSpeed(plan: 1, base: 1, accelerationPerMinute: 0.2), 1.4, accuracy: 0.0001)
+    }
+
     func testSpeedGrowsWithPlan() {
         XCTAssertGreaterThan(City.speed(plan: 5), City.speed(plan: 1))
     }

@@ -60,9 +60,10 @@ public struct Game: Sendable {
     public static let bonusPerExtraGem = 100
     public static let pointsPerPlanStep = 1500
     public static let pointsPerDetonation = 200
-    /// Belohnung pro Dach. Die Figur startet auf Dach 0; das letzte Dach bringt den Fresser.
-    public static let roofRewards: [PowerUp] = [.bombe, .farbtilger, .strudel, .bombe, .atom, .fresser]
-    public static var roofCount: Int { roofRewards.count + 1 }
+    /// Gewichte für zufällige Belohnungen. Seltene Power-ups sind wertvoller.
+    public static let rewardWeights: [PowerUp: Double] = [.bombe: 32, .farbtilger: 22, .strudel: 18, .atom: 16, .fresser: 12]
+    /// Jeder `roofCount - 1`. Sprung schließt einen Zyklus ab und bringt garantiert Fresser oder Atombombe.
+    public static let roofCount = 7
     public static let maxPowerUps = 3
     public static let fullStorageBonus = 500
 
@@ -79,6 +80,9 @@ public struct Game: Sendable {
     public private(set) var hasFallen = false
     /// Grundgeschwindigkeit der Stadt (Design-Pixel pro Sekunde), z. B. vom Debug-Schieber.
     public var citySpeed = City.baseSpeed
+    /// Zusätzliche Beschleunigung der Stadt pro Spielminute (0,1 = +10 % je Minute).
+    public var cityAcceleration = 0.0
+    private var lastReward: PowerUp?
     private var rewardedPlan = 1
     private var rng: SplitMix64
 
@@ -100,7 +104,7 @@ public struct Game: Sendable {
     /// Lässt die Stadt `seconds` weiterwandern. Gibt `true` zurück, wenn die Figur gerade abgestürzt ist.
     public mutating func tick(_ seconds: Double) -> Bool {
         guard !isOver, mode == .rooftop else { return false }
-        city.advance(by: seconds, plan: plan, base: citySpeed)
+        city.advance(by: seconds, plan: plan, base: citySpeed, accelerationPerMinute: cityAcceleration)
         guard city.isFigureLost else { return false }
         hasFallen = true
         isOver = true
@@ -452,7 +456,7 @@ public struct Game: Sendable {
             }
             roof += 1
             let top = roof >= Self.roofCount - 1
-            let kind = Self.roofRewards[roof - 1]
+            let kind = top ? pickReward(from: [.fresser, .atom]) : pickReward(from: PowerUp.allCases)
             var granted: PowerUp?
             var bonus = 0
             if powerUps.count < Self.maxPowerUps {
@@ -467,6 +471,35 @@ public struct Game: Sendable {
             if top { roof = 0 }
         }
         return rewards
+    }
+
+    /// Gewichteter Zufall, ohne dasselbe Power-up zweimal hintereinander.
+    private mutating func pickReward(from options: [PowerUp]) -> PowerUp {
+        let pool = options.count > 1 ? options.filter { $0 != lastReward } : options
+        let total = pool.reduce(0) { $0 + (Self.rewardWeights[$1] ?? 1) }
+        var roll = rng.unit() * total
+        var choice = pool[pool.count - 1]
+        for kind in pool {
+            roll -= Self.rewardWeights[kind] ?? 1
+            if roll < 0 {
+                choice = kind
+                break
+            }
+        }
+        lastReward = choice
+        return choice
+    }
+
+    /// Für Tests: Lager leeren.
+    mutating func clearPowerUps() {
+        powerUps.removeAll()
+        updateOver()
+    }
+
+    /// Für Tests: ein bestimmtes Power-up ins Lager legen.
+    mutating func grant(_ kind: PowerUp) {
+        powerUps.append(kind)
+        updateOver()
     }
 
     /// Für Tests: Punkte gutschreiben und Belohnungen auswerten.

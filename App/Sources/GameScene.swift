@@ -142,6 +142,9 @@ final class GameScene: SKScene {
     private var visibleLeft: CGFloat = 0
     private var visibleRight: CGFloat = Layout.width
     private var skyBottom: CGFloat = Layout.height
+    private var visibleTop: CGFloat = 0
+    private var windowTimer: TimeInterval = 4
+    private var shootingStarTimer: TimeInterval = 15
 
     // Menü (Moduswahl, Spielende)
     private var menuButtons: [(rect: CGRect, mode: GameMode)] = []
@@ -371,6 +374,8 @@ final class GameScene: SKScene {
             guard let self else { return }
             self.audio.play(.select, volume: 0.5)
             self.game.citySpeed = GameSettings.shared.citySpeed
+            self.game.cityAcceleration = GameSettings.shared.cityAcceleration
+            if !GameSettings.shared.hintsEnabled { self.place(self.hintCursor, at: nil) }
         }
         shaker.addChild(settingsPanel.node)
         let gearRows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
@@ -468,6 +473,7 @@ final class GameScene: SKScene {
         // Vordere Häuserreihe: wird in updateCity() laufend positioniert
         visibleLeft = CGFloat(left)
         visibleRight = CGFloat(right)
+        visibleTop = CGFloat(top)
         skyBottom = CGFloat(bottom)
         game.extendCity(toScreenX: Double(right) + 40)
         updateCity()
@@ -510,6 +516,7 @@ final class GameScene: SKScene {
         highscore = Highscore.load(newMode)
         game = Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
         game.citySpeed = GameSettings.shared.citySpeed
+        game.cityAcceleration = GameSettings.shared.cityAcceleration
         game.extendCity(toScreenX: Double(visibleRight) + 40)
         buildingSprites.values.forEach { $0.removeFromParent() }
         buildingSprites = [:]
@@ -1028,6 +1035,78 @@ final class GameScene: SKScene {
         backLayer.addChild(sprite)
         buildingSprites[index] = sprite
         return sprite
+    }
+
+    /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
+    private func toggleRandomWindow() {
+        guard let sprite = buildingSprites.values.randomElement() else { return }
+        let w = Int(sprite.size.width), h = Int(sprite.size.height)
+        let cols = max(1, (w - 7) / 4), rows = max(1, (h - 7) / 5)
+        let wx = 3 + 4 * Int.random(in: 0..<cols), wy = 4 + 5 * Int.random(in: 0..<rows)
+        guard wx + 2 <= w - 4, wy + 2 <= h - 3 else { return }
+        let turnOn = Bool.random()
+        let pane = SKSpriteNode(color: RGBA(hex: turnOn ? 0xE8A94A : 0x121119).skColor, size: CGSize(width: 2, height: 2))
+        pane.anchorPoint = CGPoint(x: 0, y: 1)
+        pane.position = CGPoint(x: wx, y: h - wy)
+        pane.zPosition = 1
+        sprite.addChild(pane)
+        if turnOn {
+            // Leuchtstoffröhre: kurz flackern, dann an
+            pane.alpha = 0
+            pane.run(.sequence([
+                .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.06),
+                .fadeAlpha(to: 0, duration: 0), .wait(forDuration: 0.1),
+                .fadeAlpha(to: 1, duration: 0),
+            ]))
+            let g = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0xE8A94A).skColor, size: CGSize(width: 9, height: 9))
+            g.colorBlendFactor = 1
+            g.blendMode = .add
+            g.alpha = 0
+            g.position = CGPoint(x: 1, y: -1)
+            pane.addChild(g)
+            g.run(.sequence([.wait(forDuration: 0.16), .fadeAlpha(to: 0.18, duration: 0.2)]))
+        }
+    }
+
+    /// Sternschnuppe über dem oberen oder unteren Himmel.
+    private func shootingStar() {
+        let top = Bool.random()
+        let yDesign = top
+            ? CGFloat.random(in: (visibleTop + 4)...max(visibleTop + 5, 40))
+            : CGFloat.random(in: CGFloat(Layout.slotY + 26)...max(CGFloat(Layout.slotY + 27), skyBottom - 75))
+        let fromLeft = Bool.random()
+        let startX = fromLeft ? CGFloat.random(in: visibleLeft...(visibleLeft + 80)) : CGFloat.random(in: (visibleRight - 80)...visibleRight)
+        let start = design(startX, yDesign)
+        let dx = CGFloat.random(in: 70...120) * (fromLeft ? 1 : -1)
+        let dy = -CGFloat.random(in: 20...40)
+        let head = SKSpriteNode(color: .white, size: CGSize(width: 1, height: 1))
+        head.position = start
+        head.zPosition = 1.5
+        let light = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0xCDD6FF).skColor, size: CGSize(width: 10, height: 10))
+        light.colorBlendFactor = 1
+        light.blendMode = .add
+        light.alpha = 0.8
+        head.addChild(light)
+        backLayer.addChild(head)
+        let duration: CGFloat = 0.75
+        var lastPixel = CGPoint(x: -999, y: -999)
+        let layer = backLayer
+        let flight = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
+            let t = elapsed / duration
+            let p = CGPoint(x: (start.x + dx * t).rounded(), y: (start.y + dy * t).rounded())
+            node.position = p
+            node.alpha = t < 0.15 ? t / 0.15 : (t > 0.8 ? (1 - t) / 0.2 : 1)
+            if p != lastPixel {
+                lastPixel = p
+                let trail = SKSpriteNode(color: RGBA(hex: 0xCDD6FF).skColor, size: CGSize(width: 1, height: 1))
+                trail.position = p
+                trail.zPosition = 1.4
+                trail.alpha = node.alpha * 0.8
+                layer.addChild(trail)
+                trail.run(.sequence([.fadeOut(withDuration: 0.35), .removeFromParent()]))
+            }
+        }
+        head.run(.sequence([flight, .removeFromParent()]))
     }
 
     /// Figur wird links aus dem Bild geschoben und stürzt ab.
@@ -1698,6 +1777,18 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
 
+        // Lebendige Stadt: Fensterlicht und Sternschnuppen
+        windowTimer -= dt
+        if windowTimer <= 0 {
+            windowTimer = Double.random(in: 2.5...7)
+            toggleRandomWindow()
+        }
+        shootingStarTimer -= dt
+        if shootingStarTimer <= 0 {
+            shootingStarTimer = Double.random(in: 14...40)
+            shootingStar()
+        }
+
         if mode == .rooftop && !menuVisible && !figureFalling && !settingsPanel.isVisible {
             if game.tick(dt) {
                 busy = true
@@ -1709,19 +1800,24 @@ final class GameScene: SKScene {
                 wasInDanger = danger
                 refreshStatus()
             }
+            // Je näher am Rand, desto lauter brummt der Alarm
+            let level = danger ? Float(1 - max(0, game.city.figureX) / City.dangerX) : 0
+            audio.setDanger(level)
             if danger {
                 dangerBeep -= dt
                 if dangerBeep <= 0 {
-                    dangerBeep = 1.6
-                    audio.play(.invalid, volume: 0.35)
-                    fx.flash(at: figure.position, color: Palette.red.skColor)
+                    dangerBeep = 0.4
+                    let pulse = fx.glow(at: CGPoint(x: figure.position.x, y: figure.position.y + 5), color: Palette.red.skColor, size: 16, alpha: 0.6)
+                    pulse.run(.sequence([.fadeOut(withDuration: 0.35), .removeFromParent()]))
                 }
             }
+        } else {
+            audio.setDanger(0)
         }
 
         if !busy && !game.isOver && pointerStart == nil && armed == nil && game.hasValidMove {
             idleTime += dt
-            if idleTime > 7, hintCursor.isHidden, let move = game.hint() {
+            if idleTime > 7, hintCursor.isHidden, GameSettings.shared.hintsEnabled, let move = game.hint() {
                 place(hintCursor, at: move.a)
             }
         }

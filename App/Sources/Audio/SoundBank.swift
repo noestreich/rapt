@@ -14,6 +14,9 @@ final class SoundBank {
     /// Alle Effekte laufen über diesen Mischer; er wird leiser, während jemand funkt.
     private let effectsMixer = AVAudioMixerNode()
     private var duckUntil = Date.distantPast
+    /// Endlosschleife für den Absturz-Alarm.
+    private let dangerPlayer = AVAudioPlayerNode()
+    private var dangerActive = false
 
     private static let sampleRate = 44_100.0
     private static let scale: [Double] = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27]
@@ -40,6 +43,8 @@ final class SoundBank {
             engine.connect(speed, to: effectsMixer, format: format)
             voices.append((player, speed))
         }
+        engine.attach(dangerPlayer)
+        engine.connect(dangerPlayer, to: effectsMixer, format: format)
         engine.attach(voicePlayer)
         engine.connect(voicePlayer, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = 0.8
@@ -59,8 +64,32 @@ final class SoundBank {
         }
     }
 
+    /// Absturz-Alarm: 0 = aus, 1 = Figur kurz vor dem Rand (lauter).
+    func setDanger(_ level: Float) {
+        guard isEnabled, level > 0 else {
+            if dangerActive {
+                dangerPlayer.stop()
+                dangerActive = false
+            }
+            return
+        }
+        guard let buffer = custom[.danger] ?? synth[.danger] else { return }
+        if !engine.isRunning { try? engine.start() }
+        guard engine.isRunning else { return }
+        if !dangerActive {
+            dangerPlayer.scheduleBuffer(buffer, at: nil, options: [.loops, .interrupts], completionHandler: nil)
+            dangerPlayer.play()
+            dangerActive = true
+        }
+        dangerPlayer.volume = (0.12 + 0.38 * min(1, level)) * Float(library.gain(for: .danger))
+    }
+
     /// Lädt eigene Dateien neu, z. B. nachdem im Sound-Labor etwas zugewiesen wurde.
     func reload() {
+        if dangerActive {
+            dangerPlayer.stop()
+            dangerActive = false
+        }
         custom = [:]
         for slot in SoundSlot.allCases where !slot.isMusic {
             if let url = library.url(for: slot), let buffer = Self.load(url, as: format) {
@@ -82,15 +111,14 @@ final class SoundBank {
     }
 
     /// Funkspruch eines Kontakts: eigene Aufnahme (mit Funkklang) oder Plapper-Synthesizer.
-    func voice(_ slot: SoundSlot, pitch: Double, speed: Double, melody: Double, vibrato: Double, ring: Double, volume: Float = 1) {
+    func voice(_ slot: SoundSlot, spec: VoiceSpec, volume: Float = 1) {
         guard isEnabled else { return }
         let gain = volume * Float(library.gain(for: slot))
         let buffer: AVAudioPCMBuffer
         if let file = custom[slot] {
             buffer = file
         } else {
-            let babble = RadioVoice.babble(pitch: pitch, speed: speed, melody: melody, vibrato: vibrato, ring: ring,
-                                           sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
+            let babble = RadioVoice.babble(spec, sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
             buffer = makeBuffer(RadioVoice.radio(babble, sampleRate: Self.sampleRate))
         }
         if !engine.isRunning { try? engine.start() }
@@ -181,7 +209,7 @@ final class SoundBank {
 
     // MARK: Synthese
 
-    private func buffer(_ duration: Double, crush hold: Int = 3, _ sample: (Double) -> Double) -> AVAudioPCMBuffer {
+    private func buffer(_ duration: Double, crush hold: Int = 3, loop: Bool = false, _ sample: (Double) -> Double) -> AVAudioPCMBuffer {
         let frames = AVAudioFrameCount(duration * Self.sampleRate)
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
         buffer.frameLength = frames
@@ -192,7 +220,7 @@ final class SoundBank {
             let value = sample(Double(i) / Self.sampleRate)
             if hold <= 1 || i % hold == 0 { held = (clamp(value, -1, 1) * 24).rounded() / 24 }
             // kurzes Ausblenden gegen Knacken am Ende
-            let tail = min(1, Double(Int(frames) - i) / 200)
+            let tail = loop ? 1 : min(1, Double(Int(frames) - i) / 200)
             left[i] = Float(held * tail)
             right[i] = left[i]
         }
@@ -243,6 +271,20 @@ final class SoundBank {
                 phase += (300 + 1400 * t * t * 4) * dt
                 let tremolo = 0.6 + 0.4 * Self.square(t * 28)
                 return Self.square(phase) * 0.22 * tremolo * min(1, t / 0.02) * exp(-t * 2.5)
+            }
+
+        case .danger:
+            // Hochspannung: Netzbrummen mit Obertönen, pulsierend (2,5 Hz), Knistern und leises Sirren.
+            // 2 s lang, alle Frequenzen passen ganzzahlig hinein, damit die Schleife nahtlos ist.
+            var crackle = 0.0
+            return buffer(2.0, crush: 1, loop: true) { t in
+                let hum = sin(2 * .pi * 50 * t) * 0.5 + sin(2 * .pi * 100 * t) * 0.35 + sin(2 * .pi * 150 * t) * 0.2
+                let buzz = tanh(sin(2 * .pi * 100 * t) * 4) * 0.18
+                let whine = sin(2 * .pi * 2000 * t) * 0.025 * (0.5 + 0.5 * sin(2 * .pi * 0.5 * t))
+                if noise.next() > 0.9993 { crackle = 0.6 }
+                crackle *= 0.995
+                let pulse = 0.4 + 0.6 * pow(0.5 + 0.5 * sin(2 * .pi * 2.5 * t), 2)
+                return ((hum + buzz) * pulse + whine + noise.next() * crackle * 0.4) * 0.45
             }
 
         case .match, .music, .voiceKira, .voiceBoris, .voiceJuki, .voiceZora, .voiceK9, .voiceRobo:

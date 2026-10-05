@@ -11,6 +11,9 @@ final class GameSettings: ObservableObject {
     @Published var musicVolume: Double { didSet { save(musicVolume, "musicVolume") } }
     @Published var hapticsEnabled: Bool { didSet { save(hapticsEnabled, "hapticsEnabled") } }
     @Published var splashesEnabled: Bool { didSet { save(splashesEnabled, "splashesEnabled") } }
+    @Published var hintsEnabled: Bool { didSet { save(hintsEnabled, "hintsEnabled") } }
+    /// Debug: Beschleunigung der Stadt pro Spielminute (0,1 = +10 %).
+    @Published var debugCityAcceleration: Double { didSet { save(debugCityAcceleration, "debugCityAcceleration") } }
     /// Debug: Grundgeschwindigkeit der Stadt im Dächerlauf (Design-Pixel pro Sekunde).
     @Published var debugCitySpeed: Double { didSet { save(debugCitySpeed, "debugCitySpeed") } }
 
@@ -24,6 +27,8 @@ final class GameSettings: ObservableObject {
             "rapt.hapticsEnabled": true,
             "rapt.splashesEnabled": true,
             "rapt.debugCitySpeed": City.baseSpeed,
+            "rapt.hintsEnabled": true,
+            "rapt.debugCityAcceleration": 0.0,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -32,6 +37,8 @@ final class GameSettings: ObservableObject {
         hapticsEnabled = defaults.bool(forKey: "rapt.hapticsEnabled")
         splashesEnabled = defaults.bool(forKey: "rapt.splashesEnabled")
         debugCitySpeed = defaults.double(forKey: "rapt.debugCitySpeed")
+        hintsEnabled = defaults.bool(forKey: "rapt.hintsEnabled")
+        debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
     }
 
     /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.
@@ -40,6 +47,15 @@ final class GameSettings: ObservableObject {
         return debugCitySpeed
         #else
         return City.baseSpeed
+        #endif
+    }
+
+    /// Beschleunigung pro Minute, mit der das Spiel tatsächlich läuft.
+    var cityAcceleration: Double {
+        #if DEBUG
+        return debugCityAcceleration
+        #else
+        return 0
         #endif
     }
 

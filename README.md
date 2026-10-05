@@ -49,9 +49,10 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - „Plan“-Stufen: Plan n+1 braucht 1500 × n Punkte mehr.
-- Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), im Zyklus
-  **Bombe → Farbtilger → Strudel → Bombe → Atombombe → Fresser** (mit Feuerwerk „HELD DER ARBEIT!“).
-  Ist das Lager voll, gibt es 500 Bonuspunkte.
+- Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
+  dasselbe hintereinander (Bombe 32, Farbtilger 22, Strudel 18, Atombombe 16, Fresser 12). Jeder sechste Sprung
+  bringt garantiert Fresser oder Atombombe, dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
+- Kurz vor dem Absturz brummt ein pulsierender Hochspannungs-Alarm, lauter je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
 
@@ -85,7 +86,8 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
   Querformat 184 × 121 und füllen die Einblendung in voller Breite. Neue Bilder (beliebige Größe, ca. 3:2) mit
   `python3 tools/import_portraits.py <Ordner>` aufs Pixelraster bringen, danach `xcodegen generate`.
   Fehlt eine Datei, erzeugt das Spiel einen 48 × 48-Platzhalter.
-- **Stimmen:** Ohne Datei spricht ein Plapper-Synthesizer (Vokal-Formanten, pro Figur eigene Tonhöhe und Tempo).
+- **Stimmen:** Ohne Datei spricht ein Synthesizer: KIRA und JUKI hell (Mädchen), MAMA ZORA (Frau, mit Vibrato),
+  BORIS tief (Mann), K-9 bellt, knurrt und winselt, ROBO-7 spricht in Tonstufen mit Piepsern.
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang
   (Bandpass, Verzerrung, Rauschen, Klicken der Sendetaste).
 
@@ -133,6 +135,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `bomb` | Bombe zündet |
 | `purge` | Farbtilger schlägt ein |
 | `chomp` | Fresser frisst einen Stein (wird pro Bissen höher) |
+| `danger` | Absturz-Alarm, läuft in Schleife (lauter je näher am Rand) |
 | `voiceKira` … `voiceRobo` | Funkspruch des jeweiligen Kontakts (bekommt automatisch Funkklang) |
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
@@ -141,5 +144,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 
 Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
 Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Haptik (iPhone), „Neues Spiel“ zur Moduswahl.
-Im Debug-Build zusätzlich **Stadt-Tempo** (0,2–4 px/s) zum Ermitteln der richtigen Geschwindigkeit; der Wert gilt sofort.
+Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) lassen sich abschalten.
+Im Debug-Build zusätzlich **Stadt-Tempo** (0,2–4 px/s) und **Beschleunigung** (0–50 % pro Spielminute, relativ zum
+Tempo) zum Experimentieren; die Werte gelten sofort.
 Während die Einstellungen offen sind, steht die Stadt still.
