@@ -108,6 +108,7 @@ final class GameScene: SKScene {
     }
 
     private var lineOverlays: [Bool: SKTexture] = [:]
+    private var lineFlames: [String: [SKTexture]] = [:]
     private var bombOverlay = SKTexture()
     private var hyperFrames: [SKTexture] = []
     private var splash: SplashPresenter!
@@ -146,6 +147,8 @@ final class GameScene: SKScene {
     private var menuButtons: [(rect: CGRect, mode: GameMode)] = []
     private var menuVisible = false
     private var slotFrames: [SKSpriteNode] = []
+    /// Power-ups, die schon im Lager sind, aber noch per Übergabe einfliegen.
+    private var pendingDeliveries = 0
 
     private static var savedMode: GameMode {
         GameMode(rawValue: UserDefaults.standard.string(forKey: "rapt.mode") ?? "") ?? .endless
@@ -364,7 +367,11 @@ final class GameScene: SKScene {
             self.settingsPanel.hide()
             self.showMenu(gameOver: false)
         }
-        settingsPanel.onChange = { [weak self] in self?.audio.play(.select, volume: 0.5) }
+        settingsPanel.onChange = { [weak self] in
+            guard let self else { return }
+            self.audio.play(.select, volume: 0.5)
+            self.game.citySpeed = GameSettings.shared.citySpeed
+        }
         shaker.addChild(settingsPanel.node)
         let gearRows = ["..X.X..", ".XXXXX.", "XXX.XXX", "XX...XX", "XXX.XXX", ".XXXXX.", "..X.X.."]
         var gearCanvas = PixelCanvas(width: 7, height: 7)
@@ -502,6 +509,7 @@ final class GameScene: SKScene {
         UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
         highscore = Highscore.load(newMode)
         game = Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
+        game.citySpeed = GameSettings.shared.citySpeed
         game.extendCity(toScreenX: Double(visibleRight) + 40)
         buildingSprites.values.forEach { $0.removeFromParent() }
         buildingSprites = [:]
@@ -523,6 +531,7 @@ final class GameScene: SKScene {
         fresser = nil
         armed = nil
         armedBracket.isHidden = true
+        pendingDeliveries = 0
         updateCity()
         updateSlots()
         refreshStatus()
@@ -566,12 +575,18 @@ final class GameScene: SKScene {
 
     private func applySpecial(_ special: Special?, to node: GemNode) {
         var overlay: SKTexture?
+        var flames: [SKTexture] = []
         switch special {
-        case .line(let horizontal)?: overlay = lineOverlays[horizontal]
+        case .line(let horizontal)?:
+            let key = "\(node.gem.rawValue)-\(horizontal)"
+            if lineFlames[key] == nil {
+                lineFlames[key] = SpecialArt.lineFlames(ramp: sprites[node.gem]!.ramp, horizontal: horizontal)
+            }
+            flames = lineFlames[key] ?? []
         case .bomb?: overlay = bombOverlay
         default: overlay = nil
         }
-        node.setSpecial(special, overlay: overlay, hyperFrames: hyperFrames)
+        node.setSpecial(special, overlay: overlay, lineFrames: flames, hyperFrames: hyperFrames)
     }
 
     private func itemTexture(for special: Special) -> SKTexture {
@@ -678,6 +693,7 @@ final class GameScene: SKScene {
             Highscore.save(highscore, for: mode)
         }
         updateHUD()
+        pendingDeliveries += result.rewards.filter { $0.powerUp != nil }.count
         updateSlots()
         for (i, reward) in result.rewards.enumerated() {
             run(.sequence([.wait(forDuration: Double(i) * 1.4), .run { [weak self] in self?.celebrate(reward) }]))
@@ -707,8 +723,18 @@ final class GameScene: SKScene {
             fx.warpRing(at: c, color: GemArt.glowColor(creation.gem), radius: 26)
             fx.flash(at: c, color: .white)
             audio.play(.powerUp, volume: 0.45)
-            let delivery = SplashPresenter.Delivery(contact: Contact.contact(for: creation.special), item: itemTexture(for: creation.special))
-            splash.present(delivery, at: clock, force: creation.special == .hyper)
+            if creation.special == .hyper {
+                var delivery = SplashPresenter.Delivery(contact: Contact.contact(for: creation.special), item: itemTexture(for: creation.special))
+                delivery.onHandover = { [weak self, weak node] start in
+                    guard let self, let node else { return }
+                    self.flyItem(self.itemTexture(for: .hyper), from: start, to: { [weak node] in node?.position }) { [weak self, weak node] in
+                        guard let self, let node else { return }
+                        self.fx.flash(at: node.position, color: .white)
+                        self.fx.warpRing(at: node.position, color: .white, radius: 22)
+                    }
+                }
+                splash.present(delivery, at: clock, force: true)
+            }
         }
         for p in step.cleared {
             if let node = gems.removeValue(forKey: p) { pop(node) }
@@ -1057,13 +1083,66 @@ final class GameScene: SKScene {
 
     private func updateSlots() {
         for (i, icon) in slotIcons.enumerated() {
-            if mode == .rooftop && i < game.powerUps.count {
+            if mode == .rooftop && i < game.powerUps.count - pendingDeliveries {
                 icon.texture = iconTextures[game.powerUps[i]]
                 icon.isHidden = false
             } else {
                 icon.isHidden = true
             }
         }
+    }
+
+    /// Übergabe eines Power-ups: per Funk-Einblendung aus der Hand des Kontakts, sonst von der Figur aus.
+    private func deliver(_ kind: PowerUp) {
+        let icon = iconTextures[kind] ?? SKTexture()
+        let land: (CGPoint) -> Void = { [weak self] start in
+            guard let self else { return }
+            let index = max(0, min(Game.maxPowerUps - 1, self.game.powerUps.count - self.pendingDeliveries))
+            let target = self.design(Layout.slotX(index) + Layout.slotSize / 2, Layout.slotY + Layout.slotSize / 2)
+            self.flyItem(icon, from: start, to: { target }) { [weak self] in
+                guard let self else { return }
+                self.pendingDeliveries = max(0, self.pendingDeliveries - 1)
+                self.updateSlots()
+                self.flashSlot(index)
+                self.audio.play(.powerUp, volume: 0.7)
+                self.haptics.select()
+            }
+        }
+        var delivery = SplashPresenter.Delivery(contact: Contact.contact(for: kind), item: icon)
+        delivery.onHandover = land
+        if !splash.present(delivery, at: clock, force: true) {
+            land(CGPoint(x: figure.position.x, y: figure.position.y + 6))
+        }
+    }
+
+    /// Gegenstand fliegt im Bogen mit Leuchtspur zu einem Ziel, das sich unterwegs bewegen darf.
+    private func flyItem(_ texture: SKTexture, from start: CGPoint, to target: @escaping () -> CGPoint?, completion: @escaping () -> Void) {
+        let item = SKSpriteNode(texture: texture, size: texture.size())
+        item.position = start
+        item.zPosition = 90
+        let light = SKSpriteNode(texture: glowTexture, color: Palette.amber.skColor, size: CGSize(width: 30, height: 30))
+        light.colorBlendFactor = 1
+        light.blendMode = .add
+        light.alpha = 0.7
+        item.addChild(light)
+        shaker.addChild(item)
+        let duration: CGFloat = 0.5
+        var last = start
+        let flight = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
+            guard let self else { return }
+            let end = target() ?? last
+            last = end
+            let t = min(1, elapsed / duration)
+            let e = t * t
+            let lift = sin(.pi * t) * 30
+            node.position = CGPoint(x: (start.x + (end.x - start.x) * e).rounded(),
+                                    y: (start.y + (end.y - start.y) * e + lift).rounded())
+            if Int(elapsed * 60) % 3 == 0 {
+                self.fx.glow(at: node.position, color: Palette.amber.skColor, size: 10, alpha: 0.5)
+                    .run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))
+            }
+        }
+        item.run(.sequence([flight, .removeFromParent(), .run(completion)]))
     }
 
     private func flashSlot(_ i: Int) {
@@ -1439,11 +1518,8 @@ final class GameScene: SKScene {
             guard let self else { return }
             let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
             if let kind = reward.powerUp {
-                self.audio.play(.powerUp, volume: 0.7)
-                let delivery = SplashPresenter.Delivery(contact: Contact.contact(for: kind), item: self.iconTextures[kind] ?? SKTexture())
-                self.splash.present(delivery, at: self.clock, force: true)
                 self.fx.popup("+ " + Self.name(kind), at: slotLabel, color: Palette.amber)
-                self.flashSlot((self.game.powerUps.lastIndex(of: kind)) ?? 0)
+                self.deliver(kind)
             } else if reward.bonusPoints > 0 {
                 self.fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
             }

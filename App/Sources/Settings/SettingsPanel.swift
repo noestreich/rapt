@@ -17,7 +17,7 @@ final class SettingsPanel {
     }
 
     private struct Row {
-        let label: String
+        let label: () -> String
         let kind: Kind
         let y: Int
         let sprite: SKSpriteNode
@@ -69,24 +69,33 @@ final class SettingsPanel {
         node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
 
         let settings = GameSettings.shared
-        var specs: [(String, Kind)] = [
-            ("TON", .section),
-            ("EFFEKTE", .toggle(get: { settings.soundEnabled }, set: { settings.soundEnabled = $0 })),
-            ("LAUTST.", .slider(get: { settings.soundVolume }, set: { settings.soundVolume = $0 })),
-            ("MUSIK", .toggle(get: { settings.musicEnabled }, set: { settings.musicEnabled = $0 })),
-            ("LAUTST.", .slider(get: { settings.musicVolume }, set: { settings.musicVolume = $0 })),
-            ("SPIEL", .section),
-            ("FUNKSPRÜCHE", .toggle(get: { settings.splashesEnabled }, set: { settings.splashesEnabled = $0 })),
+        func fixed(_ text: String) -> () -> String { { text } }
+        var specs: [(() -> String, Kind)] = [
+            (fixed("TON"), .section),
+            (fixed("EFFEKTE"), .toggle(get: { settings.soundEnabled }, set: { settings.soundEnabled = $0 })),
+            (fixed("LAUTST."), .slider(get: { settings.soundVolume }, set: { settings.soundVolume = $0 })),
+            (fixed("MUSIK"), .toggle(get: { settings.musicEnabled }, set: { settings.musicEnabled = $0 })),
+            (fixed("LAUTST."), .slider(get: { settings.musicVolume }, set: { settings.musicVolume = $0 })),
+            (fixed("SPIEL"), .section),
+            (fixed("FUNKSPRÜCHE"), .toggle(get: { settings.splashesEnabled }, set: { settings.splashesEnabled = $0 })),
         ]
         #if os(iOS)
-        specs.append(("HAPTIK", .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
+        specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
-        specs.append(("NEUES SPIEL", .button(action: { [weak self] in self?.onNewGame() })))
-        specs.append(("ZURÜCK", .button(action: { [weak self] in self?.onClose() })))
+        #if DEBUG
+        // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
+        let minSpeed = 0.2, maxSpeed = 4.0
+        specs.append((fixed("DEBUG: STADT-TEMPO PX/S"), .section))
+        specs.append(({ String(format: "%.2f", settings.debugCitySpeed) },
+                      .slider(get: { (settings.debugCitySpeed - minSpeed) / (maxSpeed - minSpeed) },
+                              set: { settings.debugCitySpeed = minSpeed + $0 * (maxSpeed - minSpeed) })))
+        #endif
+        specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
+        specs.append((fixed("ZURÜCK"), .button(action: { [weak self] in self?.onClose() })))
 
         var y = y0 + 34
         for (label, kind) in specs {
-            if case .section = kind, y > y0 + 40 { y += 6 }
+            if case .section = kind, y > y0 + 40 { y += 4 }
             if case .button = kind, !rows.contains(where: { if case .button = $0.kind { return true }; return false }) { y += 14 }
             let s = SKSpriteNode()
             s.anchorPoint = CGPoint(x: 0, y: 1)
@@ -95,7 +104,7 @@ final class SettingsPanel {
             rows.append(Row(label: label, kind: kind, y: y, sprite: s))
             switch kind {
             case .section: y += 10
-            case .button: y += 22
+            case .button: y += 21
             default: y += 15
             }
         }
@@ -112,12 +121,13 @@ final class SettingsPanel {
             switch row.kind {
             case .section:
                 c = PixelCanvas(width: rowWidth, height: 7)
-                PixelFont.draw(row.label, into: &c, x: 0, y: 1, color: Self.gray)
-                c.fillRect(PixelFont.width(row.label) + 4, 3, rowWidth - PixelFont.width(row.label) - 4, 1, Self.dim)
+                let text = row.label()
+                PixelFont.draw(text, into: &c, x: 0, y: 1, color: Self.gray)
+                c.fillRect(PixelFont.width(text) + 4, 3, rowWidth - PixelFont.width(text) - 4, 1, Self.dim)
 
             case .toggle(let get, _):
                 c = PixelCanvas(width: rowWidth, height: 11)
-                PixelFont.draw(row.label, into: &c, x: 0, y: 3, color: Self.cream)
+                PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
                 let on = get()
                 let bx = rowWidth - 38
                 for (i, text) in ["AN", "AUS"].enumerated() {
@@ -131,7 +141,7 @@ final class SettingsPanel {
 
             case .slider(let get, _):
                 c = PixelCanvas(width: rowWidth, height: 11)
-                PixelFont.draw(row.label, into: &c, x: 8, y: 3, color: Self.gray)
+                PixelFont.draw(row.label(), into: &c, x: 8, y: 3, color: Self.gray)
                 let value = clamp(get(), 0, 1)
                 let tx = trackX - 8 - x0
                 c.fillRect(tx - 1, 2, trackWidth + 2, 7, RGBA(hex: 0x050409))
@@ -153,7 +163,7 @@ final class SettingsPanel {
                 c.fillRect(x, 0, 1, 18, Self.amber)
                 c.fillRect(x + w - 1, 0, 1, 18, Self.amber)
                 // Beschriftung doppelt groß
-                let label = PixelFont.render(row.label, color: Self.cream)
+                let label = PixelFont.render(row.label(), color: Self.cream)
                 let lx = x + (w - label.width * 2) / 2
                 for yy in 0..<label.height * 2 {
                     for xx in 0..<label.width * 2 where label.get(xx / 2, yy / 2).a > 0 {
@@ -227,7 +237,7 @@ final class SettingsPanel {
     private func slide(to p: CGPoint) {
         guard let i = dragging, case .slider(_, let set) = rows[i].kind else { return }
         let value = (Double(p.x) - Double(trackX)) / Double(trackWidth)
-        set(clamp((value * 20).rounded() / 20, 0, 1))
+        set(clamp((value * 100).rounded() / 100, 0, 1))
         render()
     }
 }

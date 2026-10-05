@@ -13,9 +13,9 @@ public struct Building: Equatable, Sendable {
 /// Wird sie links aus dem Bild geschoben, ist das Spiel verloren.
 public struct City: Sendable {
     /// Grundgeschwindigkeit in Design-Pixeln pro Sekunde.
-    public static let baseSpeed = 0.45
-    /// Zusätzliche Geschwindigkeit pro erreichtem Plan.
-    public static let speedPerPlan = 0.04
+    public static let baseSpeed = 0.9
+    /// Zusätzliche Geschwindigkeit pro erreichtem Plan, als Anteil der Grundgeschwindigkeit.
+    public static let speedGrowthPerPlan = 0.09
     /// Breite des Spielbereichs; links von 0 ist die Figur verloren.
     public static let viewWidth = 200.0
     /// Ab dieser Position (Figurmitte) warnt das Spiel.
@@ -44,12 +44,12 @@ public struct City: Sendable {
     public var isFigureLost: Bool { figureX < 0 }
     public var isInDanger: Bool { figureX < Self.dangerX }
 
-    public static func speed(plan: Int) -> Double {
-        baseSpeed + speedPerPlan * Double(max(0, plan - 1))
+    public static func speed(plan: Int, base: Double = baseSpeed) -> Double {
+        base * (1 + speedGrowthPerPlan * Double(max(0, plan - 1)))
     }
 
-    public mutating func advance(by seconds: Double, plan: Int) {
-        offset += Self.speed(plan: plan) * seconds
+    public mutating func advance(by seconds: Double, plan: Int, base: Double = baseSpeed) {
+        offset += Self.speed(plan: plan, base: base) * seconds
         extend(to: offset + Self.viewWidth + 80)
     }
 

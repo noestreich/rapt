@@ -130,25 +130,48 @@ enum PowerUpArt {
         return c
     }
 
+    /// Rote Bombe mit Totenkopf, Metallkappe, Zündschnur und Funke.
     private static func bombIcon() -> PixelCanvas {
-        sprite([
-            "................",
-            "............Y...",
-            "...........YWY..",
-            "..........w.Y...",
-            ".........w......",
-            "......KKw.......",
-            ".....KMMKK......",
-            "...KKKKKKKKK....",
-            "..KKHHKKKKKKK...",
-            "..KHHKKKKKKKK...",
-            ".KKHKKKKKKKKKK..",
-            ".KKKKKKKKKKKKK..",
-            ".KKKKKKKKKKKKK..",
-            "..KKKKKKKKKKK...",
-            "...KKKKKKKKK....",
-            ".....KKKKK......",
-        ], ["K": 0x24222C, "H": 0x6E6E7A, "M": 0x585A67, "w": 0xC9B08A, "Y": 0xFFD27A, "W": 0xFFFFFF])
+        var c = PixelCanvas(width: 16, height: 16)
+        let ramp: [RGBA] = [0x6A1208, 0xA8200F, 0xD8341E, 0xFF6A4A].map { RGBA(hex: $0) }
+        let cx = 7.0, cy = 9.5, r = 6.2
+        var inside = [Bool](repeating: false, count: 256)
+        for y in 0..<16 {
+            for x in 0..<16 {
+                let dx = Double(x) + 0.5 - cx, dy = Double(y) + 0.5 - cy
+                let d = (dx * dx + dy * dy).squareRoot()
+                guard d <= r else { continue }
+                inside[y * 16 + x] = true
+                let light = 0.55 - (dx + dy) / (r * 2.4) - d / r * 0.25
+                c.set(x, y, ramp[clamp(Int(light * 4), 0, 3)])
+            }
+        }
+        for y in 0..<16 {
+            for x in 0..<16 where !inside[y * 16 + x] {
+                let near = (x > 0 && inside[y * 16 + x - 1]) || (x < 15 && inside[y * 16 + x + 1])
+                    || (y > 0 && inside[(y - 1) * 16 + x]) || (y < 15 && inside[(y + 1) * 16 + x])
+                if near { c.set(x, y, RGBA(hex: 0x1A0A06)) }
+            }
+        }
+        // Totenkopf
+        let skull = [".WWW.", "WKWKW", "WWWWW", ".WKW.", ".W.W."]
+        for (y, row) in skull.enumerated() {
+            for (x, ch) in row.enumerated() {
+                if ch == "W" { c.set(5 + x, 8 + y, RGBA(hex: 0xF3E6C8)) }
+                if ch == "K" { c.set(5 + x, 8 + y, RGBA(hex: 0x1A0A06)) }
+            }
+        }
+        // Glanzpunkt, Kappe, Zündschnur, Funke
+        c.set(4, 6, RGBA(hex: 0xFFC0A8))
+        c.set(5, 5, RGBA(hex: 0xFFC0A8))
+        c.fillRect(8, 2, 3, 2, RGBA(hex: 0x8E94AA))
+        c.fillRect(8, 2, 3, 1, RGBA(hex: 0xC9CEDD))
+        c.set(11, 1, RGBA(hex: 0xC9B08A))
+        c.set(12, 0, RGBA(hex: 0xFFD27A))
+        c.set(13, 1, RGBA(hex: 0xFFD27A))
+        c.set(12, 1, RGBA(hex: 0xFFFFFF))
+        c.set(14, 0, RGBA(hex: 0xFF8A3D))
+        return c
     }
 
     /// Prisma, dessen Streifen alle Steinfarben zeigen.

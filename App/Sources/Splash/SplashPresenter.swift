@@ -8,6 +8,8 @@ final class SplashPresenter {
     struct Delivery {
         let contact: Contact
         let item: SKTexture
+        /// Wird aufgerufen, wenn der Kontakt den Gegenstand übergibt; Parameter ist die Handposition (Weltkoordinaten).
+        var onHandover: ((CGPoint) -> Void)?
     }
 
     let node = SKNode()
@@ -34,15 +36,19 @@ final class SplashPresenter {
     }
 
     /// `force`: immer zeigen (Power-ups, Hyperstein), sonst nur nach Ablauf der Sperre.
-    func present(_ delivery: Delivery, at time: TimeInterval, force: Bool) {
-        guard GameSettings.shared.splashesEnabled else { return }
-        guard force || time - lastShown > cooldown else { return }
+    /// Gibt `false` zurück, wenn nichts gezeigt wird; dann muss der Aufrufer selbst übergeben.
+    @discardableResult
+    func present(_ delivery: Delivery, at time: TimeInterval, force: Bool) -> Bool {
+        guard GameSettings.shared.splashesEnabled else { return false }
+        guard force || time - lastShown > cooldown else { return false }
         if isShowing {
-            if force && queue.count < 2 { queue.append(delivery) }
-            return
+            guard force && queue.count < 4 else { return false }
+            queue.append(delivery)
+            return true
         }
         lastShown = time
         show(delivery, time: time)
+        return true
     }
 
     private func show(_ delivery: Delivery, time: TimeInterval) {
@@ -62,13 +68,28 @@ final class SplashPresenter {
             .fadeAlpha(to: 0.6, duration: 0), .wait(forDuration: 0.03),
             .fadeAlpha(to: 1, duration: 0),
         ])
+        let hand = handPosition(for: delivery)
         panel.run(.sequence([
             .group([slideIn, glitch]),
-            .wait(forDuration: 0.95),
+            .wait(forDuration: 0.5),
+            .run { [weak self] in
+                guard let self else { return }
+                delivery.onHandover?(CGPoint(x: self.origin.x + hand.x, y: self.origin.y + hand.y))
+            },
+            .wait(forDuration: 0.45),
             .group([slideOut, glitch]),
             .removeFromParent(),
             .run { [weak self] in self?.finished(at: time + 1.3) },
         ]))
+    }
+
+    /// Wo der Gegenstand im Bild liegt, relativ zur linken oberen Ecke der Einblendung.
+    private func handPosition(for delivery: Delivery) -> CGPoint {
+        if let texture = portraits[delivery.contact.id], texture.size().width > CGFloat(PortraitArt.size) {
+            let h = texture.size().height * width / texture.size().width
+            return CGPoint(x: (width * 0.24).rounded(), y: -(h * 0.42).rounded())
+        }
+        return CGPoint(x: 46, y: -48)
     }
 
     private func finished(at time: TimeInterval) {

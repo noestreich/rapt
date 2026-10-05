@@ -1,4 +1,5 @@
 import Foundation
+import RaptCore
 
 /// Einstellungen, die das Spiel über Neustarts behält.
 final class GameSettings: ObservableObject {
@@ -10,6 +11,8 @@ final class GameSettings: ObservableObject {
     @Published var musicVolume: Double { didSet { save(musicVolume, "musicVolume") } }
     @Published var hapticsEnabled: Bool { didSet { save(hapticsEnabled, "hapticsEnabled") } }
     @Published var splashesEnabled: Bool { didSet { save(splashesEnabled, "splashesEnabled") } }
+    /// Debug: Grundgeschwindigkeit der Stadt im Dächerlauf (Design-Pixel pro Sekunde).
+    @Published var debugCitySpeed: Double { didSet { save(debugCitySpeed, "debugCitySpeed") } }
 
     private init() {
         let defaults = UserDefaults.standard
@@ -20,6 +23,7 @@ final class GameSettings: ObservableObject {
             "rapt.musicVolume": 0.6,
             "rapt.hapticsEnabled": true,
             "rapt.splashesEnabled": true,
+            "rapt.debugCitySpeed": City.baseSpeed,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -27,6 +31,16 @@ final class GameSettings: ObservableObject {
         musicVolume = defaults.double(forKey: "rapt.musicVolume")
         hapticsEnabled = defaults.bool(forKey: "rapt.hapticsEnabled")
         splashesEnabled = defaults.bool(forKey: "rapt.splashesEnabled")
+        debugCitySpeed = defaults.double(forKey: "rapt.debugCitySpeed")
+    }
+
+    /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.
+    var citySpeed: Double {
+        #if DEBUG
+        return debugCitySpeed
+        #else
+        return City.baseSpeed
+        #endif
     }
 
     private func save(_ value: Any, _ key: String) {

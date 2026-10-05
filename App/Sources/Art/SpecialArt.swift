@@ -31,6 +31,43 @@ enum SpecialArt {
         return c.texture()
     }
 
+    /// Linien-Stein: flackernde Plasma-Flammen an beiden Enden in der Steinfarbe.
+    /// Waagerecht 34×22 (links und rechts), senkrecht 22×34 (oben und unten). Liegt hinter dem Stein.
+    static func lineFlames(ramp: [RGBA], horizontal: Bool, frames: Int = 6) -> [SKTexture] {
+        let long = size + 12, short = size
+        return (0..<frames).map { f in
+            var c = horizontal ? PixelCanvas(width: long, height: short) : PixelCanvas(width: short, height: long)
+            let mid = Double(short) / 2
+            for side in 0..<2 {
+                let length = 8.0 + 2.5 * Noise.hash(f, side, 11)
+                for u in 0..<12 {
+                    // u = 0 liegt 3 px im Stein, wächst nach außen
+                    let out = Double(u) - 3
+                    let fade = 1 - max(0, out) / length
+                    guard fade > 0 else { continue }
+                    let half = 4.6 * fade + 0.6
+                    for v in 0..<short {
+                        let dy = abs(Double(v) + 0.5 - mid)
+                        let flicker = 0.7 + 0.5 * Noise.hash(u + side * 31, v, f * 7 + 3)
+                        guard dy <= half * flicker else { continue }
+                        let k = fade - dy / (half + 1) * 0.55
+                        let color: RGBA
+                        if k > 0.84 { color = .white } else if k > 0.48 { color = ramp[4] } else if k > 0.26 { color = ramp[3] } else { color = ramp[2] }
+                        let along = side == 0 ? (6 + 2 - u) : (long - 6 - 3 + u)
+                        if horizontal { c.set(along, v, color) } else { c.set(v, along, color) }
+                    }
+                }
+                // Funken vor der Flamme
+                for k in 0..<2 where Noise.hash(f, side * 5 + k, 23) < 0.6 {
+                    let along = side == 0 ? Int(Noise.hash(f, k, 29) * 3) : long - 1 - Int(Noise.hash(f, k, 29) * 3)
+                    let across = Int(mid) - 3 + Int(Noise.hash(f, k, 31) * 6)
+                    if horizontal { c.set(along, across, ramp[4]) } else { c.set(across, along, ramp[4]) }
+                }
+            }
+            return c.texture()
+        }
+    }
+
     /// Stachelring mit Zündfunke.
     static func bombOverlay() -> SKTexture {
         var c = PixelCanvas(width: size, height: size)

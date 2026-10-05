@@ -144,6 +144,51 @@ def line_overlay(horizontal, size=22):
     return c
 
 
+def gem_ramp(gem):
+    hue, sat, light = LOOKS[gem]
+    return [hsl(hue + (.5 - k) * 24, sat * (1 - .25 * k * k), clamp(light * (.36 + .95 * k) + (12 if k > .9 else 0), 0, 95))
+            for k in (i / 4 for i in range(5))]
+
+
+def line_flames(gem, horizontal, f=0, size=22):
+    ramp = gem_ramp(gem)
+    long, short = size + 12, size
+    c = Canvas(long, short) if horizontal else Canvas(short, long)
+    mid = short / 2
+    for side in range(2):
+        length = 8.0 + 2.5 * h32(f, side, 11)
+        for u in range(12):
+            out = u - 3
+            fade = 1 - max(0, out) / length
+            if fade <= 0:
+                continue
+            half = 4.6 * fade + .6
+            for v in range(short):
+                dy = abs(v + .5 - mid)
+                if dy > half * (.7 + .5 * h32(u + side * 31, v, f * 7 + 3)):
+                    continue
+                k = fade - dy / (half + 1) * .55
+                col = hx(0xFFFFFF) if k > .84 else ramp[4] if k > .48 else ramp[3] if k > .26 else ramp[2]
+                along = (6 + 2 - u) if side == 0 else (long - 6 - 3 + u)
+                c.set(along, v, col) if horizontal else c.set(v, along, col)
+        for k in range(2):
+            if h32(f, side * 5 + k, 23) < .6:
+                along = int(h32(f, k, 29) * 3) if side == 0 else long - 1 - int(h32(f, k, 29) * 3)
+                across = int(mid) - 3 + int(h32(f, k, 31) * 6)
+                c.set(along, across, ramp[4]) if horizontal else c.set(across, along, ramp[4])
+    return c
+
+
+def line_stone(gem, horizontal, f=0):
+    flames = line_flames(gem, horizontal, f)
+    out = Canvas(flames.w, flames.h)
+    out.im.alpha_composite(flames.im)
+    g = gem_sprite(gem)
+    out.im.alpha_composite(g.im, (6, 0) if horizontal else (0, 6))
+    out.px = out.im.load()
+    return out
+
+
 def bomb_overlay(size=22):
     c = Canvas(size, size)
     mid = size / 2
@@ -204,11 +249,27 @@ def sprite(rows, pal):
 
 
 def bomb_icon():
-    return sprite([
-        "................", "............Y...", "...........YWY..", "..........w.Y...", ".........w......",
-        "......KKw.......", ".....KMMKK......", "...KKKKKKKKK....", "..KKHHKKKKKKK...", "..KHHKKKKKKKK...",
-        ".KKHKKKKKKKKKK..", ".KKKKKKKKKKKKK..", ".KKKKKKKKKKKKK..", "..KKKKKKKKKKK...", "...KKKKKKKKK....", ".....KKKKK......",
-    ], {"K": 0x24222C, "H": 0x6E6E7A, "M": 0x585A67, "w": 0xC9B08A, "Y": 0xFFD27A, "W": 0xFFFFFF})
+    c = Canvas(16, 16)
+    ramp = [hx(v) for v in (0x6A1208, 0xA8200F, 0xD8341E, 0xFF6A4A)]
+    cx, cy, r = 7.0, 9.5, 6.2
+    for y in range(16):
+        for x in range(16):
+            dx, dy = x + .5 - cx, y + .5 - cy
+            d = math.hypot(dx, dy)
+            if d <= r:
+                light = .55 - (dx + dy) / (r * 2.4) - d / r * .25
+                c.set(x, y, ramp[clamp(int(light * 4), 0, 3)])
+    c.outline(hx(0x1A0A06))
+    for y, row in enumerate([".WWW.", "WKWKW", "WWWWW", ".WKW.", ".W.W."]):
+        for x, ch in enumerate(row):
+            if ch == "W":
+                c.set(5 + x, 8 + y, hx(0xF3E6C8))
+            if ch == "K":
+                c.set(5 + x, 8 + y, hx(0x1A0A06))
+    c.set(4, 6, hx(0xFFC0A8)); c.set(5, 5, hx(0xFFC0A8))
+    c.fill(8, 2, 3, 2, hx(0x8E94AA)); c.fill(8, 2, 3, 1, hx(0xC9CEDD))
+    c.set(11, 1, hx(0xC9B08A)); c.set(12, 0, hx(0xFFD27A)); c.set(13, 1, hx(0xFFD27A)); c.set(12, 1, hx(0xFFFFFF)); c.set(14, 0, hx(0xFF8A3D))
+    return c
 
 
 def purge_icon():
@@ -396,8 +457,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     base = gem_sprite("orden")
     items = {
-        "linien_stein_waagerecht": overlay(gem_sprite("kristall"), line_overlay(True)),
-        "linien_stein_senkrecht": overlay(gem_sprite("kristall"), line_overlay(False)),
+        "linien_stein_waagerecht": line_stone("kristall", True),
+        "linien_stein_senkrecht": line_stone("kristall", False),
         "bomben_stein": overlay(base, bomb_overlay()),
         "hyperstein": hyper_frame(0),
         "power_bombe": bomb_icon(),
@@ -441,7 +502,8 @@ def main():
         x = pad + 48 * scale + 40
         for title, name in deliveries[cid]:
             c = items[name]
-            k = 8 if c.w == 22 else 11
+            k = 8 if max(c.w, c.h) >= 22 else 11
+            k = 5 if max(c.w, c.h) > 22 else k
             img = c.im.resize((c.w * k, c.h * k), Image.NEAREST)
             sheet.alpha_composite(img, (x + (176 - img.width) // 2, y + 8))
             draw.text((x, y + 48 * scale + 6), title, fill=(235, 228, 216, 255), font=font)

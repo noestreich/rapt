@@ -13,8 +13,8 @@ xcodegen generate
 open Rapt.xcodeproj
 ```
 
-1. In Xcode das Ziel **Rapt** wählen, unter *Signing & Capabilities* dein Team eintragen
-   (oder `DEVELOPMENT_TEAM` in `project.yml` setzen). Bei Bedarf die Bundle-ID `de.rapt.game` ändern.
+1. Signing: Team **aketo GmbH**, Bundle-ID **de.ncls.rapt** – beides steht in `project.yml`
+   (`DEVELOPMENT_TEAM` ist die 10-stellige Team-ID) und bleibt bei jedem `xcodegen generate` erhalten.
 2. Oben als Ziel **My Mac** oder dein iPhone wählen und mit ⌘R starten.
 3. Tests: ⌘U in Xcode, oder `swift test --package-path Packages/RaptCore`.
 
@@ -44,7 +44,7 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 | Modus | Ablauf |
 |---|---|
 | **Endlos** | Klassisch: kein Zeitdruck, keine Figur, keine Power-ups. Ende, wenn kein Zug mehr möglich ist. |
-| **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,45 px/s, +0,04 pro Plan), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
+| **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,9 px/s, +9 % pro Plan; im Debug-Build per Schieber in den Einstellungen), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
@@ -67,9 +67,10 @@ Spezialsteine lösen sich gegenseitig aus (Kettenreaktionen) und werden auch von
 
 ### Funksprüche
 
-Beim Hyperstein, bei jedem Power-up und (höchstens alle 20 Sekunden) bei Linien- und Bomben-Steinen schiebt sich
-eine Funk-Einblendung über die Punkteplatte: ein Kontakt reicht dir den Gegenstand, dazu ein unverständlicher
-Funkspruch. Das Spiel läuft dabei weiter. Abschaltbar in den Einstellungen.
+Bei jedem Power-up und beim Hyperstein schiebt sich eine Funk-Einblendung über die Punkteplatte: ein Kontakt
+reicht dir den Gegenstand, dazu ein unverständlicher Funkspruch auf eigenem Audiokanal (Effekte werden solange leiser).
+Der Gegenstand fliegt aus der Hand ins Lager bzw. aufs Brett; erst dann ist er verfügbar. Das Spiel läuft dabei weiter.
+Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins Lager.
 
 | Kontakt | Liefert |
 |---|---|
@@ -140,4 +141,5 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 
 Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
 Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Haptik (iPhone), „Neues Spiel“ zur Moduswahl.
+Im Debug-Build zusätzlich **Stadt-Tempo** (0,2–4 px/s) zum Ermitteln der richtigen Geschwindigkeit; der Wert gilt sofort.
 Während die Einstellungen offen sind, steht die Stadt still.

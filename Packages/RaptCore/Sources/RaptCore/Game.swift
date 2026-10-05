@@ -77,6 +77,8 @@ public struct Game: Sendable {
     public private(set) var city: City
     /// Die Figur wurde links aus dem Bild geschoben.
     public private(set) var hasFallen = false
+    /// Grundgeschwindigkeit der Stadt (Design-Pixel pro Sekunde), z. B. vom Debug-Schieber.
+    public var citySpeed = City.baseSpeed
     private var rewardedPlan = 1
     private var rng: SplitMix64
 
@@ -98,7 +100,7 @@ public struct Game: Sendable {
     /// Lässt die Stadt `seconds` weiterwandern. Gibt `true` zurück, wenn die Figur gerade abgestürzt ist.
     public mutating func tick(_ seconds: Double) -> Bool {
         guard !isOver, mode == .rooftop else { return false }
-        city.advance(by: seconds, plan: plan)
+        city.advance(by: seconds, plan: plan, base: citySpeed)
         guard city.isFigureLost else { return false }
         hasFallen = true
         isOver = true

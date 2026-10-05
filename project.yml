@@ -1,7 +1,7 @@
 # Xcode-Projekt wird aus dieser Datei erzeugt: `xcodegen generate`
 name: Rapt
 options:
-  bundleIdPrefix: de.rapt
+  bundleIdPrefix: de.ncls
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
@@ -12,7 +12,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: ""   # in Xcode unter Signing & Capabilities setzen oder hier eintragen
+    # Team: aketo GmbH. Hier die 10-stellige Team-ID eintragen (developer.apple.com → Account → Membership).
+    DEVELOPMENT_TEAM: ""
 
 packages:
   RaptCore:
@@ -29,7 +30,7 @@ targets:
       - package: RaptCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.rapt.game
+        PRODUCT_BUNDLE_IDENTIFIER: de.ncls.rapt
         PRODUCT_NAME: Rapt
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Rapt

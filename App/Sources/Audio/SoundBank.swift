@@ -9,6 +9,12 @@ final class SoundBank {
         didSet { engine.mainMixerNode.outputVolume = masterVolume * 0.8 }
     }
 
+    /// Eigener Kanal für Funksprüche, damit Effekte sie nicht abschneiden.
+    private let voicePlayer = AVAudioPlayerNode()
+    /// Alle Effekte laufen über diesen Mischer; er wird leiser, während jemand funkt.
+    private let effectsMixer = AVAudioMixerNode()
+    private var duckUntil = Date.distantPast
+
     private static let sampleRate = 44_100.0
     private static let scale: [Double] = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27]
     private let library: SoundLibrary
@@ -23,15 +29,19 @@ final class SoundBank {
     init(library: SoundLibrary) {
         self.library = library
         format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 2)!
-        for _ in 0..<14 {
+        engine.attach(effectsMixer)
+        engine.connect(effectsMixer, to: engine.mainMixerNode, format: format)
+        for _ in 0..<20 {
             let player = AVAudioPlayerNode()
             let speed = AVAudioUnitVarispeed()
             engine.attach(player)
             engine.attach(speed)
             engine.connect(player, to: speed, format: format)
-            engine.connect(speed, to: engine.mainMixerNode, format: format)
+            engine.connect(speed, to: effectsMixer, format: format)
             voices.append((player, speed))
         }
+        engine.attach(voicePlayer)
+        engine.connect(voicePlayer, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = 0.8
 
         synthMatches = Self.scale.map { makeMatch(frequency: 392 * pow(2, $0 / 12)) }
@@ -43,6 +53,7 @@ final class SoundBank {
         do {
             try engine.start()
             voices.forEach { $0.player.play() }
+            voicePlayer.play()
         } catch {
             isEnabled = false
         }
@@ -71,15 +82,34 @@ final class SoundBank {
     }
 
     /// Funkspruch eines Kontakts: eigene Aufnahme (mit Funkklang) oder Plapper-Synthesizer.
-    func voice(_ slot: SoundSlot, pitch: Double, speed: Double, melody: Double, vibrato: Double, ring: Double, volume: Float = 0.8) {
+    func voice(_ slot: SoundSlot, pitch: Double, speed: Double, melody: Double, vibrato: Double, ring: Double, volume: Float = 1) {
+        guard isEnabled else { return }
         let gain = volume * Float(library.gain(for: slot))
+        let buffer: AVAudioPCMBuffer
         if let file = custom[slot] {
-            schedule(file, volume: gain, semitones: Double.random(in: -0.5...0.5))
-            return
+            buffer = file
+        } else {
+            let babble = RadioVoice.babble(pitch: pitch, speed: speed, melody: melody, vibrato: vibrato, ring: ring,
+                                           sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
+            buffer = makeBuffer(RadioVoice.radio(babble, sampleRate: Self.sampleRate))
         }
-        let babble = RadioVoice.babble(pitch: pitch, speed: speed, melody: melody, vibrato: vibrato, ring: ring,
-                                       sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
-        schedule(makeBuffer(RadioVoice.radio(babble, sampleRate: Self.sampleRate)), volume: gain, semitones: 0)
+        if !engine.isRunning { try? engine.start() }
+        guard engine.isRunning else { return }
+        voicePlayer.volume = gain
+        voicePlayer.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
+        if !voicePlayer.isPlaying { voicePlayer.play() }
+        duck(for: Double(buffer.frameLength) / Self.sampleRate)
+    }
+
+    /// Effekte leiser, solange gefunkt wird.
+    private func duck(for seconds: Double) {
+        let until = Date().addingTimeInterval(seconds)
+        duckUntil = until
+        effectsMixer.outputVolume = 0.45
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            guard let self, self.duckUntil == until else { return }
+            self.effectsMixer.outputVolume = 1
+        }
     }
 
     private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer {
