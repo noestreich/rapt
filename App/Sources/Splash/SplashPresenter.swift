@@ -31,15 +31,15 @@ final class SplashPresenter {
         origin = topLeft
         self.width = width
         self.height = height
-        node.zPosition = 60
+        node.zPosition = 95
         for contact in Contact.all { portraits[contact.id] = PortraitArt.texture(for: contact) }
     }
 
     /// `force`: immer zeigen (Power-ups, Hyperstein), sonst nur nach Ablauf der Sperre.
     /// Gibt `false` zurück, wenn nichts gezeigt wird; dann muss der Aufrufer selbst übergeben.
     @discardableResult
-    func present(_ delivery: Delivery, at time: TimeInterval, force: Bool) -> Bool {
-        guard GameSettings.shared.splashesEnabled else { return false }
+    func present(_ delivery: Delivery, at time: TimeInterval, force: Bool, ignoreSettings: Bool = false) -> Bool {
+        guard ignoreSettings || GameSettings.shared.splashesEnabled else { return false }
         guard force || time - lastShown > cooldown else { return false }
         if isShowing {
             guard force && queue.count < 4 else { return false }

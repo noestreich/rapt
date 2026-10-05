@@ -13,7 +13,9 @@ public struct Building: Equatable, Sendable {
 /// Wird sie links aus dem Bild geschoben, ist das Spiel verloren.
 public struct City: Sendable {
     /// Grundgeschwindigkeit in Design-Pixeln pro Sekunde.
-    public static let baseSpeed = 0.9
+    public static let baseSpeed = 0.66
+    /// Standard-Beschleunigung pro Spielminute (0,06 = +6 %).
+    public static let defaultAccelerationPerMinute = 0.06
     /// Zusätzliche Geschwindigkeit pro erreichtem Plan, als Anteil der Grundgeschwindigkeit.
     public static let speedGrowthPerPlan = 0.09
     /// Breite des Spielbereichs; links von 0 ist die Figur verloren.

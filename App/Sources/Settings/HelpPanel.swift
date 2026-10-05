@@ -10,6 +10,15 @@ final class HelpPanel {
         /// Häufigkeit, z. B. "32%"; leer bei Spezialsteinen.
         let badge: String
         let lines: [String]
+        /// Antippen spielt z. B. die Funk-Einblendung des zugehörigen Kontakts.
+        var onTap: (() -> Void)?
+    }
+
+    /// Freier Textblock für Seite 2: Überschrift und Zeilen.
+    struct Block {
+        let title: String
+        let lines: [String]
+        var highlight = false
     }
 
     let node = SKNode()
@@ -24,11 +33,16 @@ final class HelpPanel {
     private let designHeight: CGFloat
     private let x0 = 8, y0 = 10, width = 184, height = 300
     private var closeRect = CGRect.zero
+    private var pageRect = CGRect.zero
+    private var tapTargets: [(rect: CGRect, action: () -> Void)] = []
+    private let pages = [SKNode(), SKNode()]
+    private var page = 0
+    private let pageLabel = SKSpriteNode()
 
-    init(designHeight: CGFloat, powerUps: [Entry], specials: [Entry], footnote: String) {
+    init(designHeight: CGFloat, powerUps: [Entry], specials: [Entry], footnote: String, info: [Block]) {
         self.designHeight = designHeight
         node.isHidden = true
-        build(powerUps: powerUps, specials: specials, footnote: footnote)
+        build(powerUps: powerUps, specials: specials, footnote: footnote, info: info)
     }
 
     private func world(_ x: Int, _ y: Int) -> CGPoint {
@@ -42,7 +56,22 @@ final class HelpPanel {
         return s
     }
 
-    private func build(powerUps: [Entry], specials: [Entry], footnote: String) {
+    private func button(_ text: String, width w: Int) -> PixelCanvas {
+        let h = 18
+        var c = PixelCanvas(width: w, height: h, fill: RGBA(hex: 0x1B1A24))
+        for (x, yy, ww, hh) in [(0, 0, w, 1), (0, h - 1, w, 1), (0, 0, 1, h), (w - 1, 0, 1, h)] {
+            c.fillRect(x, yy, ww, hh, Self.amber)
+        }
+        let label = PixelFont.render(text, color: Self.cream)
+        for yy in 0..<label.height * 2 {
+            for xx in 0..<label.width * 2 where label.get(xx / 2, yy / 2).a > 0 {
+                c.set((w - label.width * 2) / 2 + xx, 4 + yy, Self.cream)
+            }
+        }
+        return c
+    }
+
+    private func build(powerUps: [Entry], specials: [Entry], footnote: String, info: [Block]) {
         var back = PixelCanvas(width: width, height: height, fill: RGBA(hex: 0x0B0A11, alpha: 248))
         for y in stride(from: 1, to: height, by: 2) { back.fillRect(1, y, width - 2, 1, RGBA(hex: 0x14121C, alpha: 248)) }
         for (x, y, w, h) in [(0, 0, width, 1), (0, height - 1, width, 1), (0, 0, 1, height), (width - 1, 0, 1, height)] {
@@ -52,56 +81,82 @@ final class HelpPanel {
         let title = PixelFont.render("HILFE", color: Self.amber, shadow: RGBA(hex: 0x050409))
         node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
 
+        pages.forEach { node.addChild($0) }
+        var parent = pages[0]
         var y = y0 + 22
         func section(_ text: String) {
             var c = PixelCanvas(width: width - 16, height: 7)
             PixelFont.draw(text, into: &c, x: 0, y: 1, color: Self.gray)
             c.fillRect(PixelFont.width(text) + 4, 3, width - 20 - PixelFont.width(text), 1, Self.dim)
-            node.addChild(sprite(c, at: x0 + 8, y))
+            parent.addChild(sprite(c, at: x0 + 8, y))
             y += 10
         }
         func entry(_ e: Entry) {
             // Symbol links, mittig in einem 22-px-Feld
             e.icon.position = world(x0 + 8 + 11, y + 10)
-            node.addChild(e.icon)
+            parent.addChild(e.icon)
             let textX = x0 + 8 + 26
             var head = PixelCanvas(width: width - 16 - 26, height: 5)
             PixelFont.draw(e.title, into: &head, x: 0, y: 0, color: Self.cream)
             if !e.badge.isEmpty {
                 PixelFont.draw(e.badge, into: &head, x: head.width - PixelFont.width(e.badge), y: 0, color: Self.amber)
             }
-            node.addChild(sprite(head, at: textX, y + 1))
+            parent.addChild(sprite(head, at: textX, y + 1))
             for (i, line) in e.lines.enumerated() {
-                node.addChild(sprite(PixelFont.render(line, color: Self.gray), at: textX, y + 9 + i * 7))
+                parent.addChild(sprite(PixelFont.render(line, color: Self.gray), at: textX, y + 9 + i * 7))
             }
-            y += max(24, 10 + e.lines.count * 7 + 4)
+            let h = max(24, 10 + e.lines.count * 7 + 4)
+            if let tap = e.onTap {
+                tapTargets.append((CGRect(x: x0 + 4, y: y - 2, width: width - 8, height: h), tap))
+            }
+            y += h
         }
 
-        section("POWER-UPS IM DÄCHERLAUF")
+        // Seite 1: Power-ups und Spezialsteine (antippbar)
+        section("POWER-UPS IM DÄCHERLAUF - ANTIPPEN!")
         powerUps.forEach(entry)
-        node.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
+        parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
         y += 8
         section("SPEZIALSTEINE IN BEIDEN MODI")
         specials.forEach(entry)
 
-        // Knopf ZURÜCK unten
-        let w = 120, h = 18
-        let bx = x0 + (width - w) / 2, by = y0 + height - h - 6
-        var button = PixelCanvas(width: w, height: h, fill: RGBA(hex: 0x1B1A24))
-        for (x, yy, ww, hh) in [(0, 0, w, 1), (0, h - 1, w, 1), (0, 0, 1, h), (w - 1, 0, 1, h)] {
-            button.fillRect(x, yy, ww, hh, Self.amber)
-        }
-        let label = PixelFont.render("ZURÜCK", color: Self.cream)
-        for yy in 0..<label.height * 2 {
-            for xx in 0..<label.width * 2 where label.get(xx / 2, yy / 2).a > 0 {
-                button.set((w - label.width * 2) / 2 + xx, 4 + yy, Self.cream)
+        // Seite 2: Dächerlauf, Punkte, Macher
+        parent = pages[1]
+        y = y0 + 22
+        for block in info {
+            section(block.title)
+            for line in block.lines {
+                parent.addChild(sprite(PixelFont.render(line, color: block.highlight ? Self.cream : Self.gray), at: x0 + 8, y))
+                y += 7
             }
+            y += 6
         }
-        node.addChild(sprite(button, at: bx, by))
-        closeRect = CGRect(x: bx, y: by, width: w, height: h)
+        pages[1].isHidden = true
+
+        // Knöpfe unten: Seite wechseln, Schließen
+        let w = 82
+        let by = y0 + height - 18 - 6
+        let px = x0 + 8, cx = x0 + width - 8 - w
+        pageLabel.anchorPoint = CGPoint(x: 0, y: 1)
+        pageLabel.position = world(px, by)
+        node.addChild(pageLabel)
+        node.addChild(sprite(button("ZURÜCK", width: w), at: cx, by))
+        pageRect = CGRect(x: px, y: by, width: w, height: 18)
+        closeRect = CGRect(x: cx, y: by, width: w, height: 18)
+        showPage(0)
+    }
+
+    private func showPage(_ index: Int) {
+        page = index
+        pages[0].isHidden = index != 0
+        pages[1].isHidden = index != 1
+        let canvas = button(index == 0 ? "MEHR" : "POWER-UPS", width: 82)
+        pageLabel.texture = canvas.texture()
+        pageLabel.size = canvas.size
     }
 
     func show() {
+        showPage(0)
         isVisible = true
         node.isHidden = false
         node.alpha = 0
@@ -113,11 +168,15 @@ final class HelpPanel {
         node.run(.sequence([.fadeOut(withDuration: 0.1), .hide()]))
     }
 
-    /// Design-Koordinaten. Jeder Tipp außerhalb des Fensters oder auf ZURÜCK schließt.
+    /// Design-Koordinaten. Tipp außerhalb des Fensters oder auf ZURÜCK schließt.
     func pointerDown(_ p: CGPoint) {
         let panel = CGRect(x: x0, y: y0, width: width, height: height)
-        if closeRect.insetBy(dx: -4, dy: -4).contains(p) || !panel.contains(p) {
+        if closeRect.insetBy(dx: -3, dy: -3).contains(p) || !panel.contains(p) {
             onClose()
+        } else if pageRect.insetBy(dx: -3, dy: -3).contains(p) {
+            showPage(page == 0 ? 1 : 0)
+        } else if page == 0, let target = tapTargets.first(where: { $0.rect.contains(p) }) {
+            target.action()
         }
     }
 }

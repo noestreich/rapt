@@ -81,7 +81,7 @@ public struct Game: Sendable {
     /// Grundgeschwindigkeit der Stadt (Design-Pixel pro Sekunde), z. B. vom Debug-Schieber.
     public var citySpeed = City.baseSpeed
     /// Zusätzliche Beschleunigung der Stadt pro Spielminute (0,1 = +10 % je Minute).
-    public var cityAcceleration = 0.0
+    public var cityAcceleration = City.defaultAccelerationPerMinute
     private var lastReward: PowerUp?
     private var rewardedPlan = 1
     private var rng: SplitMix64

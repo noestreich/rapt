@@ -81,7 +81,7 @@ final class SoundBank {
             dangerPlayer.play()
             dangerActive = true
         }
-        dangerPlayer.volume = (0.05 + 0.15 * min(1, level)) * Float(library.gain(for: .danger))
+        dangerPlayer.volume = (0.18 + 0.32 * min(1, level)) * Float(library.gain(for: .danger))
     }
 
     /// Lädt eigene Dateien neu, z. B. nachdem im Sound-Labor etwas zugewiesen wurde.
@@ -274,11 +274,13 @@ final class SoundBank {
             }
 
         case .danger:
-            // Leichtes Netzbrummen (50 Hz mit Obertönen), sanft pulsierend. 2 s, nahtlos schleifbar.
+            // Leichtes Netzbrummen. Kleine Lautsprecher geben 50 Hz kaum wieder, deshalb tragen die
+            // Obertöne (100–400 Hz) den Klang; sanft pulsierend. 2 s, nahtlos schleifbar.
             return buffer(2.0, crush: 1, loop: true) { t in
-                let hum = sin(2 * .pi * 50 * t) * 0.6 + sin(2 * .pi * 100 * t) * 0.3 + sin(2 * .pi * 150 * t) * 0.1
-                let pulse = 0.75 + 0.25 * sin(2 * .pi * 1.5 * t)
-                return hum * pulse * 0.3
+                let w = 2 * Double.pi * 50 * t
+                let hum = sin(w) * 0.35 + sin(2 * w) * 0.5 + sin(3 * w) * 0.3 + sin(4 * w) * 0.2 + sin(6 * w) * 0.08
+                let pulse = 0.7 + 0.3 * sin(2 * .pi * 1.5 * t)
+                return tanh(hum * 1.4) * pulse * 0.55
             }
 
         case .match, .music, .voiceKira, .voiceBoris, .voiceJuki, .voiceZora, .voiceK9, .voiceRobo:

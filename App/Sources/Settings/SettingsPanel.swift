@@ -69,6 +69,13 @@ final class SettingsPanel {
         let title = PixelFont.render("EINSTELLUNGEN", color: Self.amber, shadow: RGBA(hex: 0x050409))
         node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
 
+        buildRows()
+    }
+
+    /// Zeilen neu aufbauen, z. B. wenn die Debug-Regler ein- oder ausgeblendet werden.
+    private func buildRows() {
+        rows.forEach { $0.sprite.removeFromParent() }
+        rows = []
         let settings = GameSettings.shared
         func fixed(_ text: String) -> () -> String { { text } }
         var specs: [(() -> String, Kind)] = [
@@ -84,19 +91,23 @@ final class SettingsPanel {
         #if os(iOS)
         specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
-        #if DEBUG
-        // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
-        let minSpeed = 0.2, maxSpeed = 4.0
-        specs.append((fixed("DEBUG: STADT-TEMPO PX/S"), .section))
-        specs.append(({ String(format: "%.2f", settings.debugCitySpeed) },
-                      .slider(get: { (settings.debugCitySpeed - minSpeed) / (maxSpeed - minSpeed) },
-                              set: { settings.debugCitySpeed = minSpeed + $0 * (maxSpeed - minSpeed) })))
-        // Beschleunigung 0 … 50 % pro Spielminute
-        specs.append((fixed("DEBUG: BESCHLEUNIGUNG PRO MIN"), .section))
-        specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%" },
-                      .slider(get: { settings.debugCityAcceleration / 0.5 },
-                              set: { settings.debugCityAcceleration = $0 * 0.5 })))
-        #endif
+        specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in
+            settings.debugVisible = visible
+            self?.buildRows()
+        })))
+        if settings.debugVisible {
+            // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
+            let minSpeed = 0.2, maxSpeed = 4.0
+            specs.append((fixed("DEBUG: STADT-TEMPO PX/S"), .section))
+            specs.append(({ String(format: "%.2f", settings.debugCitySpeed) },
+                          .slider(get: { (settings.debugCitySpeed - minSpeed) / (maxSpeed - minSpeed) },
+                                  set: { settings.debugCitySpeed = minSpeed + $0 * (maxSpeed - minSpeed) })))
+            // Beschleunigung 0 … 50 % pro Spielminute
+            specs.append((fixed("DEBUG: BESCHLEUNIGUNG PRO MIN"), .section))
+            specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%" },
+                          .slider(get: { settings.debugCityAcceleration / 0.5 },
+                                  set: { settings.debugCityAcceleration = $0 * 0.5 })))
+        }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
         specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))
         specs.append((fixed("ZURÜCK"), .button(action: { [weak self] in self?.onClose() })))
@@ -116,12 +127,6 @@ final class SettingsPanel {
             default: y += 14
             }
         }
-
-        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1"
-        let footer = PixelFont.render("RAPT " + version, color: Self.dim)
-        node.addChild(sprite(footer, at: x0 + (width - footer.width) / 2, y0 + height - 10))
-        let credits = PixelFont.render("MUSIK: LUIS ZUNO - ANSIMUZ.COM", color: Self.dim)
-        node.addChild(sprite(credits, at: x0 + (width - credits.width) / 2, y0 + height - 19))
         render()
     }
 

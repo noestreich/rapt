@@ -12,6 +12,16 @@ final class GameSettings: ObservableObject {
     @Published var hapticsEnabled: Bool { didSet { save(hapticsEnabled, "hapticsEnabled") } }
     @Published var splashesEnabled: Bool { didSet { save(splashesEnabled, "splashesEnabled") } }
     @Published var hintsEnabled: Bool { didSet { save(hintsEnabled, "hintsEnabled") } }
+    /// Debug-Regler (Tempo, Beschleunigung) sichtbar. Beim Ausblenden gelten wieder die Standardwerte.
+    @Published var debugVisible: Bool {
+        didSet {
+            save(debugVisible, "debugVisible")
+            if !debugVisible {
+                debugCitySpeed = City.baseSpeed
+                debugCityAcceleration = City.defaultAccelerationPerMinute
+            }
+        }
+    }
     /// Debug: Beschleunigung der Stadt pro Spielminute (0,1 = +10 %).
     @Published var debugCityAcceleration: Double { didSet { save(debugCityAcceleration, "debugCityAcceleration") } }
     /// Debug: Grundgeschwindigkeit der Stadt im Dächerlauf (Design-Pixel pro Sekunde).
@@ -27,8 +37,9 @@ final class GameSettings: ObservableObject {
             "rapt.hapticsEnabled": true,
             "rapt.splashesEnabled": true,
             "rapt.debugCitySpeed": City.baseSpeed,
-            "rapt.hintsEnabled": true,
-            "rapt.debugCityAcceleration": 0.0,
+            "rapt.hintsEnabled": false,
+            "rapt.debugCityAcceleration": City.defaultAccelerationPerMinute,
+            "rapt.debugVisible": false,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -38,26 +49,15 @@ final class GameSettings: ObservableObject {
         splashesEnabled = defaults.bool(forKey: "rapt.splashesEnabled")
         debugCitySpeed = defaults.double(forKey: "rapt.debugCitySpeed")
         hintsEnabled = defaults.bool(forKey: "rapt.hintsEnabled")
+        debugVisible = defaults.bool(forKey: "rapt.debugVisible")
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
     }
 
     /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.
-    var citySpeed: Double {
-        #if DEBUG
-        return debugCitySpeed
-        #else
-        return City.baseSpeed
-        #endif
-    }
+    var citySpeed: Double { debugVisible ? debugCitySpeed : City.baseSpeed }
 
     /// Beschleunigung pro Minute, mit der das Spiel tatsächlich läuft.
-    var cityAcceleration: Double {
-        #if DEBUG
-        return debugCityAcceleration
-        #else
-        return 0
-        #endif
-    }
+    var cityAcceleration: Double { debugVisible ? debugCityAcceleration : City.defaultAccelerationPerMinute }
 
     private func save(_ value: Any, _ key: String) {
         UserDefaults.standard.set(value, forKey: "rapt." + key)

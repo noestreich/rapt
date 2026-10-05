@@ -139,6 +139,8 @@ final class GameScene: SKScene {
     private var figureJump = SKTexture()
     private let dangerAura = SKSpriteNode()
     private var figureJumping = false
+    /// Haus, auf dem die Figur sichtbar steht. Die Spiellogik springt sofort, die Szene erst mit der Animation.
+    private var shownBuilding = 0
     private var figureFalling = false
     private var wasInDanger = false
 
@@ -582,6 +584,7 @@ final class GameScene: SKScene {
         figureJumping = false
         figureFalling = false
         wasInDanger = false
+        shownBuilding = game.city.figureIndex
         startFigureIdle()
         let rooftop = newMode == .rooftop
         figure.isHidden = !rooftop
@@ -1071,7 +1074,8 @@ final class GameScene: SKScene {
             buildingSprites[i] = nil
         }
         if !figureJumping && !figureFalling {
-            figure.position = design(CGFloat(city.figureX).rounded(), skyBottom - CGFloat(city.figureBuilding.height))
+            let b = city.buildings[min(shownBuilding, city.buildings.count - 1)]
+            figure.position = design(CGFloat(city.screenX(b.center)).rounded(), skyBottom - CGFloat(b.height))
         }
     }
 
@@ -1110,17 +1114,25 @@ final class GameScene: SKScene {
         func icon(_ kind: PowerUp) -> SKNode {
             SKSpriteNode(texture: iconTextures[kind], size: CGSize(width: 16, height: 16))
         }
+        func radio(_ contact: Contact, _ item: SKTexture?) -> () -> Void {
+            { [weak self] in
+                guard let self else { return }
+                let delivery = SplashPresenter.Delivery(contact: contact, item: item ?? SKTexture())
+                self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
+            }
+        }
+        func radioFor(_ kind: PowerUp) -> () -> Void { radio(Contact.contact(for: kind), iconTextures[kind]) }
         let powerUps: [HelpPanel.Entry] = [
             .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
-                  lines: ["FELD ANTIPPEN: SPRENGT 3X3."]),
+                  lines: ["FELD ANTIPPEN: SPRENGT 3X3."], onTap: radioFor(.bombe)),
             .init(icon: icon(.farbtilger), title: "FARBTILGER", badge: percent(.farbtilger),
-                  lines: ["STEIN ANTIPPEN: ALLE STEINE", "DIESER FARBE VERSCHWINDEN."]),
+                  lines: ["STEIN ANTIPPEN: ALLE STEINE", "DIESER FARBE VERSCHWINDEN."], onTap: radioFor(.farbtilger)),
             .init(icon: icon(.strudel), title: "STRUDEL", badge: percent(.strudel),
-                  lines: ["MISCHT DAS BRETT NEU. DANACH", "IST IMMER EIN ZUG MÖGLICH."]),
+                  lines: ["MISCHT DAS BRETT NEU. DANACH", "IST IMMER EIN ZUG MÖGLICH."], onTap: radioFor(.strudel)),
             .init(icon: icon(.atom), title: "ATOMBOMBE", badge: percent(.atom),
-                  lines: ["FELD ANTIPPEN: SPRENGT 5X5."]),
+                  lines: ["FELD ANTIPPEN: SPRENGT 5X5."], onTap: radioFor(.atom)),
             .init(icon: icon(.fresser), title: "FRESSER", badge: percent(.fresser),
-                  lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."]),
+                  lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."], onTap: radioFor(.fresser)),
         ]
 
         let lineStone = SKNode()
@@ -1134,14 +1146,39 @@ final class GameScene: SKScene {
         hyper.run(.repeatForever(.animate(with: hyperFrames, timePerFrame: 0.08)))
         let specials: [HelpPanel.Entry] = [
             .init(icon: lineStone, title: "LINIEN-STEIN", badge: "",
-                  lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."]),
+                  lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."],
+                  onTap: radio(Contact.contact(for: .line(horizontal: true)), nil)),
             .init(icon: bombStone, title: "BOMBEN-STEIN", badge: "",
-                  lines: ["L- ODER T-FORM. SPRENGT 3X3."]),
+                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radio(Contact.contact(for: .bomb), nil)),
             .init(icon: hyper, title: "HYPERSTEIN", badge: "",
-                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."]),
+                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radio(Contact.contact(for: .hyper), nil)),
+        ]
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
+        let info: [HelpPanel.Block] = [
+            .init(title: "SO GEHT DER DÄCHERLAUF", lines: [
+                "DIE HÄUSER WANDERN LANGSAM NACH LINKS.",
+                "PUNKTE FÜLLEN DEN PLAN-BALKEN UNTER",
+                "DEM BRETT. IST ER VOLL SPRINGT DIE",
+                "FIGUR AUFS NÄCHSTE DACH UND BRINGT",
+                "EIN POWER-UP. WIRD SIE LINKS AUS DEM",
+                "BILD GESCHOBEN STÜRZT SIE AB.",
+            ]),
+            .init(title: "PUNKTE", lines: [
+                "JEDER STEIN IN EINER REIHE: 50",
+                "JEDER STEIN ÜBER 3 IN DER REIHE: +100",
+                "KASKADEN: STUFE 2 DOPPELT - 3 DREIFACH",
+                "SPEZIALSTEIN AUSGELÖST: +200 JE STUFE",
+                "PLAN 2 BRAUCHT 1500 PUNKTE. JEDER",
+                "WEITERE PLAN 1500 MEHR ALS DER LETZTE.",
+            ]),
+            .init(title: "MACHER", lines: [
+                "SPIEL: NICOLAS OESTREICH",
+                "MUSIK: LUIS ZUNO - ANSIMUZ.COM",
+                "RAPT " + version,
+            ], highlight: true),
         ]
         return HelpPanel(designHeight: Layout.height, powerUps: powerUps, specials: specials,
-                         footnote: "JEDER 6. SPRUNG: FRESSER ODER ATOM.")
+                         footnote: "JEDER 6. SPRUNG: FRESSER ODER ATOM.", info: info)
     }
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
@@ -1658,6 +1695,7 @@ final class GameScene: SKScene {
     /// Sprung auf das Haus mit Index `building`. Das Ziel wandert während des Sprungs mit.
     private func jumpFigure(to building: Int, then completion: @escaping () -> Void) {
         guard building < game.city.buildings.count, !figureFalling else {
+            shownBuilding = min(building, game.city.buildings.count - 1)
             completion()
             return
         }
@@ -1666,18 +1704,21 @@ final class GameScene: SKScene {
         stopFigureIdle()
         figure.texture = figureJump
         let from = figure.position
-        let duration: CGFloat = 0.6
+        fx.steam(at: CGPoint(x: from.x, y: from.y + 3))
+        let duration: CGFloat = 0.7
         let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
             guard let self else { return }
             let b = self.game.city.buildings[building]
             let to = self.design(CGFloat(self.game.city.screenX(b.center)), self.skyBottom - CGFloat(b.height))
-            let height = 18 + abs(to.y - from.y) / 2
+            // Halbe Sinuskurve: deutlich über beide Dächer hinweg
+            let height = 26 + abs(to.y - from.y) / 2
             let t = min(1, elapsed / duration)
             node.position = CGPoint(x: (from.x + (to.x - from.x) * t).rounded(),
                                     y: (from.y + (to.y - from.y) * t + sin(.pi * t) * height).rounded())
         }
         figure.run(.sequence([arc, .run { [weak self] in
             guard let self else { return }
+            self.shownBuilding = building
             self.figureJumping = false
             self.updateCity()
             self.startFigureIdle()

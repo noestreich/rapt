@@ -44,7 +44,7 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 | Modus | Ablauf |
 |---|---|
 | **Endlos** | Klassisch: kein Zeitdruck, keine Figur, keine Power-ups. Ende, wenn kein Zug mehr möglich ist. |
-| **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,9 px/s, +9 % pro Plan; im Debug-Build per Schieber in den Einstellungen), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
+| **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,66 px/s, +9 % pro Plan, +6 % pro Spielminute; per Debug-Regler in den Einstellungen änderbar), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
@@ -153,7 +153,9 @@ derselbe hintereinander. Eine eigene Datei im Sound-Labor auf dem Platz „Hinte
 Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
 Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Hinweise, Haptik (iPhone), „Neues Spiel“ zur
 Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit und Wirkung) und Spezialsteinen.
-Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) lassen sich abschalten.
-Im Debug-Build zusätzlich **Stadt-Tempo** (0,2–4 px/s) und **Beschleunigung** (0–50 % pro Spielminute, relativ zum
-Tempo) zum Experimentieren; die Werte gelten sofort.
+Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
+Der Schalter **DEBUG-REGLER** blendet **Stadt-Tempo** (0,2–4 px/s) und **Beschleunigung** (0–50 % pro Spielminute)
+ein; die Werte gelten sofort. Beim Ausblenden gelten wieder die Standardwerte (0,66 px/s, +6 %/min).
+Die **Hilfe** hat zwei Seiten: Power-ups und Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
+Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
