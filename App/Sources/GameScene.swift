@@ -118,6 +118,9 @@ final class GameScene: SKScene {
     private let edgeGlow = SKNode()
     private var edgeSprites: [SKSpriteNode] = []
     private var musicDuck: Float = 1
+    /// Easteregg: Fernsehturm-Licht 5 s gedrückt halten → Atombombe (einmal pro Spiel).
+    private var towerHoldStart: TimeInterval?
+    private var towerEggUsed = false
     /// Zahnrad auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
     private let gearRect = CGRect(x: 172, y: 4, width: 22, height: 20)
     private var armed: Armed?
@@ -136,6 +139,10 @@ final class GameScene: SKScene {
     // Figur auf den Dächern
     private let figure = SKSpriteNode()
     private var figureIdle: [SKTexture] = []
+    private var figureFrames: PowerUpArt.FigureFrames!
+    private var figureAura: SKSpriteNode!
+    /// Kleiner Versatz nach oben für Hüpfer im Stand.
+    private var figureBob: CGFloat = 0
     private var figureJump = SKTexture()
     private let dangerAura = SKSpriteNode()
     private var figureJumping = false
@@ -240,6 +247,7 @@ final class GameScene: SKScene {
         hyperFrames = SpecialArt.hyperFrames()
         chomperFrames = PowerUpArt.chomperFrames()
         let frames = PowerUpArt.figureFrames()
+        figureFrames = frames
         figureIdle = frames.idle
         figureJump = frames.jump
         glowTexture = Backdrop.glow()
@@ -269,6 +277,7 @@ final class GameScene: SKScene {
         figure.anchorPoint = CGPoint(x: 0.5, y: 0)
         figure.zPosition = 4
         let aura = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0x3FD8FF).skColor, size: CGSize(width: 18, height: 18))
+        figureAura = aura
         aura.colorBlendFactor = 1
         aura.blendMode = .add
         aura.alpha = 0.35
@@ -596,6 +605,8 @@ final class GameScene: SKScene {
         armed = nil
         armedBracket.isHidden = true
         pendingDeliveries = 0
+        towerEggUsed = false
+        cancelTowerHold()
         updateCity()
         updateSlots()
         refreshStatus()
@@ -1098,7 +1109,7 @@ final class GameScene: SKScene {
         }
         if !figureJumping && !figureFalling {
             let b = city.buildings[min(shownBuilding, city.buildings.count - 1)]
-            figure.position = design(CGFloat(city.screenX(b.center)).rounded(), skyBottom - CGFloat(b.height))
+            figure.position = design(CGFloat(city.screenX(b.center)).rounded(), skyBottom - CGFloat(b.height) - figureBob)
         }
     }
 
@@ -1118,6 +1129,74 @@ final class GameScene: SKScene {
         backLayer.addChild(sprite)
         buildingSprites[index] = sprite
         return sprite
+    }
+
+    // MARK: Easteregg
+
+    private func isNearTowerLight(_ point: CGPoint) -> Bool {
+        let light = CGPoint(x: beacon.position.x + 0.5, y: beacon.position.y - 0.5)
+        return hypot(point.x - light.x, point.y - light.y) < 10
+    }
+
+    private func cancelTowerHold() {
+        towerHoldStart = nil
+        beaconGlow?.setScale(1)
+        beaconGlow?.color = SKColor(red: 1, green: 0.25, blue: 0.15, alpha: 1)
+    }
+
+    /// Während des Haltens wächst das Turmlicht und färbt sich blau; nach 5 s gibt es die Atombombe.
+    private func updateTowerHold() {
+        guard let start = towerHoldStart else { return }
+        let t = min(1, (clock - start) / 5)
+        beaconGlow?.setScale(CGFloat(1 + t * 1.5))
+        beaconGlow?.color = SKColor(red: CGFloat(1 - t * 0.8), green: CGFloat(0.25 + t * 0.4), blue: CGFloat(0.15 + t * 0.85), alpha: 1)
+        guard t >= 1 else { return }
+        towerHoldStart = nil
+        towerEggUsed = true
+        towerEasterEgg()
+    }
+
+    private func towerEasterEgg() {
+        let light = CGPoint(x: beacon.position.x + 0.5, y: beacon.position.y - 0.5)
+        let blue = SKColor(red: 0.3, green: 0.75, blue: 1, alpha: 1)
+        // einmal groß blau pulsieren
+        let pulse = fx.glow(at: light, color: blue, size: 30, alpha: 1)
+        pulse.run(.sequence([.group([.scale(to: 7, duration: 0.6), .fadeOut(withDuration: 0.6)]), .removeFromParent()]))
+        fx.warpRing(at: light, color: blue, radius: 70)
+        audio.play(.powerUp, volume: 0.9)
+        audio.play(.warp, volume: 0.6)
+        haptics.explosion()
+        run(.sequence([.wait(forDuration: 0.4), .run { [weak self] in self?.cancelTowerHold() }]))
+
+        let icon = iconTextures[.atom] ?? SKTexture()
+        if mode == .rooftop {
+            guard game.grant(.atom) else {
+                fx.popup("LAGER VOLL", at: CGPoint(x: light.x - 20, y: light.y + 14), color: Palette.cream)
+                return
+            }
+            pendingDeliveries += 1
+            updateSlots()
+            let index = game.powerUps.count - pendingDeliveries
+            let target = design(Layout.slotX(index) + Layout.slotSize / 2, Layout.slotY + Layout.slotSize / 2)
+            flyItem(icon, from: light, to: { target }) { [weak self] in
+                guard let self else { return }
+                self.pendingDeliveries = max(0, self.pendingDeliveries - 1)
+                self.updateSlots()
+                self.flashSlot(index)
+                self.fx.popup("+ ATOMBOMBE", at: self.design(Layout.slotX(1), Layout.slotY - 6), color: Palette.amber)
+                self.refreshStatus()
+            }
+        } else {
+            // Endlos hat kein Lager: die Bombe schlägt direkt mitten im Brett ein
+            guard !busy else { return }
+            let center = Pos(Layout.count / 2, Layout.count / 2)
+            game.grant(.atom)
+            busy = true
+            flyItem(icon, from: light, to: { [weak self] in self?.center(of: center) }) { [weak self] in
+                self?.busy = false
+                self?.fire(.atom, at: center)
+            }
+        }
     }
 
     /// Musik weich absenken (z. B. bei Absturzgefahr) und wieder anheben.
@@ -1693,24 +1772,71 @@ final class GameScene: SKScene {
 
     // MARK: Plan, Figur, Belohnungen
 
-    /// Atmen und hin und wieder ein Blick zurück.
+    /// Atmen, dazu alle paar Sekunden eine zufällige Geste.
     private func startFigureIdle() {
-        figure.texture = figureIdle[0]
-        figure.xScale = 1
-        figure.run(.repeatForever(.animate(with: figureIdle, timePerFrame: 0.5)), withKey: "idle")
-        let figure = self.figure
+        figureBob = 0
+        breathe()
         figure.run(.repeatForever(.sequence([
-            .wait(forDuration: 6, withRange: 6),
-            .run { figure.xScale = -1 },
-            .wait(forDuration: 0.9, withRange: 0.6),
-            .run { figure.xScale = 1 },
+            .wait(forDuration: 6.5, withRange: 5),
+            .run { [weak self] in self?.playIdleGesture() },
         ])), withKey: "look")
+    }
+
+    private func breathe() {
+        figure.xScale = 1
+        figure.texture = figureIdle[0]
+        figure.run(.repeatForever(.animate(with: figureIdle, timePerFrame: 0.5)), withKey: "idle")
     }
 
     private func stopFigureIdle() {
         figure.removeAction(forKey: "idle")
         figure.removeAction(forKey: "look")
+        figure.removeAction(forKey: "gesture")
+        figure.childNode(withName: "holo")?.removeFromParent()
         figure.xScale = 1
+        figureBob = 0
+    }
+
+    /// Eine von sieben kleinen Gesten: zurückschauen, strecken, hocken, winken, hüpfen, Armband, Visier-Scan.
+    private func playIdleGesture() {
+        guard !figureJumping, !figureFalling, !figure.isHidden else { return }
+        figure.removeAction(forKey: "idle")
+        let f = figureFrames!
+        let figure = self.figure
+        let tex: (SKTexture) -> SKAction = { texture in .run { figure.texture = texture } }
+        var steps: [SKAction]
+        switch Int.random(in: 0..<7) {
+        case 0: // zurückschauen
+            steps = [.run { figure.xScale = -1 }, .wait(forDuration: 1.0, withRange: 0.6), .run { figure.xScale = 1 }]
+        case 1: // strecken
+            steps = [tex(f.jump), .wait(forDuration: 0.7), tex(f.idle[1]), .wait(forDuration: 0.2)]
+        case 2: // hocken
+            steps = [tex(f.crouch), .wait(forDuration: 0.9)]
+        case 3: // winken
+            steps = (0..<5).flatMap { i in [tex(f.wave[i % 2]), SKAction.wait(forDuration: 0.16)] }
+        case 4: // hüpfen
+            let hop = SKAction.customAction(withDuration: 0.3) { [weak self] _, elapsed in
+                self?.figureBob = (sin(.pi * elapsed / 0.3) * 4).rounded()
+            }
+            steps = [tex(f.crouch), .wait(forDuration: 0.08), tex(f.jump), hop, tex(f.crouch), .wait(forDuration: 0.08),
+                     tex(f.jump), hop, tex(f.idle[0]), .run { [weak self] in self?.figureBob = 0 }]
+        case 5: // Armband-Terminal mit kleinem Hologramm
+            let holo = SKSpriteNode(texture: glowTexture, color: RGBA(hex: 0x3FD8FF).skColor, size: CGSize(width: 6, height: 6))
+            holo.name = "holo"
+            holo.colorBlendFactor = 1
+            holo.blendMode = .add
+            holo.position = CGPoint(x: 3, y: 8)
+            holo.alpha = 0
+            steps = [tex(f.wrist), .run { figure.addChild(holo) },
+                     .run { holo.run(.repeat(.sequence([.fadeAlpha(to: 1, duration: 0.05), .fadeAlpha(to: 0.4, duration: 0.1)]), count: 7)) },
+                     .wait(forDuration: 1.1), .run { holo.removeFromParent() }]
+        default: // Visier-Scan
+            let aura = figureAura!
+            steps = [.run {
+                aura.run(.repeat(.sequence([.fadeAlpha(to: 1, duration: 0.08), .fadeAlpha(to: 0.3, duration: 0.18)]), count: 3))
+            }, .wait(forDuration: 0.8)]
+        }
+        figure.run(.sequence(steps + [.run { [weak self] in self?.breathe() }]), withKey: "gesture")
     }
 
     /// Spielstart: die Figur fällt aus dem Nichts auf ihr erstes Dach.
@@ -1821,6 +1947,11 @@ final class GameScene: SKScene {
         idleTime = 0
         place(hintCursor, at: nil)
         let d = CGPoint(x: point.x, y: Layout.height - point.y)
+        if !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !towerEggUsed, !game.isOver, isNearTowerLight(point) {
+            towerHoldStart = clock
+            pointerStart = nil
+            return
+        }
         if helpPanel.isVisible {
             helpPanel.pointerDown(d)
             return
@@ -1869,6 +2000,10 @@ final class GameScene: SKScene {
     }
 
     private func pointerMoved(_ point: CGPoint) {
+        if towerHoldStart != nil {
+            if !isNearTowerLight(point) { cancelTowerHold() }
+            return
+        }
         if helpPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerMoved(CGPoint(x: point.x, y: Layout.height - point.y))
@@ -1899,6 +2034,10 @@ final class GameScene: SKScene {
 
     private func pointerUp(_ point: CGPoint) {
         swipeStart = nil
+        if towerHoldStart != nil {
+            cancelTowerHold()
+            return
+        }
         if helpPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerUp()
@@ -1977,6 +2116,7 @@ final class GameScene: SKScene {
         }
 
         updateFresser(dt)
+        updateTowerHold()
 
         // Lebendige Stadt: Fensterlicht und Sternschnuppen
         windowTimer -= dt

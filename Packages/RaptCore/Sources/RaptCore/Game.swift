@@ -496,10 +496,13 @@ public struct Game: Sendable {
         updateOver()
     }
 
-    /// Für Tests: ein bestimmtes Power-up ins Lager legen.
-    mutating func grant(_ kind: PowerUp) {
+    /// Legt ein Power-up ins Lager (z. B. Easteregg, Tests). `false`, wenn das Lager voll ist.
+    @discardableResult
+    public mutating func grant(_ kind: PowerUp) -> Bool {
+        guard powerUps.count < Self.maxPowerUps else { return false }
         powerUps.append(kind)
         updateOver()
+        return true
     }
 
     /// Für Tests: Punkte gutschreiben und Belohnungen auswerten.

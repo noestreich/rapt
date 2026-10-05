@@ -76,6 +76,8 @@ final class SoundBank {
         guard let buffer = custom[.danger] ?? synth[.danger] else { return }
         if !engine.isRunning { try? engine.start() }
         guard engine.isRunning else { return }
+        // Nach einem Wechsel der Audio-Sitzung hält die Engine die Player an: dann neu starten
+        if dangerActive && !dangerPlayer.isPlaying { dangerActive = false }
         if !dangerActive {
             dangerPlayer.scheduleBuffer(buffer, at: nil, options: [.loops, .interrupts], completionHandler: nil)
             dangerPlayer.play()

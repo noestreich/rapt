@@ -144,6 +144,13 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
 
+## Kleinigkeiten
+
+- Der Runner zeigt im Stand alle paar Sekunden eine Geste: zurückschauen, strecken, hocken, winken, hüpfen,
+  aufs Armband-Terminal schauen, Visier-Scan.
+- iPhone: Ist die Spielmusik aus, laufen Musik oder Podcasts aus anderen Apps weiter und die Effekte liegen darüber.
+- Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
+
 ## Musik
 
 Elf Tracks aus dem „Action Pack 1“ von Luis Zuno ([@ansimuz](https://ansimuz.itch.io/)), frei auch für kommerzielle

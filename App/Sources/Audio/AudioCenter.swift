@@ -1,3 +1,4 @@
+import AVFoundation
 import Combine
 import Foundation
 
@@ -26,8 +27,25 @@ final class AudioCenter {
         let settings = GameSettings.shared
         settings.$soundEnabled.sink { [weak self] value in self?.effects.isEnabled = value }.store(in: &subscriptions)
         settings.$soundVolume.sink { [weak self] value in self?.effects.masterVolume = Float(value) }.store(in: &subscriptions)
-        settings.$musicEnabled.sink { [weak self] value in self?.music.isEnabled = value }.store(in: &subscriptions)
+        settings.$musicEnabled.sink { [weak self] value in
+            Self.configureSession(musicOn: value)
+            self?.music.isEnabled = value
+        }.store(in: &subscriptions)
         settings.$musicVolume.sink { [weak self] value in self?.music.volume = Float(value) }.store(in: &subscriptions)
+    }
+
+    /// iPhone: Mit Spielmusik spielt nur das Spiel. Ohne Spielmusik mischen sich die Effekte mit Musik oder
+    /// Podcasts aus anderen Apps, die dann ungestört weiterlaufen.
+    private static func configureSession(musicOn: Bool) {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        if musicOn {
+            try? session.setCategory(.soloAmbient)
+        } else {
+            try? session.setCategory(.ambient, options: [.mixWithOthers])
+        }
+        try? session.setActive(true)
+        #endif
     }
 
     /// Probehören im Sound-Labor. Treffer werden als kleine Kaskade vorgespielt.

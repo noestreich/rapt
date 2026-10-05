@@ -21,23 +21,42 @@ enum PowerUpArt {
         "N": 0xFF4FA8, "C": 0x3FD8FF, "P": 0x2E2C44, "B": 0x14121C, "G": 0x8E94AA, "S": 0x3FD8FF,
     ]
 
+    struct FigureFrames {
+        /// Zwei Stehbilder (Atmen).
+        let idle: [SKTexture]
+        /// Arme hoch: Sprung und Strecken.
+        let jump: SKTexture
+        let crouch: SKTexture
+        /// Winken mit dem hinteren Arm, zwei Bilder im Wechsel.
+        let wave: [SKTexture]
+        /// Blick aufs Armband-Terminal.
+        let wrist: SKTexture
+    }
+
     /// Cyberpunk-Läufer mit Kapuze, Leuchtvisier, Neon-Saum und Lichtsohlen. Blickrichtung rechts;
-    /// gespiegelt (xScale -1) schaut er zurück. Zwei Stehbilder (Atmen) und ein Sprungbild.
-    static func figureFrames() -> (idle: [SKTexture], jump: SKTexture) {
-        let stand1 = [
-            "..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..", ".jNJJj.",
-            "G.JJJ.G", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS.",
-        ]
-        let stand2 = [
-            ".......", "..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..",
-            "GjNJJjG", "..JJJ..", "..JCJ..", "..P.P..", ".BS.BS.",
-        ]
-        let jump = [
-            "G.HHh.G", "jHHHHhj", ".HHVvVC", "..Hff..", ".jNJJj.",
-            "..JJJ..", "..JCJ..", ".P...P.", "P.....P", "B.....B",
-        ]
-        return ([sprite(stand1, figurePalette).texture(), sprite(stand2, figurePalette).texture()],
-                sprite(jump, figurePalette).texture())
+    /// gespiegelt (xScale -1) schaut er zurück.
+    static func figureFrames() -> FigureFrames {
+        func t(_ rows: [String]) -> SKTexture { sprite(rows, figurePalette).texture() }
+        return FigureFrames(
+            idle: [
+                t(["..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..", ".jNJJj.",
+                   "G.JJJ.G", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS."]),
+                t([".......", "..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..",
+                   "GjNJJjG", "..JJJ..", "..JCJ..", "..P.P..", ".BS.BS."]),
+            ],
+            jump: t(["G.HHh.G", "jHHHHhj", ".HHVvVC", "..Hff..", ".jNJJj.",
+                     "..JJJ..", "..JCJ..", ".P...P.", "P.....P", "B.....B"]),
+            crouch: t([".......", ".......", "..HHh..", ".HHHHh.", ".HHVvVC",
+                       "..Hff..", "GjNJJjG", "..JCJ..", ".PP.PP.", ".BS.BS."]),
+            wave: [
+                t(["G.HHh..", "jHHHHh.", ".HHVvVC", "..Hff..", ".jNJJj.",
+                   "..JJJ.G", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS."]),
+                t(["..HHh..", "GHHHHh.", "jHHVvVC", "..Hff..", ".jNJJj.",
+                   "..JJJ.G", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS."]),
+            ],
+            wrist: t(["..HHh..", ".HHHHh.", ".HHVvVC", "..Hff..", ".jNJJjG",
+                      "G.JJJj.", "..JCJ..", "..P.P..", "..P.P..", ".BS.BS."])
+        )
     }
 
     // MARK: Fresser
