@@ -3,7 +3,7 @@ import RaptCore
 import SpriteKit
 
 // Minispiele, die ein Power-up auslöst: Invasion (nach Space Invaders) und Abrissbirne (nach Arkanoid,
-// mit einem Jäger im Stil von Raptor als Schläger). Die Runden kennen die Szene nur über `ArcadeHost`;
+// mit einer Metallstange im Raptor-Look als Schläger). In beiden steuert man den Läufer von den Dächern. Die Runden kennen die Szene nur über `ArcadeHost`;
 // am Ende gibt die Szene `cleared` an die Spiellogik (`Game.finishArcade`).
 
 /// Was ein Minispiel von der Szene braucht. Koordinaten sind Weltkoordinaten der Effekt-Ebene (y nach oben).
@@ -15,8 +15,11 @@ struct ArcadeHost {
     let rows: Int
     /// Brett in Weltkoordinaten.
     let board: CGRect
-    /// Bahn unter dem Brett, auf der Läufer und Schiff fahren (Welt-y der Unterkante).
+    /// Boden der Bahn unter dem Brett, auf der der Läufer rennt (Welt-y).
     let groundY: CGFloat
+    let figure: PowerUpArt.FigureFrames
+    /// Läufer fällt von oben in die Bahn (Endlos). Im Dächerlauf springt er vorher selbst vom Dach hinein.
+    let entrance: Bool
     let center: (Pos) -> CGPoint
     /// Steht dort noch ein Stein?
     let occupied: (Pos) -> Bool
@@ -45,6 +48,8 @@ protocol ArcadeRound: AnyObject {
     func pointer(_ x: CGFloat)
     func release()
     func teardown()
+    /// Wo der Läufer gerade steht (für den Rücksprung aufs Dach).
+    var runnerPosition: CGPoint { get }
 }
 
 /// Gemeinsames: Treffer zählen, Schüsse von unten, Lautmalerei-Einblendungen.
@@ -55,6 +60,12 @@ class ArcadeBase {
     var timeLeft: Double
     var elapsed = 0.0
     var hits = 0
+
+    /// Der Läufer in der Bahn; `runnerX` ist seine Position, `runnerTarget` die des Fingers.
+    let runner: SKSpriteNode
+    var runnerX: CGFloat
+    var runnerTarget: CGFloat
+    var runnerPosition: CGPoint { runner.position }
 
     struct Shot {
         let sprite: SKSpriteNode
@@ -68,6 +79,39 @@ class ArcadeBase {
     init(host: ArcadeHost, duration: Double) {
         self.host = host
         timeLeft = duration
+        let mid = host.board.midX
+        runnerX = mid
+        runnerTarget = mid
+        runner = SKSpriteNode(texture: host.figure.idle[0], size: CGSize(width: 7, height: 10))
+        runner.anchorPoint = CGPoint(x: 0.5, y: 0)
+        runner.zPosition = 2
+        let aura = glowSprite(RGBA(hex: 0x3FD8FF).skColor, size: 20, alpha: 0.45)
+        aura.position = CGPoint(x: 0, y: 6)
+        aura.zPosition = -1
+        runner.addChild(aura)
+        node.addChild(runner)
+        runner.position = CGPoint(x: mid, y: host.groundY)
+        if host.entrance {
+            runner.position.y = host.groundY + 40
+            runner.run(.move(to: CGPoint(x: mid, y: host.groundY), duration: 0.2))
+            host.fx.steam(at: CGPoint(x: mid, y: host.groundY + 2))
+        }
+    }
+
+    func pointer(_ px: CGFloat) {
+        runnerTarget = min(host.board.maxX - 4, max(host.board.minX + 4, px))
+    }
+
+    /// Läufer rennt zum Finger. Gibt zurück, ob er sich bewegt hat und in welche Richtung.
+    @discardableResult
+    func moveRunner(_ dt: Double, speed: CGFloat, margin: CGFloat = 4) -> CGFloat {
+        let target = min(host.board.maxX - margin, max(host.board.minX + margin, runnerTarget))
+        let dx = target - runnerX
+        let step = min(abs(dx), speed * CGFloat(dt))
+        guard step > 0.01 else { return 0 }
+        runnerX += dx > 0 ? step : -step
+        runner.position.x = runnerX.rounded()
+        return dx > 0 ? 1 : -1
     }
 
     var remaining: Int {
@@ -185,12 +229,8 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
     var hint: String { "ZIEHEN ZUM ZIELEN" }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 
-    private let runner: SKSpriteNode
-    private let frames: [SKTexture]
     private let boltTexture = ArcadeArt.bolt()
     private let ufoFrames = ArcadeArt.ufo()
-    private var x: CGFloat
-    private var target: CGFloat
     private var fireTimer = 0.35
     private var stepTimer = 0.0
     private var frame = 0
@@ -203,32 +243,8 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
     private var ufoTimes = [2.2, 5.6]
     private var ufoSoundTimer = 0.0
 
-    init(host: ArcadeHost, figure: PowerUpArt.FigureFrames) {
-        let mid = host.board.midX
-        let sprite = SKSpriteNode(texture: figure.idle[0], size: CGSize(width: 7, height: 10))
-        sprite.anchorPoint = CGPoint(x: 0.5, y: 0)
-        sprite.zPosition = 2
-        let aura = SKSpriteNode(texture: host.glowTexture, color: RGBA(hex: 0x3FD8FF).skColor, size: CGSize(width: 20, height: 20))
-        aura.colorBlendFactor = 1
-        aura.blendMode = .add
-        aura.alpha = 0.45
-        aura.position = CGPoint(x: 0, y: 6)
-        aura.zPosition = -1
-        sprite.addChild(aura)
-        // Auftritt: von oben in die Bahn fallen
-        sprite.position = CGPoint(x: mid, y: host.groundY + 30)
-        sprite.run(.move(to: CGPoint(x: mid, y: host.groundY), duration: 0.18))
-        runner = sprite
-        frames = figure.idle
-        x = mid
-        target = mid
+    init(host: ArcadeHost) {
         super.init(host: host, duration: PowerUp.invasion.arcadeDuration)
-        node.addChild(runner)
-        host.fx.steam(at: CGPoint(x: mid, y: host.groundY + 2))
-    }
-
-    func pointer(_ px: CGFloat) {
-        target = min(host.board.maxX - 4, max(host.board.minX + 4, px))
     }
 
     func release() {}
@@ -237,20 +253,18 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
         elapsed += dt
         timeLeft -= dt
 
-        // Läufer fährt zum Finger
-        let dx = target - x
-        let step = min(abs(dx), 150 * CGFloat(dt))
-        if step > 0.01 {
-            x += dx > 0 ? step : -step
-            runner.xScale = dx > 0 ? 1 : -1
+        // Läufer rennt zum Finger
+        let dir = moveRunner(dt, speed: 150)
+        if dir != 0 {
+            runner.xScale = dir
             stepTimer -= dt
             if stepTimer <= 0 {
                 stepTimer = 0.09
-                frame = (frame + 1) % frames.count
-                runner.texture = frames[frame]
+                frame = (frame + 1) % host.figure.idle.count
+                runner.texture = host.figure.idle[frame]
             }
         }
-        runner.position.x = x.rounded()
+        let x = runnerX
 
         // Lähmung nach Treffer: flackern, nicht schießen
         if stun > 0 {
@@ -292,6 +306,7 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
 
     // Steine werfen Zickzack-Geschosse
     private func updateDrops(_ dt: Double) {
+        let x = runnerX
         dropTimer -= dt
         if dropTimer <= 0 {
             dropTimer = Double.random(in: 0.55...1.1)
@@ -390,73 +405,63 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
 
 // MARK: - Abrissbirne
 
-/// Ein Jäger (Raptor-Stil) fährt unter dem Brett und schlägt eine glühende Abrissbirne in die Steine.
-/// Jeder Abpraller vom Schiff feuert zwei Leuchtspur-Salven aus den Flügeln.
+/// Der Läufer rennt durch die Bahn und stemmt eine Metallstange über den Kopf; davon prallt eine glühende
+/// Abrissbirne in die Steine. Jeder Abpraller feuert zwei Leuchtspur-Salven aus den Endkappen (Raptor-Gruß).
 final class AbrissRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.abriss
     var hint: String { "ZIEHEN ZUM STEUERN" }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 
-    private let ship: SKSpriteNode
+    private let bar: SKSpriteNode
     private let ball: SKSpriteNode
     private let tracer: SKTexture
-    private var shipX: CGFloat
-    private var target: CGFloat
     private var ballPos = CGPoint.zero
     private var velocity = CGVector.zero
     private var attached = true
-    private var attachTimer = 0.6
+    private var attachTimer = 0.7
     private var trailTimer = 0.0
+    private var bobTimer = 0.0
+    /// Die Stange federt nach einem Abpraller kurz nach unten.
+    private var kick: CGFloat = 0
     private var streak = 0
     private let radius: CGFloat = 2.5
-    private let halfWidth: CGFloat = 11
-    private var shipY: CGFloat { host.groundY + 5 }
-    private var paddleTop: CGFloat { shipY + 2 }
+    private let halfWidth: CGFloat = 12
+    /// Mitte der Stange: zwei Pixel über dem Kopf des Läufers.
+    private var barY: CGFloat { host.groundY + 14 }
+    private var paddleTop: CGFloat { barY + 2 }
     private var speed: CGFloat { min(230, 125 + CGFloat(hits) * 3) }
 
     private static let words = ["KRACH!", "ZACK!", "BUMM!", "WUMMS!", "PENG!"]
 
     init(host: ArcadeHost) {
-        let mid = host.board.midX
-        let jet = SKSpriteNode(texture: ArcadeArt.ship(), size: CGSize(width: 23, height: 11))
-        jet.zPosition = 2
-        let flameFrames = ArcadeArt.shipFlames()
-        let flames = SKSpriteNode(texture: flameFrames[0], size: CGSize(width: 23, height: 5))
-        flames.anchorPoint = CGPoint(x: 0.5, y: 1)
-        flames.position = CGPoint(x: 0, y: -5)
-        flames.run(.repeatForever(.animate(with: flameFrames, timePerFrame: 0.05)))
-        jet.addChild(flames)
+        let rod = SKSpriteNode(texture: ArcadeArt.bar(), size: CGSize(width: 24, height: 4))
+        rod.zPosition = 3
         let orb = SKSpriteNode(texture: ArcadeArt.ball(), size: CGSize(width: 5, height: 5))
-        orb.zPosition = 3
+        orb.zPosition = 4
         var c = PixelCanvas(width: 1, height: 3)
         c.set(0, 0, .white)
         c.set(0, 1, RGBA(hex: 0xFFB347))
         c.set(0, 2, RGBA(hex: 0xE0452B))
-        ship = jet
+        bar = rod
         ball = orb
         tracer = c.texture()
-        shipX = mid
-        target = mid
         super.init(host: host, duration: PowerUp.abriss.arcadeDuration)
-        let engineGlow = glowSprite(RGBA(hex: 0xFFB347).skColor, size: 26, alpha: 0.55)
-        engineGlow.position = CGPoint(x: 0, y: -7)
-        engineGlow.zPosition = -1
-        engineGlow.run(.repeatForever(.sequence([.fadeAlpha(to: 0.75, duration: 0.07), .fadeAlpha(to: 0.45, duration: 0.07)])))
-        ship.addChild(engineGlow)
+        // Arme hoch: der Läufer stemmt die Stange
+        runner.texture = host.figure.jump
+        let stripGlow = glowSprite(RGBA(hex: 0x3FD8FF).skColor, size: 30, alpha: 0.4)
+        stripGlow.yScale = 0.35
+        stripGlow.zPosition = -1
+        bar.addChild(stripGlow)
         let ballGlow = glowSprite(RGBA(hex: 0xFF8A3D).skColor, size: 24, alpha: 0.65)
         ballGlow.zPosition = -1
         ballGlow.run(.repeatForever(.sequence([.scale(to: 1.2, duration: 0.15), .scale(to: 1, duration: 0.15)])))
         ball.addChild(ballGlow)
-        node.addChild(ship)
+        node.addChild(bar)
         node.addChild(ball)
-        // Auftritt: Schiff schießt von unten herein
-        ship.position = CGPoint(x: mid, y: shipY - 40)
-        ship.run(.move(to: CGPoint(x: mid, y: shipY), duration: 0.22))
+        // Die Stange fällt dem Läufer von oben in die Hände
+        bar.position = CGPoint(x: runnerX, y: barY + 30)
+        bar.run(.move(to: CGPoint(x: runnerX, y: barY), duration: 0.2))
         attachBall()
-    }
-
-    func pointer(_ px: CGFloat) {
-        target = min(host.board.maxX - halfWidth, max(host.board.minX + halfWidth, px))
     }
 
     func release() {
@@ -466,7 +471,7 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
     private func attachBall() {
         attached = true
         attachTimer = 0.7
-        ballPos = CGPoint(x: shipX, y: paddleTop + radius + 1)
+        ballPos = CGPoint(x: runnerX, y: paddleTop + radius + 1)
         ball.position = ballPos
         ball.alpha = 1
     }
@@ -482,12 +487,22 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
         elapsed += dt
         timeLeft -= dt
 
-        let dx = target - shipX
-        shipX += max(-340 * CGFloat(dt), min(340 * CGFloat(dt), dx))
-        ship.position = CGPoint(x: shipX.rounded(), y: shipY)
+        // Rennen mit leichtem Wippen; die Stange folgt dem Läufer
+        let dir = moveRunner(dt, speed: 300, margin: halfWidth)
+        var bob: CGFloat = 0
+        if dir != 0 {
+            runner.xScale = dir
+            bobTimer += dt
+            bob = Int(bobTimer * 12) % 2 == 0 ? 0 : 1
+        }
+        runner.position.y = host.groundY + bob
+        kick = max(0, kick - 30 * CGFloat(dt))
+        if !bar.hasActions() {
+            bar.position = CGPoint(x: runnerX.rounded(), y: barY + bob - kick.rounded())
+        }
 
         if attached {
-            ballPos = CGPoint(x: shipX, y: paddleTop + radius + 1)
+            ballPos = CGPoint(x: runnerX, y: paddleTop + radius + 1)
             attachTimer -= dt
             if attachTimer <= 0 { launch() }
         } else {
@@ -534,13 +549,13 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
                 bounced = true
             }
             if bounced { normalize() }
-            // Schiff
-            if velocity.dy < 0, ny - radius <= paddleTop, ny - radius >= paddleTop - 5, abs(nx - shipX) <= halfWidth + radius {
-                bounceOffShip(at: nx)
+            // Stange: glatte Oberseite
+            if velocity.dy < 0, ny - radius <= paddleTop, ny - radius >= paddleTop - 5, abs(nx - runnerX) <= halfWidth + radius {
+                bounceOffBar(at: nx)
                 ny = paddleTop + radius
             }
             ballPos = CGPoint(x: nx, y: ny)
-            if ballPos.y < host.groundY - 10 {
+            if ballPos.y < host.groundY - 6 {
                 loseBall()
                 return
             }
@@ -576,8 +591,8 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
         host.sound(.paddle, 0.25, -7)
     }
 
-    private func bounceOffShip(at x: CGFloat) {
-        let offset = max(-1, min(1, (x - shipX) / halfWidth))
+    private func bounceOffBar(at x: CGFloat) {
+        let offset = max(-1, min(1, (x - runnerX) / halfWidth))
         let angle = offset * 1.05
         let s = speed
         velocity = CGVector(dx: sin(angle) * s, dy: cos(angle) * s)
@@ -585,18 +600,19 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
         host.sound(.paddle, 0.6, Double(offset * 4))
         host.fx.flash(at: CGPoint(x: x, y: paddleTop), color: RGBA(hex: 0x3FD8FF).skColor)
         host.tick()
+        kick = 2
         if Int.random(in: 0..<4) == 0 {
             onomatopoeia("カーン!", at: CGPoint(x: x, y: paddleTop + 16), color: RGBA(hex: 0x3FD8FF))
         }
-        // Raptor-Salve aus beiden Flügeln
-        for side: CGFloat in [-9, 9] {
-            fire(from: CGPoint(x: shipX + side, y: shipY + 1), texture: tracer, size: CGSize(width: 1, height: 3), glow: RGBA(hex: 0xFFB347).skColor, speed: 260)
+        // Salve aus beiden Endkappen
+        for side: CGFloat in [-11, 11] {
+            fire(from: CGPoint(x: runnerX + side, y: paddleTop + 1), texture: tracer, size: CGSize(width: 1, height: 3), glow: RGBA(hex: 0xFFB347).skColor, speed: 260)
         }
         host.sound(.laser, 0.25, -5)
     }
 
     private func loseBall() {
-        host.fx.explosion(at: CGPoint(x: ballPos.x, y: host.groundY - 4), scale: 0.8)
+        host.fx.explosion(at: CGPoint(x: ballPos.x, y: host.groundY), scale: 0.8)
         host.sound(.invalid, 0.5, 0)
         host.shake(1)
         ball.alpha = 0

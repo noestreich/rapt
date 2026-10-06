@@ -19,31 +19,15 @@ enum ArcadeArt {
         "V": 0xD8FAFF, "C": 0x3FD8FF, "W": 0xC9CEDD, "H": 0x8E94AA, "D": 0x4A4B56, "R": 0xE0452B, "E": 0x2A2A33,
     ]
 
-    /// Jäger im Stil alter Vertikal-Shooter (Raptor): Spitze nach oben, gepfeilte Flügel, zwei Triebwerke.
-    static func ship() -> SKTexture {
+    /// Metallstange (24 × 4) im Look des Jägers: helle Oberkante, cyanfarbener Leuchtstreifen,
+    /// rote Endkappen (aus denen die Salven kommen), dunkle Unterkante. Oben glatt, damit der Abprall logisch ist.
+    static func bar() -> SKTexture {
         sprite([
-            "...........V...........",
-            "..........WCW..........",
-            ".........WCVCW.........",
-            ".........WCCCW.........",
-            "R.......WHHHHHW.......R",
-            "RW.....WHHDHDHHW.....WR",
-            "WHW...WHHHDHDHHHW...WHW",
-            "WHHWWWHHHHDHDHHHHWWWHHW",
-            "DHHHHHHHHHDHDHHHHHHHHHD",
-            ".DDHHRRHHDDEDDHHRRHHDD.",
-            "......EE.......EE......",
+            "RWWWWWWWWWWVVWWWWWWWWWWR",
+            "RHHHHCCCCCCCCCCCCCCHHHHR",
+            "RHHDHHHHHHHHHHHHHHHHDHHR",
+            "EDDDDDDDDDDDDDDDDDDDDDDE",
         ], shipPalette).texture()
-    }
-
-    /// Triebwerksflammen unter den beiden Düsen, drei flackernde Bilder (23 × 5).
-    static func shipFlames() -> [SKTexture] {
-        let palette: [Character: UInt32] = ["Y": 0xFFF3D6, "O": 0xFFB347, "R": 0xE0452B, "M": 0xFF4FA8]
-        return [
-            ["......YY.......YY......", "......OO.......OO......", "......RO.......OR......", ".......R.......R.......", "......................."],
-            ["......YY.......YY......", "......YO.......OY......", "......OR.......RO......", "......R.........R......", ".......M.......M......."],
-            ["......YY.......YY......", "......OO.......OO......", "......OR.......RO......", "......RR.......RR......", "......M.........M......"],
-        ].map { sprite($0, palette).texture() }
     }
 
     /// Glühende Abrissbirne (5 × 5).

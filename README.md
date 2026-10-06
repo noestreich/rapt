@@ -61,13 +61,13 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 
 Zwei Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
 Schwarz-Weiß-Flackern (normal und invertiert), Konzentrationslinien, Zoom aufs Brett und der Titel mit Farbsaum.
-Unter dem Brett erscheint eine Bahn mit Warnstreifen. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
+Unter dem Brett erscheint eine Bahn mit Warnstreifen; im Dächerlauf springt der Läufer vom Dach hinein und am Ende wieder zurück. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
 nach Ablauf der Zeit fallen neue Steine nach, Spezialsteine unter den Treffern zünden, Kaskaden laufen wie gewohnt.
 
 | Power-up | Vorbild | Ablauf |
 |---|---|---|
 | **Invasion** (9 s) | Space Invaders | Der Läufer fährt unter dem Brett (ziehen) und schießt automatisch nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
-| **Abrissbirne** (12 s) | Arkanoid, Raptor | Ein Jäger im Raptor-Stil (ziehen) schlägt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Jeder Abpraller vom Schiff feuert zwei Leuchtspur-Salven aus den Flügeln. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Schiff. |
+| **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer rennt durch die Bahn (ziehen) und stemmt eine Metallstange im Raptor-Look über den Kopf; davon prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Jeder Abpraller feuert zwei Leuchtspur-Salven aus den Endkappen. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf der Stange. |
 
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 
