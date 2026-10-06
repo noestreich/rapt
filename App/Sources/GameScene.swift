@@ -129,6 +129,8 @@ final class GameScene: SKScene {
     private var fresser: FresserState?
     /// Laufendes Minispiel (Invasion, Abrissbirne); `arcadeIntro` während des Manga-Auftakts davor.
     private var arcade: ArcadeRound?
+    /// Minispiel, dessen Fluggerät schon während des Auftakts einfliegt.
+    private var pendingRound: ArcadeRound?
     private var arcadeIntro = false
     private var shownArcadeSeconds = -1
     /// Hülle um die ganze Welt: Manga-Schwarzweiß und Zoom beim Auftakt der Minispiele.
@@ -1863,20 +1865,33 @@ final class GameScene: SKScene {
         refreshStatus()
         let title = kind == .invasion ? "INVASION!" : "ABRISSBIRNE!"
         let color = kind == .invasion ? RGBA(hex: 0xFF4FA8) : RGBA(hex: 0xFFB347)
+        // Das Fluggerät fliegt schon während des Auftakts ein; der Läufer springt vom Dach hinein
+        let canBoard = !figure.isHidden && !figureFalling
+        let host = arcadeHost(entrance: !canBoard)
+        let round: ArcadeRound
+        if kind == .invasion {
+            round = InvasionRound(host: host)
+        } else {
+            round = AbrissRound(host: host)
+        }
+        round.node.zPosition = 6
+        fx.pixelLayer.addChild(round.node)
+        pendingRound = round
+        if canBoard {
+            leapFigure(to: { [weak round] in round?.seat ?? .zero }, delay: 0.25) { [weak self, weak round] jumper in
+                guard let self else { return }
+                jumper.removeFromParent()
+                round?.board()
+                self.audio.play(.land, volume: 0.6)
+                if let seat = round?.seat { self.fx.steam(at: seat) }
+            }
+        }
         mangaIntro(title, color: color) { [weak self] in
             guard let self, self.arcadeIntro else { return }
             self.arcadeIntro = false
-            let host = self.arcadeHost()
-            let round: ArcadeRound
-            if kind == .invasion {
-                round = InvasionRound(host: host)
-            } else {
-                round = AbrissRound(host: host)
-            }
-            round.node.zPosition = 6
-            self.fx.pixelLayer.childNode(withName: "jumper")?.removeFromParent()
-            self.fx.pixelLayer.addChild(round.node)
-            self.fx.popup(round.hint, at: CGPoint(x: host.board.midX, y: host.groundY + 30), color: Palette.amber)
+            self.pendingRound = nil
+            round.board()
+            self.fx.popup(round.hint, at: CGPoint(x: host.board.midX, y: host.groundY + 34), color: Palette.amber)
             self.arcade = round
             self.shownArcadeSeconds = -1
             self.countdownLabel.isHidden = false
@@ -1884,7 +1899,7 @@ final class GameScene: SKScene {
         }
     }
 
-    private func arcadeHost() -> ArcadeHost {
+    private func arcadeHost(entrance: Bool) -> ArcadeHost {
         let topLeft = design(Layout.boardX, Layout.boardY)
         let side = CGFloat(Layout.boardSize)
         return ArcadeHost(
@@ -1896,7 +1911,7 @@ final class GameScene: SKScene {
             board: CGRect(x: topLeft.x, y: topLeft.y - side, width: side, height: side),
             groundY: Layout.height - CGFloat(Self.laneFloor),
             figure: figureFrames,
-            entrance: !figureAway,
+            entrance: entrance,
             center: { [unowned self] in self.center(of: $0) },
             occupied: { [unowned self] p in self.gems[p].map { !$0.isDying } ?? false },
             gemColor: { [unowned self] p in self.gems[p].flatMap { self.sprites[$0.gem]?.ramp.last } },
@@ -1944,7 +1959,7 @@ final class GameScene: SKScene {
         guard let round = arcade else { return }
         arcade = nil
         let cleared = round.cleared
-        let from = round.runnerPosition
+        let from = round.seat
         round.teardown()
         returnFigure(from: from)
         countdownLabel.isHidden = true
@@ -1966,6 +1981,8 @@ final class GameScene: SKScene {
     private func abortArcade() {
         arcade?.teardown()
         arcade = nil
+        pendingRound?.teardown()
+        pendingRound = nil
         arcadeIntro = false
         fx.pixelLayer.children.filter { $0.name == "jumper" }.forEach { $0.removeFromParent() }
         if figureAway {
@@ -2137,17 +2154,6 @@ final class GameScene: SKScene {
             .group([.scale(to: 1.4, duration: 0.18), .fadeOut(withDuration: 0.18)]),
             .removeFromParent(),
         ]))
-
-        // Der Läufer springt vom Dach hoch in die Bahn
-        if !figure.isHidden && !figureFalling {
-            let lane = design(CGFloat(Layout.boardX + Layout.boardSize / 2), CGFloat(Self.laneFloor))
-            leapFigure(to: { lane }, delay: 0.2) { [weak self] jumper in
-                guard let self else { return }
-                jumper.texture = self.figureIdle[0]
-                self.audio.play(.land, volume: 0.6)
-                self.fx.steam(at: lane)
-            }
-        }
 
         mangaFlash([false, true, false, true, false], step: 0.08)
         let focus = convert(c, from: shaker)

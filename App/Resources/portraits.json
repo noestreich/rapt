@@ -1,4 +1,9 @@
 {
+  "abriss": [
+    "boris--general-volt--mann-tief",
+    "boris--hahn-hugo--mann",
+    "boris--stahl-ida--frau"
+  ],
   "atom": [
     "robo--byte--roboter",
     "robo--hikari--maedchen",
@@ -34,6 +39,11 @@
   "hyperstein": [
     "zora--amina--frau",
     "zora"
+  ],
+  "invasion": [
+    "kira--moewe--roboter",
+    "kira--neon-trio--junge",
+    "kira--ronin--frau"
   ],
   "linienstein": [
     "kira--nova--frau",
