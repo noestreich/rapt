@@ -2,6 +2,13 @@ import SwiftUI
 
 @main
 struct RaptApp: App {
+    #if os(macOS)
+    init() {
+        // Dock-Symbol gilt auf dem Mac nur zur Laufzeit, daher beim Start erneut setzen
+        AppIconSwitcher.apply(GameSettings.shared.appIcon)
+    }
+    #endif
+
     var body: some Scene {
         WindowGroup {
             GameView()

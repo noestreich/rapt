@@ -14,6 +14,13 @@ final class GameSettings: ObservableObject {
     @Published var hintsEnabled: Bool { didSet { save(hintsEnabled, "hintsEnabled") } }
     /// Plasma-Feuer am linken Rand im Dächerlauf.
     @Published var fireEnabled: Bool { didSet { save(fireEnabled, "fireEnabled") } }
+    /// Gewähltes App-Icon: 0 = Standard (rote Kugel), 1 = Alternative (Porträt).
+    @Published var appIcon: Int {
+        didSet {
+            save(appIcon, "appIcon")
+            AppIconSwitcher.apply(appIcon)
+        }
+    }
     /// Debug-Regler (Tempo, Beschleunigung) sichtbar. Beim Ausblenden gelten wieder die Standardwerte.
     @Published var debugVisible: Bool {
         didSet {
@@ -43,6 +50,7 @@ final class GameSettings: ObservableObject {
             "rapt.fireEnabled": true,
             "rapt.debugCityAcceleration": City.defaultAccelerationPerMinute,
             "rapt.debugVisible": false,
+            "rapt.appIcon": 0,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -55,6 +63,7 @@ final class GameSettings: ObservableObject {
         fireEnabled = defaults.bool(forKey: "rapt.fireEnabled")
         debugVisible = defaults.bool(forKey: "rapt.debugVisible")
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
+        appIcon = defaults.integer(forKey: "rapt.appIcon")
     }
 
     /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.

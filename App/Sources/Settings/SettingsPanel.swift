@@ -14,6 +14,7 @@ final class SettingsPanel {
         case section
         case toggle(get: () -> Bool, set: (Bool) -> Void)
         case slider(get: () -> Double, set: (Double) -> Void)
+        case choice(options: [String], get: () -> Int, set: (Int) -> Void)
         case button(action: () -> Void)
     }
 
@@ -30,7 +31,7 @@ final class SettingsPanel {
     private static let dim = RGBA(hex: 0x4A4B56)
 
     private let designHeight: CGFloat
-    private let x0 = 8, y0 = 10, width = 184, height = 300
+    private let x0 = 8, y0 = 10, width = 184, height = 318
     private let rowWidth = 168
     private let trackX = 62, trackWidth = 104
     private var rows: [Row] = []
@@ -94,6 +95,7 @@ final class SettingsPanel {
         #if os(iOS)
         specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
+        specs.append((fixed("APP-ICON"), .choice(options: ["1", "2"], get: { settings.appIcon }, set: { settings.appIcon = $0 })))
         specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in
             settings.debugVisible = visible
             self?.buildRows()
@@ -150,6 +152,20 @@ final class SettingsPanel {
                 let bx = rowWidth - 38
                 for (i, text) in ["AN", "AUS"].enumerated() {
                     let active = (i == 0) == on
+                    let x = bx + i * 19
+                    c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))
+                    c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
+                    c.fillRect(x, 10, 18, 1, active ? RGBA(hex: 0xB4521C) : Self.dim)
+                    PixelFont.draw(text, into: &c, x: x + (18 - PixelFont.width(text)) / 2, y: 3, color: active ? RGBA(hex: 0x1A0A06) : Self.dim)
+                }
+
+            case .choice(let options, let get, _):
+                c = PixelCanvas(width: rowWidth, height: 11)
+                PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
+                let selected = get()
+                let bx = rowWidth - options.count * 19 + 1
+                for (i, text) in options.enumerated() {
+                    let active = i == selected
                     let x = bx + i * 19
                     c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))
                     c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
@@ -229,6 +245,12 @@ final class SettingsPanel {
         switch rows[i].kind {
         case .toggle(let get, let set):
             set(!get())
+            onChange()
+            render()
+        case .choice(let options, let get, let set):
+            // Auf ein Feld getippt: dieses wählen; sonst (Beschriftung) weiterschalten
+            let bx = CGFloat(x0 + 8 + rowWidth - options.count * 19 + 1)
+            set(p.x >= bx ? min(Int((p.x - bx) / 19), options.count - 1) : (get() + 1) % options.count)
             onChange()
             render()
         case .slider:
