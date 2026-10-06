@@ -1,0 +1,49 @@
+{
+  "atom": [
+    "robo--byte--roboter",
+    "robo--hikari--maedchen",
+    "robo--pippa--maedchen",
+    "robo"
+  ],
+  "bombe": [
+    "boris--igor--mann-tief",
+    "boris--iwan--mann-tief",
+    "boris--luna--maedchen",
+    "boris--oskar--mann",
+    "boris--rox--frau",
+    "boris--viktor--mann-tief"
+  ],
+  "bombenstein": [
+    "boris--hana--maedchen",
+    "boris--niko--mann",
+    "boris"
+  ],
+  "farbtilger": [
+    "juki--aiko--frau",
+    "juki--ella--maedchen",
+    "juki--liv--frau",
+    "juki--mika--junge",
+    "juki--yuna--frau",
+    "juki"
+  ],
+  "fresser": [
+    "k9--momo--katze",
+    "k9--rex--hund",
+    "k9"
+  ],
+  "hyperstein": [
+    "zora--amina--frau",
+    "zora"
+  ],
+  "linienstein": [
+    "kira--nova--frau",
+    "kira--phantom--roboter",
+    "kira--ren--junge",
+    "kira"
+  ],
+  "strudel": [
+    "zora--lev--alt",
+    "zora--otto--alt",
+    "zora--vera--frau"
+  ]
+}

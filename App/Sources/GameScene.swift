@@ -810,7 +810,7 @@ final class GameScene: SKScene {
             fx.flash(at: c, color: .white)
             audio.play(.powerUp, volume: 0.45)
             if creation.special == .hyper {
-                var delivery = SplashPresenter.Delivery(contact: Contact.random(for: Contact.contact(for: creation.special)), item: itemTexture(for: creation.special))
+                var delivery = SplashPresenter.Delivery(contact: Contact.random(delivering: creation.special), item: itemTexture(for: creation.special))
                 delivery.onHandover = { [weak self, weak node] start in
                     guard let self, let node else { return }
                     self.flyItem(self.itemTexture(for: .hyper), from: start, to: { [weak node] in node?.position }) { [weak self, weak node] in
@@ -1227,14 +1227,14 @@ final class GameScene: SKScene {
         func icon(_ kind: PowerUp) -> SKNode {
             SKSpriteNode(texture: iconTextures[kind], size: CGSize(width: 16, height: 16))
         }
-        func radio(_ contact: Contact, _ item: SKTexture?) -> () -> Void {
+        func radio(_ pick: @escaping () -> Contact, _ item: SKTexture?) -> () -> Void {
             { [weak self] in
                 guard let self else { return }
-                let delivery = SplashPresenter.Delivery(contact: Contact.random(for: contact), item: item ?? SKTexture())
+                let delivery = SplashPresenter.Delivery(contact: pick(), item: item ?? SKTexture())
                 self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
             }
         }
-        func radioFor(_ kind: PowerUp) -> () -> Void { radio(Contact.contact(for: kind), iconTextures[kind]) }
+        func radioFor(_ kind: PowerUp) -> () -> Void { radio({ Contact.random(delivering: kind) }, iconTextures[kind]) }
         let powerUps: [HelpPanel.Entry] = [
             .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
                   lines: ["FELD ANTIPPEN: SPRENGT 3X3."], onTap: radioFor(.bombe)),
@@ -1260,11 +1260,11 @@ final class GameScene: SKScene {
         let specials: [HelpPanel.Entry] = [
             .init(icon: lineStone, title: "LINIEN-STEIN", badge: "",
                   lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."],
-                  onTap: radio(Contact.contact(for: .line(horizontal: true)), nil)),
+                  onTap: radio({ Contact.random(delivering: .line(horizontal: true)) }, nil)),
             .init(icon: bombStone, title: "BOMBEN-STEIN", badge: "",
-                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radio(Contact.contact(for: .bomb), nil)),
+                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radio({ Contact.random(delivering: .bomb) }, nil)),
             .init(icon: hyper, title: "HYPERSTEIN", badge: "",
-                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radio(Contact.contact(for: .hyper), nil)),
+                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radio({ Contact.random(delivering: .hyper) }, nil)),
         ]
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0.1.0"
         let info: [HelpPanel.Block] = [
@@ -1443,7 +1443,7 @@ final class GameScene: SKScene {
                 self.haptics.select()
             }
         }
-        var delivery = SplashPresenter.Delivery(contact: Contact.random(for: Contact.contact(for: kind)), item: icon)
+        var delivery = SplashPresenter.Delivery(contact: Contact.random(delivering: kind), item: icon)
         delivery.onHandover = land
         if !splash.present(delivery, at: clock, force: true) {
             land(CGPoint(x: figure.position.x, y: figure.position.y + 6))

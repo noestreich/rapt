@@ -75,6 +75,38 @@ struct Contact: Equatable {
         ([base] + (variants[base.id] ?? [])).randomElement() ?? base
     }
 
+    // MARK: Wer hält was in der Hand
+
+    /// Aus `portraits.json` (tools/import_portraits.py, ein Ordner je Teil): Schlüssel des Teils → Porträt-IDs.
+    static let holders: [String: [String]] = {
+        guard let url = Bundle.main.url(forResource: "portraits", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let map = try? JSONDecoder().decode([String: [String]].self, from: data) else { return [:] }
+        return map
+    }()
+
+    static func itemKey(_ special: Special) -> String {
+        switch special {
+        case .line: return "linienstein"
+        case .bomb: return "bombenstein"
+        case .hyper: return "hyperstein"
+        }
+    }
+
+    /// Zufälliges Porträt, das genau dieses Teil in der Hand hält; ohne Zuordnung der zuständige Kontakt.
+    static func random(holding key: String, fallback: Contact) -> Contact {
+        let ids = holders[key] ?? []
+        return allWithVariants.filter { ids.contains($0.id) }.randomElement() ?? random(for: fallback)
+    }
+
+    static func random(delivering special: Special) -> Contact {
+        random(holding: itemKey(special), fallback: contact(for: special))
+    }
+
+    static func random(delivering powerUp: PowerUp) -> Contact {
+        random(holding: powerUp.rawValue, fallback: contact(for: powerUp))
+    }
+
     /// Wer welchen Spezialstein liefert.
     static func contact(for special: Special) -> Contact {
         switch special {

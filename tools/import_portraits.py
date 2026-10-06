@@ -5,10 +5,15 @@ Erwartet Querformat-Bilder (ca. 3:2). Ausgabe: App/Resources/portrait_<id>.png i
 Palette auf 128 Farben reduziert, damit sie neben der übrigen Pixel-Art bestehen.
 Dateinamen werden auf die Kontakt-IDs abgebildet (mama-zora → zora, robo-7 → robo).
 
+Ordner je Teil in der Hand (empfohlen): <Ordner>/<Teil>/portrait_*.png, z. B. Bombe/, Bombenstein/, Strudel/.
+Dann schreibt das Skript App/Resources/portraits.json: welches Porträt welches Teil hält. Ein Funkspruch zeigt
+nur Porträts, die genau das übergebene Teil in der Hand haben.
+
 Varianten (alternative Porträts, die einen Kontakt zufällig vertreten):
     portrait_<kontakt>--<name>--<stimme>.png    z. B. portrait_boris--ivan--mann-tief.png
 Stimmen: mann, mann-tief, frau, maedchen, junge, alt, hund, katze, roboter
 """
+import json
 import sys
 from pathlib import Path
 from PIL import Image, ImageEnhance
@@ -17,10 +22,15 @@ OUT = Path(__file__).resolve().parent.parent / "App/Resources"
 SIZE = (184, 121)
 ALIASES = {"mama-zora": "zora", "mamazora": "zora", "robo-7": "robo", "robo7": "robo", "k-9": "k9"}
 IDS = {"kira", "boris", "juki", "zora", "k9", "robo"}
+# Ordnername → Schlüssel im Spiel (PowerUp.rawValue bzw. Spezialstein)
+ITEMS = {"atombombe": "atom", "atom": "atom", "bombe": "bombe", "farbtilger": "farbtilger", "fresser": "fresser",
+         "strudel": "strudel", "bombenstein": "bombenstein", "hyperstein": "hyperstein", "linienstein": "linienstein"}
+# Korrekturen an Dateinamen (Momo ist eine Katze)
+RENAME = {"k9--momo--hund": "k9--momo--katze"}
 VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "katze", "roboter"}
 
 
-def convert(src: Path) -> Path | None:
+def convert(src: Path) -> str | None:
     name = src.stem.lower().removeprefix("portrait_")
     parts = name.split("--")
     cid = ALIASES.get(parts[0], parts[0])
@@ -33,7 +43,7 @@ def convert(src: Path) -> Path | None:
         if voice not in VOICES:
             print(f"übersprungen: {src.name} (unbekannte Stimme „{voice}“, erlaubt: {', '.join(sorted(VOICES))})")
             return None
-        cid = f"{cid}--{variant}--{voice}"
+        cid = RENAME.get(f"{cid}--{variant}--{voice}", f"{cid}--{variant}--{voice}")
     elif len(parts) != 1:
         print(f"übersprungen: {src.name} (Format: portrait_<kontakt>--<name>--<stimme>.png)")
         return None
@@ -54,13 +64,26 @@ def convert(src: Path) -> Path | None:
     out = OUT / f"portrait_{cid}.png"
     pixel.save(out)
     print(f"{src.name} → {out.relative_to(OUT.parent.parent)}")
-    return out
+    return cid
 
 
 def main():
     folder = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
-    for src in sorted(folder.glob("portrait_*.png")):
-        convert(src)
+    holders: dict[str, list[str]] = {}
+    for sub in sorted(p for p in folder.iterdir() if p.is_dir() and not p.name.startswith("__")):
+        key = ITEMS.get(sub.name.lower())
+        if key is None:
+            print(f"Ordner übersprungen: {sub.name} (bekannt: {', '.join(sorted(ITEMS))})")
+            continue
+        for src in sorted(sub.glob("portrait_*.png")):
+            if cid := convert(src):
+                holders.setdefault(key, []).append(cid)
+    if holders:
+        (OUT / "portraits.json").write_text(json.dumps(holders, indent=2, ensure_ascii=False) + "\n")
+        print(f"portraits.json: {', '.join(f'{k} {len(v)}' for k, v in sorted(holders.items()))}")
+    else:
+        for src in sorted(folder.glob("portrait_*.png")):
+            convert(src)
 
 
 if __name__ == "__main__":
