@@ -426,8 +426,8 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
     private var streak = 0
     private let radius: CGFloat = 2.5
     private let halfWidth: CGFloat = 12
-    /// Mitte der Stange: zwei Pixel über dem Kopf des Läufers.
-    private var barY: CGFloat { host.groundY + 14 }
+    /// Mitte der Stange: liegt auf den hochgereckten Händen des Läufers.
+    private var barY: CGFloat { host.groundY + 12 }
     private var paddleTop: CGFloat { barY + 2 }
     private var speed: CGFloat { min(230, 125 + CGFloat(hits) * 3) }
 
