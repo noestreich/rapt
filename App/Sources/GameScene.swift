@@ -657,9 +657,10 @@ final class GameScene: SKScene {
         shownBuilding = game.city.figureIndex
         startFigureIdle()
         let rooftop = newMode == .rooftop
-        figure.isHidden = !rooftop
+        // Der Läufer ist das Markenzeichen: in beiden Modi auf seinem Dach
+        figure.isHidden = false
         fireWall?.node.isHidden = !(rooftop && GameSettings.shared.fireEnabled)   // FireWall
-        if rooftop && animated { dropFigureIn(after: 0.5) }
+        if animated { dropFigureIn(after: 0.5) }
         slotFrames.forEach { $0.isHidden = !rooftop }
         gems.values.forEach { $0.removeWithGlow() }
         gems = [:]
@@ -1971,7 +1972,7 @@ final class GameScene: SKScene {
             figureAway = false
             figureJumping = false
             figure.removeAllActions()
-            figure.isHidden = mode != .rooftop
+            figure.isHidden = false
             figure.position = roofPoint()
             if !figureFalling { startFigureIdle() }
         }
@@ -2049,7 +2050,7 @@ final class GameScene: SKScene {
         }]), withKey: "mangaLeap")
     }
 
-    /// Nach dem Minispiel: zurück aufs Dach (Dächerlauf) bzw. nach oben aus dem Bild (Endlos).
+    /// Nach dem Minispiel: zurück aufs Dach (oder nach oben aus dem Bild, falls er nie auf einem stand).
     private func returnFigure(from start: CGPoint) {
         audio.play(.jump, volume: 0.7)
         fx.steam(at: start)
@@ -2064,7 +2065,7 @@ final class GameScene: SKScene {
             jumper.removeFromParent()
             guard self.figureAway else { return }
             self.figureAway = false
-            self.figure.isHidden = self.mode != .rooftop
+            self.figure.isHidden = false
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.6)
@@ -2137,8 +2138,8 @@ final class GameScene: SKScene {
             .removeFromParent(),
         ]))
 
-        // Im Dächerlauf springt der Läufer vom Dach hoch in die Bahn
-        if mode == .rooftop && !figure.isHidden && !figureFalling {
+        // Der Läufer springt vom Dach hoch in die Bahn
+        if !figure.isHidden && !figureFalling {
             let lane = design(CGFloat(Layout.boardX + Layout.boardSize / 2), CGFloat(Self.laneFloor))
             leapFigure(to: { lane }, delay: 0.2) { [weak self] jumper in
                 guard let self else { return }
@@ -2587,6 +2588,8 @@ final class GameScene: SKScene {
             edgeGlow.alpha = danger ? CGFloat((0.35 + 0.55 * Double(level)) * pulse) : 0
             duckMusic(danger ? 0.45 : 1, dt: dt)
         } else {
+            // Endlos: Stadt steht still, der Läufer bleibt auf seinem Dach (auch nach Fenstergrößenwechsel)
+            if mode == .endless && !figureFalling { updateCity() }
             audio.setDanger(0)
             dangerAura.alpha = 0
             edgeGlow.alpha = 0

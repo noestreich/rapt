@@ -43,15 +43,15 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 
 | Modus | Ablauf |
 |---|---|
-| **Endlos** | Klassisch: kein Zeitdruck, keine Figur, keine Power-ups. Ende, wenn kein Zug mehr möglich ist. |
+| **Endlos** | Klassisch: kein Zeitdruck, keine Power-ups; der Läufer steht auf seinem Dach, die Stadt steht still. Ende, wenn kein Zug mehr möglich ist. |
 | **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,66 px/s, +9 % pro Plan, +6 % pro Spielminute; per Debug-Regler in den Einstellungen änderbar), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - Sprung-Leiste unter dem Brett: Sprung n braucht 1500 × n Punkte (Sprung 1: 1500, Sprung 2: +3000 …).
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
-  dasselbe hintereinander (Bombe 28, Farbtilger 19, Strudel 15, Atombombe 13, Fresser 9, Invasion 9, Abrissbirne 7). Jeder sechste Sprung
-  bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
+  dasselbe hintereinander (Bombe 28, Farbtilger 19, Strudel 15, Atombombe 11, Fresser 9, Invasion 9, Abrissbirne 9). Jeder sechste Sprung
+  bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne, je 25 %), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
   setzt ein und die Musik wird leiser; alles stärker je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.

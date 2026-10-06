@@ -62,7 +62,7 @@ public struct Game: Sendable {
     public static let pointsPerDetonation = 200
     /// Gewichte für zufällige Belohnungen. Seltene Power-ups sind wertvoller.
     public static let rewardWeights: [PowerUp: Double] = [
-        .bombe: 28, .farbtilger: 19, .strudel: 15, .atom: 13, .fresser: 9, .invasion: 9, .abriss: 7,
+        .bombe: 28, .farbtilger: 19, .strudel: 15, .atom: 11, .fresser: 9, .invasion: 9, .abriss: 9,
     ]
     /// Seltene Höhepunkte: garantiert am Ende jedes Zyklus.
     public static let topRewards: [PowerUp] = [.fresser, .atom, .invasion, .abriss]
@@ -477,7 +477,7 @@ public struct Game: Sendable {
             }
             roof += 1
             let top = roof >= Self.roofCount - 1
-            let kind = top ? pickReward(from: Self.topRewards) : pickReward(from: PowerUp.allCases)
+            let kind = top ? pickReward(from: Self.topRewards, uniform: true) : pickReward(from: PowerUp.allCases)
             var granted: PowerUp?
             var bonus = 0
             if powerUps.count < Self.maxPowerUps {
@@ -495,13 +495,15 @@ public struct Game: Sendable {
     }
 
     /// Gewichteter Zufall, ohne dasselbe Power-up zweimal hintereinander.
-    private mutating func pickReward(from options: [PowerUp]) -> PowerUp {
+    /// `uniform`: alle Optionen gleich wahrscheinlich (seltene Power-ups am Zyklusende).
+    private mutating func pickReward(from options: [PowerUp], uniform: Bool = false) -> PowerUp {
         let pool = options.count > 1 ? options.filter { $0 != lastReward } : options
-        let total = pool.reduce(0) { $0 + (Self.rewardWeights[$1] ?? 1) }
+        func weight(_ kind: PowerUp) -> Double { uniform ? 1 : Self.rewardWeights[kind] ?? 1 }
+        let total = pool.reduce(0) { $0 + weight($1) }
         var roll = rng.unit() * total
         var choice = pool[pool.count - 1]
         for kind in pool {
-            roll -= Self.rewardWeights[kind] ?? 1
+            roll -= weight(kind)
             if roll < 0 {
                 choice = kind
                 break
