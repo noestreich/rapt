@@ -65,7 +65,7 @@ class Canvas:
 
 
 # ---------- Steine (GemArt) ----------
-LOOKS = {"orden": (356, 82, 52), "zahnrad": (24, 88, 54), "signal": (47, 92, 56), "uranglas": (96, 75, 48),
+LOOKS = {"orden": (356, 82, 52), "zahnrad": (334, 85, 62), "signal": (47, 92, 56), "uranglas": (96, 75, 48),
          "kristall": (200, 85, 54), "roehre": (286, 62, 58), "niete": (215, 10, 72)}
 GEMS = list(LOOKS)
 
@@ -79,8 +79,8 @@ def field(gem, u, v):
     if gem == "orden":
         d = poly(u, v, 8, .8, TAU / 16)
     elif gem == "zahnrad":
-        tooth = clamp(math.cos(math.atan2(v, u) * 8) * 2.5, -1, 1) * .5 + .5
-        d = max(l - (.6 + .24 * tooth), .2 - l)
+        # Herz (früher Zahnrad)
+        d = min(math.hypot(u + .32, v + .22) - .42, math.hypot(u - .32, v + .22) - .42, poly(u, v - .02, 4, .56, TAU / 8))
     elif gem == "signal":
         d = poly(u, v * .85, 4, .56, TAU / 8)
     elif gem == "uranglas":

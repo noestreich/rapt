@@ -4,6 +4,8 @@ import SpriteKit
 /// Prozedurale Pixel-Steine (22 px). Die Form kommt aus einem Distanzfeld, die Facetten aus dessen Steigung.
 enum GemArt {
     static let tile = 22
+    /// Der Stein `.zahnrad` wird als pinkes Herz gezeichnet. `true` holt das alte orange Zahnrad zurück.
+    static let useGear = false
 
     struct Look {
         let hue: Double
@@ -20,7 +22,7 @@ enum GemArt {
     static func look(_ gem: Gem) -> Look {
         switch gem {
         case .orden: return Look(hue: 356, sat: 82, light: 52)
-        case .zahnrad: return Look(hue: 24, sat: 88, light: 54)
+        case .zahnrad: return useGear ? Look(hue: 24, sat: 88, light: 54) : Look(hue: 334, sat: 85, light: 62)
         case .signal: return Look(hue: 47, sat: 92, light: 56)
         case .uranglas: return Look(hue: 96, sat: 75, light: 48)
         case .kristall: return Look(hue: 200, sat: 85, light: 54)
@@ -51,9 +53,14 @@ enum GemArt {
         switch gem {
         case .orden:
             d = poly(u, v, 8, 0.8, tau / 16)
-        case .zahnrad:
+        case .zahnrad where useGear:
             let tooth = clamp(cos(atan2(v, u) * 8) * 2.5, -1, 1) * 0.5 + 0.5
             d = max(l - (0.6 + 0.24 * tooth), 0.2 - l)
+        case .zahnrad:
+            // Herz: zwei Kreise oben, nach unten spitz zulaufende Raute
+            let left = ((u + 0.32) * (u + 0.32) + (v + 0.22) * (v + 0.22)).squareRoot() - 0.42
+            let right = ((u - 0.32) * (u - 0.32) + (v + 0.22) * (v + 0.22)).squareRoot() - 0.42
+            d = min(left, right, poly(u, v - 0.02, 4, 0.56, tau / 8))
         case .signal:
             d = poly(u, v * 0.85, 4, 0.56, tau / 8)
         case .uranglas:

@@ -27,7 +27,7 @@ Nach Änderungen an `project.yml` oder neuen Dateien `xcodegen generate` erneut 
 | `Packages/RaptCore` | Spiellogik ohne Grafik: Brett, Reihen, Züge, Schwerkraft, Kaskaden, Punkte, Plan-Stufen. Mit Tests. |
 | `App/Sources/GameScene.swift` | SpriteKit-Szene: Eingabe, Ablauf, Effekt-Choreografie, Anzeige |
 | `App/Sources/Effects.swift` | Pixel-Explosionen, Dampf, Schrapnell-Konfetti, Glutfunken, Strahlen, Warp-Ringe |
-| `App/Sources/Art/` | Prozedurale Grafik: Steine, Nebel, Plattenbauten, Beton, Pixelschrift, Power-up-Symbole, Figur, Fresser |
+| `App/Sources/Art/` | Prozedurale Grafik (der Stein `zahnrad` wird als pinkes Herz gezeichnet, `GemArt.useGear` holt das Zahnrad zurück): Steine, Nebel, Plattenbauten, Beton, Pixelschrift, Power-up-Symbole, Figur, Fresser |
 | `App/Sources/Audio/` | Synthesizer, Sound-Plätze, Dateizuordnung, Musik |
 | `App/Sources/SoundLabView.swift` | Sound-Labor (nur Mac, nur Debug-Build) |
 | `tools/make_icon.py` | Erzeugt das App-Icon |
