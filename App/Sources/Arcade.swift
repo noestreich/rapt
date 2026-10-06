@@ -136,11 +136,12 @@ final class ArcadeCraft {
     func dip(_ pixels: CGFloat = 2) { kick = max(kick, pixels) }
 
     /// Gleitet zum Ziel: weich beschleunigen und abbremsen.
-    func update(_ dt: Double, target: CGFloat, maxSpeed: CGFloat) {
+    /// `stiffness` und `response` bestimmen, wie direkt das Gerät folgt (klein = träge, groß = präzise).
+    func update(_ dt: Double, target: CGFloat, maxSpeed: CGFloat, stiffness: CGFloat = 9, response: CGFloat = 10) {
         clock += dt
         let t = CGFloat(dt)
-        let desired = max(-maxSpeed, min(maxSpeed, (target - x) * 9))
-        velocity += (desired - velocity) * min(1, t * 10)
+        let desired = max(-maxSpeed, min(maxSpeed, (target - x) * stiffness))
+        velocity += (desired - velocity) * min(1, t * response)
         x += velocity * t
         kick = max(0, kick - 24 * t)
         let hover: CGFloat = sin(clock * 3.2) > 0.6 ? 1 : 0
@@ -189,11 +190,12 @@ class ArcadeBase {
         craft = ArcadeCraft(spec: spec, figure: host.figure, glow: host.glowTexture, x: mid, baseY: host.groundY + hover)
         craft.node.zPosition = 2
         node.addChild(craft.node)
-        // Auftritt: von unten mit Schub in die Bahn
+        // Auftritt: steigt hinter den Häusern auf (die Szene hängt die Runde dafür kurz hinter die Häuser)
         let resting = craft.node.position
-        craft.node.position.y = resting.y - 40
-        craft.node.alpha = 0
-        craft.node.run(.group([.move(to: resting, duration: 0.3), .fadeIn(withDuration: 0.15)]))
+        craft.node.position.y = resting.y - 70
+        let rise = SKAction.move(to: resting, duration: 0.5)
+        rise.timingMode = .easeOut
+        craft.node.run(rise)
         if host.entrance { board() }
     }
 
@@ -210,10 +212,10 @@ class ArcadeBase {
     }
 
     /// Bewegt das Gerät; `margin` hält es innerhalb des Bretts.
-    func moveCraft(_ dt: Double, maxSpeed: CGFloat) {
+    func moveCraft(_ dt: Double, maxSpeed: CGFloat, stiffness: CGFloat = 9, response: CGFloat = 10) {
         let half = craft.spec.size.width / 2
         let goal = min(host.board.maxX - half, max(host.board.minX + half, target))
-        craft.update(dt, target: goal, maxSpeed: maxSpeed)
+        craft.update(dt, target: goal, maxSpeed: maxSpeed, stiffness: stiffness, response: response)
     }
 
     var remaining: Int {
@@ -322,11 +324,11 @@ class ArcadeBase {
         for child in node.children where child !== craft.node {
             child.run(.sequence([.fadeOut(withDuration: 0.1), .removeFromParent()]))
         }
-        // Gerät fällt leer nach unten weg
-        let drop = SKAction.moveBy(x: 0, y: -46, duration: 0.45)
+        // Gerät sinkt leer hinter die Häuser
+        let drop = SKAction.moveBy(x: 0, y: -80, duration: 0.7)
         drop.timingMode = .easeIn
-        craft.node.run(.group([drop, .sequence([.wait(forDuration: 0.25), .fadeOut(withDuration: 0.2)])]))
-        node.run(.sequence([.wait(forDuration: 0.5), .removeFromParent()]))
+        craft.node.run(drop)
+        node.run(.sequence([.wait(forDuration: 0.75), .removeFromParent()]))
     }
 }
 
@@ -523,6 +525,7 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
     private var attachTimer = 0.9
     private var trailTimer = 0.0
     private var streak = 0
+    private var ballShown = false
     private let radius: CGFloat = 2.5
     private let halfWidth: CGFloat = 13
     /// Flaches Dach des Gliders: davon prallt die Birne ab.
@@ -549,6 +552,7 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
         ball.addChild(ballGlow)
         node.addChild(ball)
         attachBall()
+        ball.alpha = 0
     }
 
     func release() {
@@ -574,7 +578,12 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
     func update(_ dt: Double) {
         elapsed += dt
         timeLeft -= dt
-        moveCraft(dt, maxSpeed: 260)
+        // Die Birne erscheint erst, wenn die Runde läuft (nicht schon beim Aufsteigen)
+        if !ballShown {
+            ballShown = true
+            ball.alpha = 1
+        }
+        moveCraft(dt, maxSpeed: 520, stiffness: 32, response: 45)
 
         if attached {
             ballPos = CGPoint(x: runnerX, y: paddleTop + radius + 1)

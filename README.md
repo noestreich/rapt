@@ -43,7 +43,7 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 
 | Modus | Ablauf |
 |---|---|
-| **Endlos** | Klassisch: kein Zeitdruck, keine Power-ups; der Läufer steht auf seinem Dach, die Stadt steht still. Ende, wenn kein Zug mehr möglich ist. |
+| **Endlos** | Klassisch: kein Zeitdruck, keine Power-ups; der Läufer steht auf seinem Dach, die Stadt steht still; bei jedem geschafften Sprung hüpft er einmal hoch. Ende, wenn kein Zug mehr möglich ist. |
 | **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,66 px/s, +9 % pro Plan, +6 % pro Spielminute; per Debug-Regler in den Einstellungen änderbar), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
@@ -61,13 +61,13 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 
 Zwei Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
 Schwarz-Weiß-Flackern (normal und invertiert), Konzentrationslinien, Zoom aufs Brett und der Titel mit Farbsaum.
-Unter dem Brett erscheint eine Bahn mit Warnstreifen; das Fluggerät fliegt ein, der Läufer springt vom Dach in die Kabine und am Ende wieder zurück, das leere Gerät fällt weg. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
+Sprung-Leiste und Lager blenden aus; das Fluggerät steigt hinter den Häusern auf und fliegt frei über dem Nachthimmel unter dem Brett, der Läufer springt vom Dach in die Kabine und am Ende wieder zurück, das leere Gerät sinkt hinter die Häuser. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
 nach Ablauf der Zeit fallen neue Steine nach, Spezialsteine unter den Treffern zünden, Kaskaden laufen wie gewohnt.
 
 | Power-up | Vorbild | Ablauf |
 |---|---|---|
 | **Invasion** (9 s) | Space Invaders | Der Läufer sitzt in einem dunklen Neon-Gleiter (ziehen; gleitet mit Trägheit, Seitendüsen zeigen den Schub) und schießt automatisch aus der Kanone nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
-| **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
+| **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen, folgt dem Finger direkt); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
 
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 

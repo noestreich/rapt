@@ -142,8 +142,8 @@ final class GameScene: SKScene {
         return filter
     }()
     private var speedLines: [SKTexture] = []
-    /// Bahn unter dem Brett für Läufer und Schiff.
-    private let arcadeLane = SKSpriteNode()
+    /// Hintergrund der Sprung-Leiste (wird während der Minispiele mit Leiste und Lager ausgeblendet).
+    private var planBar = SKSpriteNode()
     private var minigameActive: Bool { fresser != nil || arcade != nil || arcadeIntro }
     /// Der Läufer ist von seinem Dach in die Minispiel-Bahn gesprungen.
     private var figureAway = false
@@ -362,6 +362,7 @@ final class GameScene: SKScene {
         let barStart = Layout.boardX + PixelFont.width("SPRUNG 00") + 5
         let barEnd = Layout.boardX + Layout.boardSize
         let bar = SKSpriteNode(color: RGBA(hex: 0x0B0A11).skColor, size: CGSize(width: barEnd - barStart, height: 7))
+        planBar = bar
         bar.anchorPoint = CGPoint(x: 0, y: 1)
         bar.position = design(barStart, planY - 1)
         hudLayer.addChild(bar)
@@ -375,29 +376,6 @@ final class GameScene: SKScene {
             planSegments.append(seg)
             x += 4
         }
-
-        // Bahn für Läufer und Schiff in den Minispielen; deckt währenddessen die Sprung-Leiste ab
-        let laneHeight = Self.laneFloor + 3 - (Layout.planY - 3)
-        var lane = PixelCanvas(width: Layout.boardSize + 12, height: laneHeight, fill: RGBA(hex: 0x0B0A11))
-        for y in stride(from: 2, to: laneHeight - 1, by: 2) { lane.fillRect(0, y, lane.width, 1, RGBA(hex: 0x14121C)) }
-        lane.fillRect(0, 0, lane.width, 1, RGBA(hex: 0x3FD8FF))
-        lane.fillRect(6, laneHeight - 4, lane.width - 12, 1, RGBA(hex: 0x3FD8FF))
-        lane.fillRect(0, laneHeight - 1, lane.width, 1, RGBA(hex: 0x1A6A88))
-        for y in 1..<(laneHeight - 1) {
-            for x in 0..<6 {
-                let warn = ((x + y) >> 1) & 1 == 1 ? RGBA(hex: 0xB8321F) : RGBA(hex: 0x1A1418)
-                lane.set(x, y, warn)
-                lane.set(lane.width - 1 - x, y, warn)
-            }
-        }
-        arcadeLane.texture = lane.texture()
-        arcadeLane.size = lane.size
-        arcadeLane.anchorPoint = CGPoint(x: 0, y: 1)
-        arcadeLane.position = design(Layout.boardX - 6, Layout.planY - 3)
-        arcadeLane.zPosition = 5
-        // über Lager und Statuszeile
-        arcadeLane.isHidden = true
-        hudLayer.addChild(arcadeLane)
 
         // Steine liegen in einer Maske, damit nachrutschende Steine hinter der Brettkante auftauchen
         let mask = SKSpriteNode(color: .white, size: CGSize(width: Layout.boardSize, height: Layout.boardSize))
@@ -1874,8 +1852,15 @@ final class GameScene: SKScene {
         } else {
             round = AbrissRound(host: host)
         }
-        round.node.zPosition = 6
-        fx.pixelLayer.addChild(round.node)
+        // Erst hinter den Häusern aufsteigen, dann vor alles
+        round.node.zPosition = 3
+        backLayer.addChild(round.node)
+        round.node.run(.sequence([.wait(forDuration: 0.4), .run { [weak self, weak round] in
+            guard let self, let node = round?.node, node.parent === self.backLayer else { return }
+            node.move(toParent: self.fx.pixelLayer)
+            node.zPosition = 6
+        }]))
+        setArcadeHUD(visible: false)
         pendingRound = round
         if canBoard {
             leapFigure(to: { [weak round] in round?.seat ?? .zero }, delay: 0.25) { [weak self, weak round] jumper in
@@ -1896,6 +1881,17 @@ final class GameScene: SKScene {
             self.shownArcadeSeconds = -1
             self.countdownLabel.isHidden = false
             self.refreshStatus()
+        }
+    }
+
+    /// Sprung-Leiste, Lager und Statuszeile während der Minispiele ausblenden, damit die Fluggeräte frei
+    /// über dem Nachthimmel fliegen.
+    private func setArcadeHUD(visible: Bool) {
+        statusLabel.isHidden = !visible
+        let nodes: [SKNode] = [planLabel, planBar, armedBracket] + planSegments + slotFrames + slotIcons
+        for node in nodes {
+            node.removeAction(forKey: "arcadeHUD")
+            node.run(.fadeAlpha(to: visible ? 1 : 0, duration: 0.2), withKey: "arcadeHUD")
         }
     }
 
@@ -1961,9 +1957,12 @@ final class GameScene: SKScene {
         let cleared = round.cleared
         let from = round.seat
         round.teardown()
+        // Leeres Gerät sinkt hinter die Häuser
+        round.node.move(toParent: backLayer)
+        round.node.zPosition = 3
         returnFigure(from: from)
         countdownLabel.isHidden = true
-        arcadeLane.isHidden = true
+        setArcadeHUD(visible: true)
         let c = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
         mangaFlash([true], step: 0.07)
         audio.play(.slam, volume: 0.6)
@@ -1993,7 +1992,7 @@ final class GameScene: SKScene {
             figure.position = roofPoint()
             if !figureFalling { startFigureIdle() }
         }
-        arcadeLane.isHidden = true
+        setArcadeHUD(visible: true)
         removeAction(forKey: "manga")
         removeAction(forKey: "mangaLeap")
         overlayLayer.children.filter { $0.name == "manga" }.forEach { $0.removeFromParent() }
@@ -2096,7 +2095,6 @@ final class GameScene: SKScene {
     private func mangaIntro(_ title: String, color: RGBA, then start: @escaping () -> Void) {
         if speedLines.isEmpty { speedLines = [ArcadeArt.speedLines(seed: 3), ArcadeArt.speedLines(seed: 8), ArcadeArt.speedLines(seed: 21)] }
         let c = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
-        arcadeLane.isHidden = false
         audio.play(.slam, volume: 0.9)
         audio.play(.warp, volume: 0.5)
         haptics.explosion()
@@ -2343,7 +2341,10 @@ final class GameScene: SKScene {
             let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
             fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
         }
-        guard let building = reward.building else { return }
+        guard let building = reward.building else {
+            hopFigure()
+            return
+        }
         jumpFigure(to: building) { [weak self] in
             guard let self else { return }
             let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
@@ -2355,6 +2356,31 @@ final class GameScene: SKScene {
             }
             if reward.reachedTop { self.heroFireworks() }
         }
+    }
+
+    /// Endlos: Sprung geschafft, der Läufer hüpft einmal hoch und landet wieder auf seinem Dach.
+    private func hopFigure() {
+        guard !figure.isHidden, !figureJumping, !figureFalling, !figureAway else { return }
+        figureJumping = true
+        stopFigureIdle()
+        figure.texture = figureJump
+        audio.play(.jump, volume: 0.6)
+        let base = roofPoint()
+        fx.steam(at: base)
+        let duration: CGFloat = 0.6
+        let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
+            let t = min(1, elapsed / duration)
+            node.position = CGPoint(x: base.x, y: (base.y + sin(.pi * t) * 28).rounded())
+        }
+        figure.run(.sequence([arc, .run { [weak self] in
+            guard let self else { return }
+            self.figureJumping = false
+            self.updateCity()
+            self.startFigureIdle()
+            self.audio.play(.land, volume: 0.5)
+            self.fx.steam(at: self.figure.position)
+            self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
+        }]))
     }
 
     /// Ende eines Belohnungszyklus: Feuerwerk über der Stadt.
