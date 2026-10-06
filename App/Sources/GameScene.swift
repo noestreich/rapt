@@ -458,14 +458,12 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
-        settingsPanel.onTestArcade = { [weak self] in
-            guard let self, self.mode == .rooftop, !self.game.isOver else { return }
-            self.game.grant(.invasion)
-            self.game.grant(.abriss)
-            self.updateSlots()
-            self.refreshStatus()
-            self.audio.play(.powerUp, volume: 0.7)
+        settingsPanel.onTestArcade = { [weak self] kind in
+            guard let self else { return }
             self.settingsPanel.hide()
+            guard !self.busy, !self.minigameActive, !self.game.isOver, !self.menuVisible else { return }
+            self.setArmed(nil)
+            self.startArcade(kind, free: true)
         }
         shaker.addChild(helpPanel.node)
 
@@ -1847,8 +1845,9 @@ final class GameScene: SKScene {
 
     // MARK: Minispiele (Invasion, Abrissbirne)
 
-    private func startArcade(_ kind: PowerUp) {
-        guard !busy, game.startArcade(kind) else { return }
+    /// `free`: Test aus den Einstellungen, ohne Power-up aus dem Lager (in beiden Modi).
+    private func startArcade(_ kind: PowerUp, free: Bool = false) {
+        guard !busy, free || game.startArcade(kind) else { return }
         busy = true
         setSelected(nil)
         updateSlots()

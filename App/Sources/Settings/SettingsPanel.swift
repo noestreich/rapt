@@ -1,4 +1,5 @@
 import SpriteKit
+import RaptCore
 
 /// Einstellungen als Pixel-Ansicht über dem Spiel: gleicher Hintergrund, Pixelschrift,
 /// Schalter (AN/AUS) und Schieberegler aus Segmenten. Koordinaten in Design-Pixeln (oben links, y nach unten).
@@ -7,8 +8,8 @@ final class SettingsPanel {
     var onClose: () -> Void = {}
     var onNewGame: () -> Void = {}
     var onHelp: () -> Void = {}
-    /// Debug: legt Invasion und Abrissbirne ins Lager.
-    var onTestArcade: () -> Void = {}
+    /// Debug: startet ein Minispiel sofort, ohne Power-up im Lager.
+    var onTestArcade: (PowerUp) -> Void = { _ in }
     var onChange: () -> Void = {}
     private(set) var isVisible = false
 
@@ -33,7 +34,7 @@ final class SettingsPanel {
     private static let dim = RGBA(hex: 0x4A4B56)
 
     private let designHeight: CGFloat
-    private let x0 = 8, y0 = 10, width = 184, height = 338
+    private let x0 = 8, y0 = 10, width = 184, height = 354
     private let rowWidth = 168
     private let trackX = 62, trackWidth = 104
     private var rows: [Row] = []
@@ -116,7 +117,8 @@ final class SettingsPanel {
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
         }
         if settings.debugVisible {
-            specs.append((fixed("MINISPIELE"), .button(action: { [weak self] in self?.onTestArcade() })))
+            specs.append((fixed("INVASION"), .button(action: { [weak self] in self?.onTestArcade(.invasion) })))
+            specs.append((fixed("ABRISSBIRNE"), .button(action: { [weak self] in self?.onTestArcade(.abriss) })))
         }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
         specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))

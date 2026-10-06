@@ -116,31 +116,43 @@ enum PowerUpArt {
         }
     }
 
-    /// Pixel-Invader in Magenta mit dunklem Rand.
+    /// Außerirdisches Wesen: schwebende Kuppel mit einem großen Schlitzauge und drei welligen Tentakeln.
     private static func invaderIcon() -> PixelCanvas {
         var c = PixelCanvas(width: 16, height: 16)
-        let rows = [
-            "..X.....X..",
-            "...X...X...",
-            "..XXXXXXX..",
-            ".XX.XXX.XX.",
-            "XXXXXXXXXXX",
-            "X.XXXXXXX.X",
-            "X.X.....X.X",
-            "...XX.XX...",
-        ]
-        let ox = 2, oy = 4
         var inside = Set<Int>()
-        for (y, row) in rows.enumerated() {
-            for (x, ch) in row.enumerated() where ch == "X" {
-                inside.insert((oy + y) * 16 + ox + x)
-                c.set(ox + x, oy + y, y < 3 ? RGBA(hex: 0xFFB0D8) : RGBA(hex: 0xFF4FA8))
+        let ramp: [RGBA] = [0x3A1050, 0x7A2A9A, 0xC048C8, 0xFF8AE0].map { RGBA(hex: $0) }
+        for y in 0...9 {
+            for x in 0..<16 {
+                let dx = Double(x) + 0.5 - 8, dy = (Double(y) + 0.5 - 7) * 1.1
+                let d = (dx * dx + dy * dy).squareRoot()
+                guard d <= 6 else { continue }
+                inside.insert(y * 16 + x)
+                let light = 0.75 - (dx + dy * 1.2) / 14 - d / 6 * 0.35
+                c.set(x, y, ramp[clamp(Int(light * 4), 0, 3)])
             }
         }
+        for (i, base) in [4, 8, 12].enumerated() {
+            for y in 10...14 {
+                let x = base + Int((sin(Double(y) * 1.3 + Double(i) * 2) * 0.9).rounded())
+                inside.insert(y * 16 + x)
+                c.set(x, y, y < 13 ? RGBA(hex: 0xC048C8) : RGBA(hex: 0xFF8AE0))
+            }
+        }
+        // Auge mit dunklem Rand, hellem Kern und senkrechter Schlitzpupille
+        for y in 3...9 {
+            for x in 3...12 {
+                let ex = (Double(x) + 0.5 - 8) / 4.2, ey = (Double(y) + 0.5 - 6.5) / 2.6
+                let r = ex * ex + ey * ey
+                guard r <= 1 else { continue }
+                c.set(x, y, RGBA(hex: r > 0.7 ? 0x0E5A78 : (r > 0.25 ? 0x3FD8FF : 0xD8FAFF)))
+            }
+        }
+        for y in 5...8 { c.set(8, y, RGBA(hex: 0x0A0612)) }
+        c.set(6, 5, .white)
         for y in 0..<16 {
             for x in 0..<16 where !inside.contains(y * 16 + x) {
                 let near = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { inside.contains((y + $0.1) * 16 + x + $0.0) && (0..<16).contains(x + $0.0) }
-                if near { c.set(x, y, RGBA(hex: 0x1A0A12)) }
+                if near { c.set(x, y, RGBA(hex: 0x12081A)) }
             }
         }
         return c
