@@ -88,6 +88,9 @@ final class SettingsPanel {
             (fixed("FUNKSPRÜCHE"), .toggle(get: { settings.splashesEnabled }, set: { settings.splashesEnabled = $0 })),
             (fixed("HINWEISE"), .toggle(get: { settings.hintsEnabled }, set: { settings.hintsEnabled = $0 })),
         ]
+        if FireWall.enabled {
+            specs.append((fixed("FEUER"), .toggle(get: { settings.fireEnabled }, set: { settings.fireEnabled = $0 })))
+        }
         #if os(iOS)
         specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif

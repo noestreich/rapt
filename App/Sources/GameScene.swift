@@ -408,6 +408,7 @@ final class GameScene: SKScene {
             self.audio.play(.select, volume: 0.5)
             self.game.citySpeed = GameSettings.shared.citySpeed
             self.game.cityAcceleration = GameSettings.shared.cityAcceleration
+            self.fireWall?.node.isHidden = !(self.mode == .rooftop && GameSettings.shared.fireEnabled)   // FireWall
             if !GameSettings.shared.hintsEnabled { self.place(self.hintCursor, at: nil) }
         }
         shaker.addChild(settingsPanel.node)
@@ -544,7 +545,8 @@ final class GameScene: SKScene {
         visibleLeft = CGFloat(left)
         visibleRight = CGFloat(right)
         visibleTop = CGFloat(top)
-        fireWall?.layout(left: CGFloat(left), bottom: Layout.height - CGFloat(bottom))   // FireWall
+        fireWall?.layout(left: CGFloat(left), bottom: Layout.height - CGFloat(bottom),
+                         middle: (size.height / 2 - world.position.y) / world.xScale)   // FireWall
         skyBottom = CGFloat(bottom)
         game.extendCity(toScreenX: Double(right) + 40)
         updateCity()
@@ -602,7 +604,7 @@ final class GameScene: SKScene {
         startFigureIdle()
         let rooftop = newMode == .rooftop
         figure.isHidden = !rooftop
-        fireWall?.node.isHidden = !rooftop   // FireWall
+        fireWall?.node.isHidden = !(rooftop && GameSettings.shared.fireEnabled)   // FireWall
         if rooftop && animated { dropFigureIn(after: 0.5) }
         slotFrames.forEach { $0.isHidden = !rooftop }
         gems.values.forEach { $0.removeWithGlow() }
@@ -1383,6 +1385,7 @@ final class GameScene: SKScene {
         }
         figure.run(.sequence([fall, .fadeOut(withDuration: 0.1)]))
         fx.popup("ABSTURZ!", at: CGPoint(x: max(30, start.x + 20), y: start.y + 16), color: Palette.red, scale: 2)
+        fireWall?.burst()   // FireWall
         showGameOver()
     }
 
@@ -2153,7 +2156,7 @@ final class GameScene: SKScene {
             // Je näher am Rand, desto lauter brummt der Alarm
             let level = danger ? Float(1 - max(0, game.city.figureX) / City.dangerX) : 0
             audio.setDanger(level)
-            fireWall?.update(dt, danger: level)   // FireWall
+            fireWall?.update(dt, danger: level, touching: game.city.figureX < Double(FireWall.width))   // FireWall
             // Roter Glow um die Figur, pulsiert mit dem Brummen und wird stärker, je näher der Rand
             let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
             dangerAura.alpha = CGFloat(Double(level) * 0.85 * pulse)

@@ -12,6 +12,8 @@ final class GameSettings: ObservableObject {
     @Published var hapticsEnabled: Bool { didSet { save(hapticsEnabled, "hapticsEnabled") } }
     @Published var splashesEnabled: Bool { didSet { save(splashesEnabled, "splashesEnabled") } }
     @Published var hintsEnabled: Bool { didSet { save(hintsEnabled, "hintsEnabled") } }
+    /// Plasma-Feuer am linken Rand im Dächerlauf.
+    @Published var fireEnabled: Bool { didSet { save(fireEnabled, "fireEnabled") } }
     /// Debug-Regler (Tempo, Beschleunigung) sichtbar. Beim Ausblenden gelten wieder die Standardwerte.
     @Published var debugVisible: Bool {
         didSet {
@@ -38,6 +40,7 @@ final class GameSettings: ObservableObject {
             "rapt.splashesEnabled": true,
             "rapt.debugCitySpeed": City.baseSpeed,
             "rapt.hintsEnabled": false,
+            "rapt.fireEnabled": true,
             "rapt.debugCityAcceleration": City.defaultAccelerationPerMinute,
             "rapt.debugVisible": false,
         ])
@@ -49,6 +52,7 @@ final class GameSettings: ObservableObject {
         splashesEnabled = defaults.bool(forKey: "rapt.splashesEnabled")
         debugCitySpeed = defaults.double(forKey: "rapt.debugCitySpeed")
         hintsEnabled = defaults.bool(forKey: "rapt.hintsEnabled")
+        fireEnabled = defaults.bool(forKey: "rapt.fireEnabled")
         debugVisible = defaults.bool(forKey: "rapt.debugVisible")
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
     }

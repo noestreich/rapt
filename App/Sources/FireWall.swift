@@ -2,6 +2,7 @@ import SpriteKit
 
 /// Experiment: Plasma-Feuer am linken Bildschirmrand hinter den Häusern. Es zeigt, wovor die Figur davonläuft.
 /// Rückgängig machen: `enabled` auf `false` setzen (oder diese Datei und die mit „FireWall“ markierten Zeilen in GameScene löschen).
+/// Spieler können es zusätzlich in den Einstellungen („FEUER“) abschalten.
 final class FireWall {
     static let enabled = true
 
@@ -13,7 +14,10 @@ final class FireWall {
     private let flames = SKSpriteNode()
     private let light: SKSpriteNode
     private let smokeFrames: [SKTexture]
-    private var smokeTimer: TimeInterval = 2
+    private var smokeTimer: TimeInterval = 1.5
+    /// Faktor, um den die Flammen beim Kontakt hochlodern (bis zur Bildschirmmitte), aus `layout`.
+    private var flareScale: CGFloat = 2.5
+    private var contact = false
 
     init(glowTexture: SKTexture) {
         let frames = Self.flameFrames()
@@ -39,35 +43,58 @@ final class FireWall {
     }
 
     /// `left`: linker Bildschirmrand, `bottom`: unterer Bildschirmrand, beides in Weltkoordinaten.
-    func layout(left: CGFloat, bottom: CGFloat) {
+    /// `left`/`bottom`: linker und unterer Bildschirmrand, `middle`: Bildschirmmitte (Höhe), alles in Weltkoordinaten.
+    func layout(left: CGFloat, bottom: CGFloat, middle: CGFloat) {
         node.position = CGPoint(x: left, y: bottom)
+        flareScale = max(1.2, (middle - bottom) / CGFloat(Self.height))
     }
 
     /// `danger` 0…1: je näher die Figur, desto breiter lodert es.
-    func update(_ dt: TimeInterval, danger: Float) {
-        let target = 1 + CGFloat(danger) * 0.7
-        flames.xScale += (target - flames.xScale) * CGFloat(min(1, dt * 3))
+    /// `touching`: die Figur steht im Feuer, dann züngelt es bis zur Bildschirmmitte.
+    func update(_ dt: TimeInterval, danger: Float, touching: Bool) {
+        if touching && !contact { burst() }
+        contact = touching
+        let width = touching ? 2.2 : 1 + CGFloat(danger) * 0.7
+        let height = touching ? flareScale : 1
+        let speed = CGFloat(min(1, dt * (touching ? 6 : 2)))
+        flames.xScale += (width - flames.xScale) * speed
+        flames.yScale += (height - flames.yScale) * speed
+        light.yScale = flames.yScale
+        light.xScale = flames.xScale
         smokeTimer -= dt
         if smokeTimer <= 0 {
-            smokeTimer = Double.random(in: 2.5...5.5)
-            puff()
+            smokeTimer = touching ? Double.random(in: 0.15...0.35) : Double.random(in: 1.2...3)
+            puff(big: touching)
+            if Double.random(in: 0...1) < 0.35 { puff(big: touching) }
         }
     }
 
-    /// Gelegentliche Rauchwolke, die nach oben rechts abzieht.
-    private func puff() {
-        let smoke = SKSpriteNode(texture: smokeFrames.first, size: CGSize(width: 26, height: 26))
+    /// Kurzer, kräftiger Ausbruch (beim ersten Kontakt und beim Absturz).
+    func burst() {
+        flames.yScale = flareScale
+        flames.xScale = 2.4
+        for _ in 0..<6 { puff(big: true) }
+    }
+
+    /// Rauchwolke, die nach oben rechts abzieht.
+    private func puff(big: Bool) {
+        let size: CGFloat = big ? CGFloat.random(in: 34...46) : CGFloat.random(in: 26...34)
+        let smoke = SKSpriteNode(texture: smokeFrames.first, size: CGSize(width: size, height: size))
         smoke.color = RGBA(hex: 0x3A2A4A).skColor
         smoke.colorBlendFactor = 0.65
-        smoke.alpha = 0.45
-        smoke.position = CGPoint(x: CGFloat.random(in: 4...12), y: CGFloat(Self.height) * CGFloat.random(in: 0.55...0.85))
+        smoke.alpha = big ? 0.65 : 0.5
+        smoke.xScale = Bool.random() ? 1 : -1
+        let top = CGFloat(Self.height) * flames.yScale
+        smoke.position = CGPoint(x: CGFloat.random(in: 4...14) * flames.xScale, y: top * CGFloat.random(in: 0.5...0.9))
         smoke.zPosition = 2
         node.addChild(smoke)
+        let rise: CGFloat = big ? 70 : 48
         smoke.run(.sequence([
             .group([
-                .animate(with: smokeFrames, timePerFrame: 0.22),
-                .moveBy(x: CGFloat.random(in: 8...16), y: 40, duration: 2.2),
-                .sequence([.wait(forDuration: 1.2), .fadeOut(withDuration: 1.0)]),
+                .animate(with: smokeFrames, timePerFrame: 0.25),
+                .moveBy(x: CGFloat.random(in: 10...22), y: rise, duration: 2.5),
+                .scale(by: 1.4, duration: 2.5),
+                .sequence([.wait(forDuration: 1.3), .fadeOut(withDuration: 1.2)]),
             ]),
             .removeFromParent(),
         ]))
