@@ -36,15 +36,20 @@ final class AudioCenter {
 
     /// iPhone: Mit Spielmusik spielt nur das Spiel. Ohne Spielmusik mischen sich die Effekte mit Musik oder
     /// Podcasts aus anderen Apps, die dann ungestört weiterlaufen.
+    /// Läuft im Hintergrund: Apple warnt, dass diese Aufrufe im Haupt-Thread die Oberfläche blockieren können.
+    private static let sessionQueue = DispatchQueue(label: "de.ncls.rapt.audiosession", qos: .userInitiated)
+
     private static func configureSession(musicOn: Bool) {
         #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        if musicOn {
-            try? session.setCategory(.soloAmbient)
-        } else {
-            try? session.setCategory(.ambient, options: [.mixWithOthers])
+        sessionQueue.async {
+            let session = AVAudioSession.sharedInstance()
+            if musicOn {
+                try? session.setCategory(.soloAmbient)
+            } else {
+                try? session.setCategory(.ambient, options: [.mixWithOthers])
+            }
+            try? session.setActive(true)
         }
-        try? session.setActive(true)
         #endif
     }
 

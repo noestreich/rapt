@@ -62,6 +62,14 @@ final class SoundBank {
         } catch {
             isEnabled = false
         }
+        // Nach einem Wechsel des Audio-Modus Engine und Player wieder anwerfen
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            try? self.engine.start()
+            self.voices.forEach { $0.player.play() }
+            self.voicePlayer.play()
+            self.dangerActive = false
+        }
     }
 
     /// Absturz-Alarm: 0 = aus, 1 = Figur kurz vor dem Rand (lauter).

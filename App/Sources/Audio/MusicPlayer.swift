@@ -33,6 +33,12 @@ final class MusicPlayer {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: nil)
+        // Wechselt der Audio-Modus (z. B. Musik an/aus), hält iOS die Engine an: dann neu starten
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            guard let self, self.isEnabled, let url = self.current else { return }
+            self.isPlaying = false
+            self.start(url)
+        }
         reload()
     }
 
