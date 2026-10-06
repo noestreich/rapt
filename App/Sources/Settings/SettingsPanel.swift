@@ -99,10 +99,13 @@ final class SettingsPanel {
         specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
         specs.append((fixed("APP-ICON"), .choice(options: ["1", "2"], get: { settings.appIcon }, set: { settings.appIcon = $0 })))
-        specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in
-            settings.debugVisible = visible
-            self?.buildRows()
-        })))
+        // Versteckt: erscheint erst nach 5 Sekunden Drücken auf die Überschrift
+        if settings.debugUnlocked {
+            specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in
+                settings.debugVisible = visible
+                self?.buildRows()
+            })))
+        }
         if settings.debugVisible {
             // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
             let minSpeed = 0.2, maxSpeed = 4.0
@@ -230,6 +233,7 @@ final class SettingsPanel {
     func hide() {
         isVisible = false
         dragging = nil
+        node.removeAction(forKey: "unlock")
         node.run(.sequence([.fadeOut(withDuration: 0.1), .hide()]))
     }
 
@@ -247,7 +251,27 @@ final class SettingsPanel {
         }
     }
 
+    /// Überschrift „EINSTELLUNGEN“ (Design-Koordinaten).
+    private var titleRect: CGRect { CGRect(x: x0, y: y0, width: width, height: 22) }
+
+    /// 5 Sekunden auf die Überschrift drücken: Debug-Zeile ein- bzw. ausblenden (gilt bis zum Neustart der App).
+    private func startUnlockHold() {
+        node.removeAction(forKey: "unlock")
+        node.run(.sequence([.wait(forDuration: 5), .run { [weak self] in
+            guard let self else { return }
+            let settings = GameSettings.shared
+            settings.debugUnlocked.toggle()
+            if !settings.debugUnlocked { settings.debugVisible = false }
+            self.onChange()
+            self.buildRows()
+        }]), withKey: "unlock")
+    }
+
     func pointerDown(_ p: CGPoint) {
+        if titleRect.contains(p) {
+            startUnlockHold()
+            return
+        }
         guard let i = rowIndex(at: p) else { return }
         switch rows[i].kind {
         case .toggle(let get, let set):
@@ -272,11 +296,13 @@ final class SettingsPanel {
     }
 
     func pointerMoved(_ p: CGPoint) {
+        if !titleRect.insetBy(dx: -6, dy: -6).contains(p) { node.removeAction(forKey: "unlock") }
         guard dragging != nil else { return }
         slide(to: p)
     }
 
     func pointerUp() {
+        node.removeAction(forKey: "unlock")
         if dragging != nil { onChange() }
         dragging = nil
     }

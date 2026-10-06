@@ -31,6 +31,8 @@ final class GameSettings: ObservableObject {
             }
         }
     }
+    /// Debug-Zeile in den Einstellungen freigeschaltet (5 s auf die Überschrift). Nur bis zum Beenden der App.
+    var debugUnlocked = false
     /// Debug: Beschleunigung der Stadt pro Spielminute (0,1 = +10 %).
     @Published var debugCityAcceleration: Double { didSet { save(debugCityAcceleration, "debugCityAcceleration") } }
     /// Debug: Grundgeschwindigkeit der Stadt im Dächerlauf (Design-Pixel pro Sekunde).
@@ -61,7 +63,8 @@ final class GameSettings: ObservableObject {
         debugCitySpeed = defaults.double(forKey: "rapt.debugCitySpeed")
         hintsEnabled = defaults.bool(forKey: "rapt.hintsEnabled")
         fireEnabled = defaults.bool(forKey: "rapt.fireEnabled")
-        debugVisible = defaults.bool(forKey: "rapt.debugVisible")
+        // Debug-Regler starten immer aus; sie sind nur nach dem Freischalten erreichbar
+        debugVisible = false
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
         appIcon = defaults.integer(forKey: "rapt.appIcon")
     }

@@ -1305,7 +1305,7 @@ final class GameScene: SKScene {
             .init(icon: hyper, title: "HYPERSTEIN", badge: "",
                   lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radio({ Contact.random(delivering: .hyper) }, nil)),
         ]
-        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.1"
         let info: [HelpPanel.Block] = [
             .init(title: "SO GEHT DER DÄCHERLAUF", lines: [
                 "DIE HÄUSER WANDERN LANGSAM NACH LINKS.",

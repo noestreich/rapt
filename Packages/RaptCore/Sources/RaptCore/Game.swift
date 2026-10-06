@@ -62,7 +62,7 @@ public struct Game: Sendable {
     public static let pointsPerDetonation = 200
     /// Gewichte für zufällige Belohnungen. Seltene Power-ups sind wertvoller.
     public static let rewardWeights: [PowerUp: Double] = [
-        .bombe: 28, .farbtilger: 19, .strudel: 15, .atom: 11, .fresser: 9, .invasion: 9, .abriss: 9,
+        .bombe: 30, .farbtilger: 21, .strudel: 16, .atom: 12, .fresser: 9, .invasion: 6, .abriss: 6,
     ]
     /// Seltene Höhepunkte: garantiert am Ende jedes Zyklus.
     public static let topRewards: [PowerUp] = [.fresser, .atom, .invasion, .abriss]

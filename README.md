@@ -50,7 +50,7 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - Sprung-Leiste unter dem Brett: Sprung n braucht 1500 × n Punkte (Sprung 1: 1500, Sprung 2: +3000 …).
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
-  dasselbe hintereinander (Bombe 28, Farbtilger 19, Strudel 15, Atombombe 11, Fresser 9, Invasion 9, Abrissbirne 9). Jeder sechste Sprung
+  dasselbe hintereinander (Bombe 30, Farbtilger 21, Strudel 16, Atombombe 12, Fresser 9, Invasion 6, Abrissbirne 6). Jeder sechste Sprung
   bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne, je 25 %), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
   setzt ein und die Musik wird leiser; alles stärker je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
@@ -184,8 +184,10 @@ Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht 
 Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Hinweise, Haptik (iPhone), „Neues Spiel“ zur
 Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit und Wirkung) und Spezialsteinen.
 Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
-Der Schalter **DEBUG-REGLER** blendet **Stadt-Tempo** (0,2–4 px/s) und **Beschleunigung** (0–50 % pro Spielminute)
-ein; die Werte gelten sofort. Beim Ausblenden gelten wieder die Standardwerte (0,66 px/s, +6 %/min).
-Die **Hilfe** hat zwei Seiten: Power-ups und Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
+Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
+„EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
+**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und die Knöpfe **INVASION** und
+**ABRISSBIRNE** (Minispiel sofort starten) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
