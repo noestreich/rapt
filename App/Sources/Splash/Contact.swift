@@ -44,6 +44,7 @@ struct Contact: Equatable {
         "junge": VoiceSpec(pitch: 250, speed: 1.3, melody: 0.25, formant: 1.22, breath: 0.12),
         "alt": VoiceSpec(pitch: 150, speed: 0.85, melody: 0.14, vibrato: 0.06, formant: 1.05, breath: 0.3),
         "hund": VoiceSpec(style: .dog, pitch: 150),
+        "katze": VoiceSpec(style: .cat, pitch: 420, breath: 0.12),
         "roboter": VoiceSpec(style: .robot, pitch: 110, speed: 1, melody: 0, ring: 0.7),
     ]
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// Stimmcharakter eines Funkers.
 struct VoiceSpec: Equatable {
-    enum Style: Equatable { case human, dog, robot }
+    enum Style: Equatable { case human, dog, cat, robot }
 
     var style: Style = .human
     /// Grundtonhöhe in Hz.
@@ -20,7 +20,7 @@ struct VoiceSpec: Equatable {
     var ring: Double = 0
 }
 
-/// Unverständliche Funksprüche: Silben aus Vokal-Formanten (Mensch), Bellen und Knurren (Hund) oder
+/// Unverständliche Funksprüche: Silben aus Vokal-Formanten (Mensch), Bellen und Knurren (Hund), Miauen und Schnurren (Katze) oder
 /// Tonstufen mit Piepsern (Roboter), danach Walkie-Talkie-Klang
 /// (Bandpass, Verzerrung, Bitreduktion, Rauschen, Rauschsperren-Klicken).
 enum RadioVoice {
@@ -51,6 +51,7 @@ enum RadioVoice {
         switch voice.style {
         case .human: return human(voice, sampleRate: sampleRate, rng: &rng)
         case .dog: return dog(voice, sampleRate: sampleRate, rng: &rng)
+        case .cat: return cat(voice, sampleRate: sampleRate, rng: &rng)
         case .robot: return robot(voice, sampleRate: sampleRate, rng: &rng)
         }
     }
@@ -148,6 +149,72 @@ enum RadioVoice {
                     let t = Double(i) / sampleRate
                     phase += (voice.pitch * 5 + 300 * sin(.pi * t / length)) / sampleRate
                     part.append(sin(2 * .pi * phase) * sin(.pi * t / length))
+                }
+                append(part, to: &out, level: 0.5)
+                out.append(contentsOf: silence(0.05, sampleRate))
+            }
+        }
+        return out
+    }
+
+    /// Katze: Miauen (Formanten gleiten von „i“ über „a“ zu „u“, Tonhöhe steigt und fällt),
+    /// kurzes „Mrrp“ und Schnurren.
+    private static func cat(_ voice: VoiceSpec, sampleRate: Double, rng: inout SplitMix64Local) -> [Float] {
+        var out: [Float] = []
+        var f1 = Resonator(), f2 = Resonator()
+        let sounds = 2 + Int(rng.unit() * 3)
+        for _ in 0..<sounds {
+            let pick = rng.unit()
+            var part: [Double] = []
+            var phase = 0.0
+            if pick < 0.6 {
+                // „Miau“
+                let length = 0.3 + rng.unit() * 0.25
+                let base = voice.pitch * (0.9 + rng.unit() * 0.3)
+                let n = Int(length * sampleRate)
+                for i in 0..<n {
+                    let t = Double(i) / sampleRate
+                    let u = t / length
+                    // Formanten: i (300/2300) → a (900/1500) → u (400/900)
+                    let a = sin(.pi * min(1, u * 1.6))
+                    let formant1 = u < 0.6 ? 350 + 650 * a : 900 - 500 * (u - 0.6) / 0.4
+                    let formant2 = u < 0.6 ? 2400 - 900 * a : 1500 - 600 * (u - 0.6) / 0.4
+                    if i % 64 == 0 {
+                        f1.tune(formant1 * 1.2, bandwidth: 140, sampleRate: sampleRate)
+                        f2.tune(formant2 * 1.2, bandwidth: 200, sampleRate: sampleRate)
+                    }
+                    phase += base * (1 + 0.45 * sin(.pi * min(1, u * 1.3))) / sampleRate
+                    let saw = 2 * (phase - floor(phase)) - 1
+                    let source = saw * 0.8 + (rng.unit() * 2 - 1) * voice.breath
+                    let x = f1.process(source) + f2.process(source) * 0.7
+                    part.append(x * min(1, t / 0.02) * min(1, (length - t) / 0.08))
+                }
+                append(part, to: &out, level: 0.75)
+                out.append(contentsOf: silence(0.08 + rng.unit() * 0.1, sampleRate))
+            } else if pick < 0.8 {
+                // „Mrrp“: kurzer, rollender Triller nach oben
+                let length = 0.14 + rng.unit() * 0.05
+                f1.tune(500, bandwidth: 160, sampleRate: sampleRate)
+                f2.tune(1300, bandwidth: 220, sampleRate: sampleRate)
+                for i in 0..<Int(length * sampleRate) {
+                    let t = Double(i) / sampleRate
+                    phase += voice.pitch * (0.8 + 0.6 * t / length) / sampleRate
+                    let saw = 2 * (phase - floor(phase)) - 1
+                    let roll = 0.5 + 0.5 * sin(t * 2 * .pi * 32)
+                    let x = f1.process(saw * roll) + f2.process(saw * roll) * 0.6
+                    part.append(x * min(1, t / 0.01) * min(1, (length - t) / 0.03))
+                }
+                append(part, to: &out, level: 0.6)
+                out.append(contentsOf: silence(0.06, sampleRate))
+            } else {
+                // Schnurren: tiefes, pulsierendes Rauschen
+                let length = 0.45 + rng.unit() * 0.2
+                f1.tune(220, bandwidth: 120, sampleRate: sampleRate)
+                for i in 0..<Int(length * sampleRate) {
+                    let t = Double(i) / sampleRate
+                    let pulse = pow(max(0, sin(t * 2 * .pi * 24)), 3)
+                    let x = f1.process((rng.unit() * 2 - 1) * pulse)
+                    part.append(x * sin(.pi * t / length))
                 }
                 append(part, to: &out, level: 0.5)
                 out.append(contentsOf: silence(0.05, sampleRate))

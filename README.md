@@ -89,7 +89,7 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
   Fehlt eine Datei, erzeugt das Spiel einen 48 × 48-Platzhalter.
 - **Varianten:** `portrait_<kontakt>--<name>--<stimme>.png` (z. B. `portrait_boris--ivan--mann-tief.png`) vertritt den
   Kontakt zufällig, mit eigenem Namen und eigener Stimme. Stimmen: `mann`, `mann-tief`, `frau`, `maedchen`, `junge`,
-  `alt`, `hund`, `roboter`. Ebenfalls mit `tools/import_portraits.py` einspielen.
+  `alt`, `hund`, `katze`, `roboter`. Ebenfalls mit `tools/import_portraits.py` einspielen.
 - **Stimmen:** Ohne Datei spricht ein Synthesizer: KIRA und JUKI hell (Mädchen), MAMA ZORA (Frau, mit Vibrato),
   BORIS tief (Mann), K-9 bellt, knurrt und winselt, ROBO-7 spricht in Tonstufen mit Piepsern.
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang

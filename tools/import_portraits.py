@@ -7,7 +7,7 @@ Dateinamen werden auf die Kontakt-IDs abgebildet (mama-zora → zora, robo-7 →
 
 Varianten (alternative Porträts, die einen Kontakt zufällig vertreten):
     portrait_<kontakt>--<name>--<stimme>.png    z. B. portrait_boris--ivan--mann-tief.png
-Stimmen: mann, mann-tief, frau, maedchen, junge, alt, hund, roboter
+Stimmen: mann, mann-tief, frau, maedchen, junge, alt, hund, katze, roboter
 """
 import sys
 from pathlib import Path
@@ -17,7 +17,7 @@ OUT = Path(__file__).resolve().parent.parent / "App/Resources"
 SIZE = (184, 121)
 ALIASES = {"mama-zora": "zora", "mamazora": "zora", "robo-7": "robo", "robo7": "robo", "k-9": "k9"}
 IDS = {"kira", "boris", "juki", "zora", "k9", "robo"}
-VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "roboter"}
+VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "katze", "roboter"}
 
 
 def convert(src: Path) -> Path | None:
