@@ -118,6 +118,7 @@ final class GameScene: SKScene {
     private let edgeGlow = SKNode()
     private var edgeSprites: [SKSpriteNode] = []
     private var musicDuck: Float = 1
+    private var fireWall: FireWall?   // FireWall
     /// Easteregg: Fernsehturm-Licht 5 s gedrückt halten → Atombombe (einmal pro Spiel).
     private var towerHoldStart: TimeInterval?
     private var towerEggUsed = false
@@ -295,6 +296,12 @@ final class GameScene: SKScene {
         dangerAura.alpha = 0
         figure.addChild(dangerAura)
         backLayer.addChild(figure)
+        if FireWall.enabled {   // FireWall
+            let fire = FireWall(glowTexture: glowTexture)
+            fire.node.zPosition = 3.8
+            backLayer.addChild(fire.node)
+            fireWall = fire
+        }
         startFigureIdle()
         let blink = SKAction.repeatForever(.sequence([
             .fadeAlpha(to: 1, duration: 0), .wait(forDuration: 0.7),
@@ -537,6 +544,7 @@ final class GameScene: SKScene {
         visibleLeft = CGFloat(left)
         visibleRight = CGFloat(right)
         visibleTop = CGFloat(top)
+        fireWall?.layout(left: CGFloat(left), bottom: Layout.height - CGFloat(bottom))   // FireWall
         skyBottom = CGFloat(bottom)
         game.extendCity(toScreenX: Double(right) + 40)
         updateCity()
@@ -594,6 +602,7 @@ final class GameScene: SKScene {
         startFigureIdle()
         let rooftop = newMode == .rooftop
         figure.isHidden = !rooftop
+        fireWall?.node.isHidden = !rooftop   // FireWall
         if rooftop && animated { dropFigureIn(after: 0.5) }
         slotFrames.forEach { $0.isHidden = !rooftop }
         gems.values.forEach { $0.removeWithGlow() }
@@ -2144,6 +2153,7 @@ final class GameScene: SKScene {
             // Je näher am Rand, desto lauter brummt der Alarm
             let level = danger ? Float(1 - max(0, game.city.figureX) / City.dangerX) : 0
             audio.setDanger(level)
+            fireWall?.update(dt, danger: level)   // FireWall
             // Roter Glow um die Figur, pulsiert mit dem Brummen und wird stärker, je näher der Rand
             let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
             dangerAura.alpha = CGFloat(Double(level) * 0.85 * pulse)

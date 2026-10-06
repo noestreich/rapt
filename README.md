@@ -149,6 +149,8 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 - Der Runner zeigt im Stand alle paar Sekunden eine Geste: zurückschauen, strecken, hocken, winken, hüpfen,
   aufs Armband-Terminal schauen, Visier-Scan.
 - iPhone: Ist die Spielmusik aus, laufen Musik oder Podcasts aus anderen Apps weiter und die Effekte liegen darüber.
+- Experiment Feuerwand: links hinter den Häusern lodert im Dächerlauf ein Plasma-Feuer (Cyan, Blau, Magenta) mit
+  gelegentlichem Rauch, bei Absturzgefahr breiter. Abschalten: `FireWall.enabled = false` in `App/Sources/FireWall.swift`.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
 ## Musik
