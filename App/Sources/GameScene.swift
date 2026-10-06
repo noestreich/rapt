@@ -127,6 +127,22 @@ final class GameScene: SKScene {
     private var armed: Armed?
     private var armedSlot = 0
     private var fresser: FresserState?
+    /// Laufendes Minispiel (Invasion, Abrissbirne); `arcadeIntro` während des Manga-Auftakts davor.
+    private var arcade: ArcadeRound?
+    private var arcadeIntro = false
+    private var shownArcadeSeconds = -1
+    /// Hülle um die ganze Welt: Manga-Schwarzweiß und Zoom beim Auftakt der Minispiele.
+    private let mangaFX = SKEffectNode()
+    private let mangaPlain = MangaFilter()
+    private let mangaInverted: MangaFilter = {
+        let filter = MangaFilter()
+        filter.inverted = true
+        return filter
+    }()
+    private var speedLines: [SKTexture] = []
+    /// Bahn unter dem Brett für Läufer und Schiff.
+    private let arcadeLane = SKSpriteNode()
+    private var minigameActive: Bool { fresser != nil || arcade != nil || arcadeIntro }
     private var swipeStart: CGPoint?
     private var stoneTextures: [Gem: SKTexture] = [:]
     private var iconTextures: [PowerUp: SKTexture] = [:]
@@ -253,7 +269,10 @@ final class GameScene: SKScene {
         figureJump = frames.jump
         glowTexture = Backdrop.glow()
 
-        addChild(world)
+        mangaFX.shouldEnableEffects = false
+        mangaFX.filter = mangaPlain
+        addChild(mangaFX)
+        mangaFX.addChild(world)
         world.addChild(shaker)
         let layers: [(SKNode, CGFloat)] = [
             (backLayer, 0), (hudLayer, 10), (boardCrop, 20), (glowLayer, 25),
@@ -351,6 +370,26 @@ final class GameScene: SKScene {
             x += 4
         }
 
+        // Bahn für Läufer und Schiff in den Minispielen; deckt währenddessen die Sprung-Leiste ab
+        var lane = PixelCanvas(width: Layout.boardSize + 12, height: 13, fill: RGBA(hex: 0x0B0A11))
+        for y in stride(from: 2, to: 12, by: 2) { lane.fillRect(0, y, lane.width, 1, RGBA(hex: 0x14121C)) }
+        lane.fillRect(0, 0, lane.width, 1, RGBA(hex: 0x3FD8FF))
+        lane.fillRect(0, 12, lane.width, 1, RGBA(hex: 0x1A6A88))
+        for y in 1..<12 {
+            for x in 0..<6 {
+                let warn = ((x + y) >> 1) & 1 == 1 ? RGBA(hex: 0xB8321F) : RGBA(hex: 0x1A1418)
+                lane.set(x, y, warn)
+                lane.set(lane.width - 1 - x, y, warn)
+            }
+        }
+        arcadeLane.texture = lane.texture()
+        arcadeLane.size = lane.size
+        arcadeLane.anchorPoint = CGPoint(x: 0, y: 1)
+        arcadeLane.position = design(Layout.boardX - 6, Layout.planY - 3)
+        arcadeLane.zPosition = 5
+        arcadeLane.isHidden = true
+        hudLayer.addChild(arcadeLane)
+
         // Steine liegen in einer Maske, damit nachrutschende Steine hinter der Brettkante auftauchen
         let mask = SKSpriteNode(color: .white, size: CGSize(width: Layout.boardSize, height: Layout.boardSize))
         mask.anchorPoint = CGPoint(x: 0, y: 1)
@@ -419,6 +458,15 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        settingsPanel.onTestArcade = { [weak self] in
+            guard let self, self.mode == .rooftop, !self.game.isOver else { return }
+            self.game.grant(.invasion)
+            self.game.grant(.abriss)
+            self.updateSlots()
+            self.refreshStatus()
+            self.audio.play(.powerUp, volume: 0.7)
+            self.settingsPanel.hide()
+        }
         shaker.addChild(helpPanel.node)
 
         // Roter Rahmen um das ganze Display
@@ -613,6 +661,7 @@ final class GameScene: SKScene {
         countdownLabel.isHidden = true
         fresser?.node.removeFromParent()
         fresser = nil
+        abortArcade()
         armed = nil
         armedBracket.isHidden = true
         pendingDeliveries = 0
@@ -1246,6 +1295,10 @@ final class GameScene: SKScene {
                   lines: ["FELD ANTIPPEN: SPRENGT 5X5."], onTap: radioFor(.atom)),
             .init(icon: icon(.fresser), title: "FRESSER", badge: percent(.fresser),
                   lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."], onTap: radioFor(.fresser)),
+            .init(icon: icon(.invasion), title: "INVASION", badge: percent(.invasion),
+                  lines: ["9 SEK. ZIEHEN: DER LÄUFER ZIELT", "UND SCHIESST VON UNTEN. UFO!"], onTap: radioFor(.invasion)),
+            .init(icon: icon(.abriss), title: "ABRISSBIRNE", badge: percent(.abriss),
+                  lines: ["12 SEK. ZIEHEN: DAS SCHIFF", "SCHLÄGT DIE BIRNE IN DIE STEINE."], onTap: radioFor(.abriss)),
         ]
 
         let lineStone = SKNode()
@@ -1291,7 +1344,7 @@ final class GameScene: SKScene {
             ], highlight: true),
         ]
         return HelpPanel(designHeight: Layout.height, powerUps: powerUps, specials: specials,
-                         footnote: "JEDER 6. SPRUNG: FRESSER ODER ATOM.", info: info)
+                         footnote: "JEDER 6. SPRUNG: EIN SELTENES POWER-UP.", info: info)
     }
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
@@ -1371,6 +1424,7 @@ final class GameScene: SKScene {
         figureFalling = true
         fresser?.node.removeFromParent()
         fresser = nil
+        abortArcade()
         countdownLabel.isHidden = true
         setArmed(nil)
         stopFigureIdle()
@@ -1404,6 +1458,8 @@ final class GameScene: SKScene {
         case .fresser: return "FRESSER"
         case .strudel: return "STRUDEL"
         case .atom: return "ATOMBOMBE"
+        case .invasion: return "INVASION"
+        case .abriss: return "ABRISSBIRNE"
         }
     }
 
@@ -1511,6 +1567,10 @@ final class GameScene: SKScene {
             setStatus("ABSTURZGEFAHR!", color: Palette.red, blink: true)
         } else if fresser != nil {
             setStatus("WISCHEN ZUM LENKEN", color: Palette.amber)
+        } else if arcadeIntro {
+            setStatus("ACHTUNG!", color: Palette.red, blink: true)
+        } else if let round = arcade {
+            setStatus(round.hint, color: Palette.amber)
         } else if armed == .bomb {
             setStatus("BOMBE: ZIEL WÄHLEN", color: Palette.amber)
         } else if armed == .atom {
@@ -1540,7 +1600,7 @@ final class GameScene: SKScene {
     }
 
     private func handleSlot(_ i: Int) {
-        guard !busy, fresser == nil, i < game.powerUps.count else { return }
+        guard !busy, !minigameActive, i < game.powerUps.count else { return }
         let kind = game.powerUps[i]
         switch kind {
         case .bombe:
@@ -1555,6 +1615,9 @@ final class GameScene: SKScene {
         case .fresser:
             setArmed(nil)
             startFresser()
+        case .invasion, .abriss:
+            setArmed(nil)
+            startArcade(kind)
         }
         if armed != nil { audio.play(.select, volume: 0.5) }
     }
@@ -1782,6 +1845,234 @@ final class GameScene: SKScene {
         run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in self?.play(result, index: 0) }]))
     }
 
+    // MARK: Minispiele (Invasion, Abrissbirne)
+
+    private func startArcade(_ kind: PowerUp) {
+        guard !busy, game.startArcade(kind) else { return }
+        busy = true
+        setSelected(nil)
+        updateSlots()
+        arcadeIntro = true
+        refreshStatus()
+        let title = kind == .invasion ? "INVASION!" : "ABRISSBIRNE!"
+        let color = kind == .invasion ? RGBA(hex: 0xFF4FA8) : RGBA(hex: 0xFFB347)
+        mangaIntro(title, color: color) { [weak self] in
+            guard let self, self.arcadeIntro else { return }
+            self.arcadeIntro = false
+            let host = self.arcadeHost()
+            let round: ArcadeRound
+            if kind == .invasion {
+                round = InvasionRound(host: host, figure: self.figureFrames)
+            } else {
+                round = AbrissRound(host: host)
+            }
+            round.node.zPosition = 6
+            self.fx.pixelLayer.addChild(round.node)
+            self.arcade = round
+            self.shownArcadeSeconds = -1
+            self.countdownLabel.isHidden = false
+            self.refreshStatus()
+        }
+    }
+
+    private func arcadeHost() -> ArcadeHost {
+        let topLeft = design(Layout.boardX, Layout.boardY)
+        let side = CGFloat(Layout.boardSize)
+        return ArcadeHost(
+            fx: fx,
+            glowTexture: glowTexture,
+            tile: CGFloat(Layout.tile),
+            cols: game.board.cols,
+            rows: game.board.rows,
+            board: CGRect(x: topLeft.x, y: topLeft.y - side, width: side, height: side),
+            groundY: Layout.height - CGFloat(Layout.planY + 8),
+            center: { [unowned self] in self.center(of: $0) },
+            occupied: { [unowned self] p in self.gems[p].map { !$0.isDying } ?? false },
+            gemColor: { [unowned self] p in self.gems[p].flatMap { self.sprites[$0.gem]?.ramp.last } },
+            smash: { [unowned self] p, heavy in self.arcadeSmash(p, heavy: heavy) },
+            march: { [unowned self] dx in
+                for node in self.gems.values where !node.isDying { node.body.position.x = dx }
+            },
+            shake: { [unowned self] in self.shake(strength: $0) },
+            warp: { [unowned self] p, strength, color in self.warp(at: p, strength: strength, color: color) },
+            sound: { [unowned self] slot, volume, semitones in self.audio.play(slot, volume: volume, semitones: semitones) },
+            tick: { [unowned self] in self.haptics.select() },
+            boom: { [unowned self] in self.haptics.explosion() }
+        )
+    }
+
+    /// Stein im Minispiel zerschlagen: Konfetti in Steinfarbe, Glow, bei Spezialsteinen eine Explosion.
+    private func arcadeSmash(_ p: Pos, heavy: Bool) -> Bool {
+        guard let node = gems[p], !node.isDying else { return false }
+        gems.removeValue(forKey: p)
+        let c = center(of: p)
+        let colors = sprites[node.gem]!.ramp.suffix(3).map(\.skColor) + [.white]
+        fx.flash(at: c, color: GemArt.glowColor(node.gem))
+        fx.shrapnel(at: c, colors: colors, count: heavy ? 16 : 9, power: heavy ? 1.1 : 0.8)
+        if heavy || node.special != nil {
+            fx.explosion(at: c, scale: node.special != nil ? 1.5 : 1)
+            shake(strength: 2)
+        }
+        node.removeWithGlow()
+        return true
+    }
+
+    private func updateArcade(_ dt: TimeInterval) {
+        guard let round = arcade, !settingsPanel.isVisible else { return }
+        round.update(dt)
+        let seconds = max(0, Int(ceil(round.timeLeft)))
+        if seconds != shownArcadeSeconds {
+            shownArcadeSeconds = seconds
+            setText(countdownLabel, "\(Self.name(round.kind)) \(seconds)", color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
+            if seconds <= 3 && seconds > 0 { audio.play(.select, volume: 0.5) }
+        }
+        if round.isFinished { endArcade() }
+    }
+
+    private func endArcade() {
+        guard let round = arcade else { return }
+        arcade = nil
+        let cleared = round.cleared
+        round.teardown()
+        countdownLabel.isHidden = true
+        arcadeLane.isHidden = true
+        let c = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        mangaFlash([true], step: 0.07)
+        audio.play(.slam, volume: 0.6)
+        warp(at: c, strength: 10, color: .white)
+        fx.warpRing(at: c, color: .white, radius: 120)
+        shake(strength: 3)
+        haptics.explosion()
+        fx.popup("\(cleared.count) TREFFER", at: c, color: Palette.amber, scale: 2)
+        refreshStatus()
+        let result = game.finishArcade(cleared: cleared)
+        run(.sequence([.wait(forDuration: 0.45), .run { [weak self] in self?.play(result, index: 0) }]))
+    }
+
+    /// Abbruch ohne Auswertung, z. B. bei Absturz oder neuem Spiel.
+    private func abortArcade() {
+        arcade?.teardown()
+        arcade = nil
+        arcadeIntro = false
+        arcadeLane.isHidden = true
+        removeAction(forKey: "manga")
+        overlayLayer.children.filter { $0.name == "manga" }.forEach { $0.removeFromParent() }
+        mangaFX.removeAllActions()
+        mangaFX.shouldEnableEffects = false
+        mangaFX.filter = mangaPlain
+        mangaFX.setScale(1)
+        mangaFX.position = .zero
+    }
+
+    /// Over-the-top-Auftakt wie im Manga: weißer Blitz, Schwarz-Weiß-Flackern (normal und invertiert),
+    /// Konzentrationslinien, Zoom aufs Brett, Titel mit Farbsaum, der hereinknallt, dann eine Schockwelle.
+    private func mangaIntro(_ title: String, color: RGBA, then start: @escaping () -> Void) {
+        if speedLines.isEmpty { speedLines = [ArcadeArt.speedLines(seed: 3), ArcadeArt.speedLines(seed: 8), ArcadeArt.speedLines(seed: 21)] }
+        let c = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        arcadeLane.isHidden = false
+        audio.play(.slam, volume: 0.9)
+        audio.play(.warp, volume: 0.5)
+        haptics.explosion()
+        shake(strength: 4)
+
+        let white = SKSpriteNode(color: .white, size: CGSize(width: 1400, height: 1800))
+        white.position = c
+        white.zPosition = 10
+        white.name = "manga"
+        overlayLayer.addChild(white)
+        white.run(.sequence([.fadeOut(withDuration: 0.14), .removeFromParent()]))
+
+        let lines = SKSpriteNode(texture: speedLines[0], size: CGSize(width: 450, height: 840))
+        lines.position = c
+        lines.zPosition = 8
+        lines.name = "manga"
+        overlayLayer.addChild(lines)
+        let textures = speedLines
+        lines.run(.sequence([
+            .repeat(.sequence([.wait(forDuration: 0.05), .run { lines.texture = textures.randomElement() }]), count: 10),
+            .fadeOut(withDuration: 0.15),
+            .removeFromParent(),
+        ]))
+
+        // Titel mit rot-cyanfarbenem Farbsaum
+        let canvas = PixelFont.render(title, color: color, shadow: RGBA(hex: 0x1A0A06))
+        let texture = canvas.texture()
+        let size = CGSize(width: canvas.width * 3, height: canvas.height * 3)
+        let titleNode = SKNode()
+        titleNode.position = CGPoint(x: c.x, y: c.y + 24)
+        titleNode.zPosition = 12
+        titleNode.name = "manga"
+        for (tint, dx) in [(RGBA(hex: 0xFF2040), -2), (RGBA(hex: 0x20E0FF), 2)] {
+            let ghost = SKSpriteNode(texture: texture, size: size)
+            ghost.color = tint.skColor
+            ghost.colorBlendFactor = 1
+            ghost.blendMode = .add
+            ghost.alpha = 0.8
+            ghost.position = CGPoint(x: dx, y: 0)
+            ghost.run(.repeatForever(.sequence([
+                .move(to: CGPoint(x: dx + Int.random(in: -1...1), y: Int.random(in: -1...1)), duration: 0.04),
+                .move(to: CGPoint(x: dx, y: 0), duration: 0.04),
+            ])))
+            titleNode.addChild(ghost)
+        }
+        titleNode.addChild(SKSpriteNode(texture: texture, size: size))
+        titleNode.setScale(2.6)
+        overlayLayer.addChild(titleNode)
+        let slam = SKAction.scale(to: 1, duration: 0.09)
+        slam.timingMode = .easeIn
+        titleNode.run(.sequence([
+            slam,
+            .run { [weak self] in self?.shake(strength: 3) },
+            .wait(forDuration: 0.75),
+            .group([.scale(to: 1.4, duration: 0.18), .fadeOut(withDuration: 0.18)]),
+            .removeFromParent(),
+        ]))
+
+        mangaFlash([false, true, false, true, false], step: 0.08)
+        let focus = convert(c, from: shaker)
+        zoom(to: 1.12, focus: focus, duration: 0.12)
+        run(.sequence([
+            .wait(forDuration: 0.42),
+            .run { [weak self] in
+                guard let self else { return }
+                self.zoom(to: 1, focus: focus, duration: 0.3)
+                self.warp(at: c, strength: 9, color: color.skColor)
+                self.fx.warpRing(at: c, color: color.skColor, radius: 110)
+            },
+            .wait(forDuration: 0.55),
+            .run(start),
+        ]), withKey: "manga")
+    }
+
+    /// Schwarz-Weiß-Bilder hintereinander (`true` = invertiert), danach wieder Farbe.
+    private func mangaFlash(_ pattern: [Bool], step: TimeInterval) {
+        var actions: [SKAction] = []
+        for inverted in pattern {
+            actions.append(.run { [weak self] in
+                guard let self else { return }
+                self.mangaFX.filter = inverted ? self.mangaInverted : self.mangaPlain
+                self.mangaFX.shouldEnableEffects = true
+            })
+            actions.append(.wait(forDuration: step))
+        }
+        actions.append(.run { [weak self] in self?.mangaFX.shouldEnableEffects = false })
+        mangaFX.run(.sequence(actions), withKey: "flash")
+    }
+
+    /// Zoomt die ganze Welt um `focus` (Szenenkoordinaten).
+    private func zoom(to scale: CGFloat, focus: CGPoint, duration: TimeInterval) {
+        let from = mangaFX.xScale
+        let action = SKAction.customAction(withDuration: duration) { [weak self] _, elapsed in
+            guard let self else { return }
+            let k = duration > 0 ? min(1, elapsed / CGFloat(duration)) : 1
+            let eased = k * k * (3 - 2 * k)
+            let s = from + (scale - from) * eased
+            self.mangaFX.setScale(s)
+            self.mangaFX.position = CGPoint(x: focus.x * (1 - s), y: focus.y * (1 - s))
+        }
+        mangaFX.run(action, withKey: "zoom")
+    }
+
     // MARK: Plan, Figur, Belohnungen
 
     /// Atmen, dazu alle paar Sekunden eine zufällige Geste.
@@ -1972,7 +2263,7 @@ final class GameScene: SKScene {
             settingsPanel.pointerDown(d)
             return
         }
-        if gearRect.contains(d) && fresser == nil {
+        if gearRect.contains(d) && !minigameActive {
             pointerStart = nil
             setArmed(nil)
             setSelected(nil)
@@ -1988,6 +2279,11 @@ final class GameScene: SKScene {
             swipeStart = point
             return
         }
+        if let round = arcade {
+            round.pointer(point.x)
+            return
+        }
+        if arcadeIntro { return }
         if game.isOver { return }
         if let slot = slotIndex(at: point) {
             pointerStart = nil
@@ -2031,6 +2327,10 @@ final class GameScene: SKScene {
             swipeStart = point
             return
         }
+        if let round = arcade {
+            round.pointer(point.x)
+            return
+        }
         guard let start = pointerStart, !busy else { return }
         let dx = point.x - start.point.x, dy = point.y - start.point.y
         guard max(abs(dx), abs(dy)) >= 7 else { return }
@@ -2046,6 +2346,7 @@ final class GameScene: SKScene {
 
     private func pointerUp(_ point: CGPoint) {
         swipeStart = nil
+        arcade?.release()
         if towerHoldStart != nil {
             cancelTowerHold()
             return
@@ -2128,6 +2429,7 @@ final class GameScene: SKScene {
         }
 
         updateFresser(dt)
+        updateArcade(dt)
         updateTowerHold()
 
         // Lebendige Stadt: Fensterlicht und Sternschnuppen

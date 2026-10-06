@@ -18,6 +18,22 @@ public enum PowerUp: String, CaseIterable, Sendable {
     case atom
     /// Zwei Farben versteinern, zehn Sekunden lang frisst ein Automat alle anderen Steine.
     case fresser
+    /// Minispiel nach Space Invaders: Der Läufer schießt von unten auf die Steine.
+    case invasion
+    /// Minispiel nach Arkanoid: Ein Raumschiff schlägt eine Abrissbirne in die Steine.
+    case abriss
+
+    /// Startet ein eigenes Minispiel mit Steuerung statt eines Sofort-Effekts.
+    public var isArcade: Bool { self == .invasion || self == .abriss }
+
+    /// Dauer des Minispiels in Sekunden.
+    public var arcadeDuration: Double {
+        switch self {
+        case .invasion: return 9
+        case .abriss: return 12
+        default: return 0
+        }
+    }
 }
 
 /// Ergebnis des Strudels.

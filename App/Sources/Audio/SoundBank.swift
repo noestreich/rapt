@@ -113,6 +113,12 @@ final class SoundBank {
         schedule(buffer, volume: volume * Float(library.gain(for: slot)), semitones: 0)
     }
 
+    /// Wie `play`, aber um `semitones` Halbtöne verschoben (Marsch, Treffer-Serien).
+    func play(_ slot: SoundSlot, volume: Float = 1, semitones: Double) {
+        guard let buffer = custom[slot] ?? synth[slot] else { return }
+        schedule(buffer, volume: volume * Float(library.gain(for: slot)), semitones: semitones)
+    }
+
     /// Bissen des Fressers; jeder weitere Bissen etwas höher.
     func chomp(count: Int, volume: Float = 0.5) {
         let semitones = Double(count % 12)
@@ -334,6 +340,49 @@ final class SoundBank {
                 let f = 160 + 260 * sin(.pi * t / 0.1)
                 phase += f * dt
                 return Self.triangle(phase) * 0.45 * min(1, t / 0.005) * exp(-t * 12)
+            }
+
+        case .slam:
+            return buffer(1.1, crush: 2) { t in
+                // Manga-Schlag: kurzes Ansaugen, dann tiefer verzerrter Aufprall mit metallischem Nachklang
+                let suck = t < 0.12 ? noise.next() * 0.3 * (t / 0.12) : 0
+                let lt = max(0, t - 0.12)
+                phase += (95 * exp(-lt * 5) + 38) * dt
+                let thump = t >= 0.12 ? tanh(sin(2 * .pi * phase) * 2.2) * exp(-lt * 3.2) : 0
+                let ring = t >= 0.12 ? (sin(2 * .pi * 523 * lt) + sin(2 * .pi * 1311 * lt) * 0.6 + sin(2 * .pi * 2197 * lt) * 0.4) * exp(-lt * 6) * 0.18 : 0
+                let crack = t >= 0.12 && lt < 0.05 ? noise.next() * (1 - lt / 0.05) * 0.7 : 0
+                return suck + thump * 0.8 + ring + crack
+            }
+
+        case .laser:
+            return buffer(0.13) { t in
+                phase += (1900 * exp(-t * 22) + 260) * dt
+                return Self.square(phase) * 0.22 * exp(-t * 14)
+            }
+
+        case .march:
+            return buffer(0.11) { t in
+                phase += 98 * dt
+                return (Self.square(phase) * 0.35 + Self.triangle(phase * 0.5) * 0.3) * min(1, t / 0.004) * exp(-t * 18)
+            }
+
+        case .ufo:
+            return buffer(0.26) { t in
+                phase += (620 + 240 * sin(2 * .pi * 16 * t)) * dt
+                return Self.triangle(phase) * 0.22 * sin(.pi * t / 0.26)
+            }
+
+        case .paddle:
+            return buffer(0.07) { t in
+                phase += (720 + 600 * t / 0.07) * dt
+                return Self.square(phase) * 0.28 * exp(-t * 35)
+            }
+
+        case .brick:
+            return buffer(0.16) { t in
+                phase += 540 * (1 - 0.3 * t / 0.16) * dt
+                let crack = t < 0.02 ? noise.next() * (1 - t / 0.02) * 0.5 : 0
+                return Self.triangle(phase) * 0.4 * exp(-t * 22) + Self.square(phase * 2) * 0.08 * exp(-t * 40) + crack
             }
 
         case .swap:

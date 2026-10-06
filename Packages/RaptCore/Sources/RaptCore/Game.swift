@@ -61,8 +61,12 @@ public struct Game: Sendable {
     public static let pointsPerPlanStep = 1500
     public static let pointsPerDetonation = 200
     /// Gewichte für zufällige Belohnungen. Seltene Power-ups sind wertvoller.
-    public static let rewardWeights: [PowerUp: Double] = [.bombe: 32, .farbtilger: 22, .strudel: 18, .atom: 16, .fresser: 12]
-    /// Jeder `roofCount - 1`. Sprung schließt einen Zyklus ab und bringt garantiert Fresser oder Atombombe.
+    public static let rewardWeights: [PowerUp: Double] = [
+        .bombe: 28, .farbtilger: 19, .strudel: 15, .atom: 13, .fresser: 9, .invasion: 9, .abriss: 7,
+    ]
+    /// Seltene Höhepunkte: garantiert am Ende jedes Zyklus.
+    public static let topRewards: [PowerUp] = [.fresser, .atom, .invasion, .abriss]
+    /// Jeder `roofCount - 1`. Sprung schließt einen Zyklus ab und bringt garantiert ein seltenes Power-up.
     public static let roofCount = 7
     public static let maxPowerUps = 3
     public static let fullStorageBonus = 500
@@ -226,6 +230,23 @@ public struct Game: Sendable {
     /// Beendet die Fresser-Runde. Versteinerte Steine in `eaten` werden ignoriert.
     public mutating func finishFresser(_ round: FresserRound, eaten: Set<Pos>) -> SwapResult {
         let cells = eaten.filter { p in board.contains(p) && board[p].map { !round.stones.contains($0) } ?? false }
+        guard !cells.isEmpty else {
+            updateOver()
+            return SwapResult(isValid: true, steps: [], rewards: [], isGameOver: isOver)
+        }
+        return finish(resolve(initial: cells))
+    }
+
+    /// Startet ein Minispiel (Invasion, Abrissbirne): nimmt das Power-up aus dem Lager.
+    public mutating func startArcade(_ kind: PowerUp) -> Bool {
+        guard kind.isArcade, powerUps.contains(kind) else { return false }
+        take(kind)
+        return true
+    }
+
+    /// Beendet ein Minispiel: Die getroffenen Felder verschwinden, danach laufen Kaskaden wie gewohnt.
+    public mutating func finishArcade(cleared: Set<Pos>) -> SwapResult {
+        let cells = cleared.filter { board.contains($0) && board[$0] != nil }
         guard !cells.isEmpty else {
             updateOver()
             return SwapResult(isValid: true, steps: [], rewards: [], isGameOver: isOver)
@@ -456,7 +477,7 @@ public struct Game: Sendable {
             }
             roof += 1
             let top = roof >= Self.roofCount - 1
-            let kind = top ? pickReward(from: [.fresser, .atom]) : pickReward(from: PowerUp.allCases)
+            let kind = top ? pickReward(from: Self.topRewards) : pickReward(from: PowerUp.allCases)
             var granted: PowerUp?
             var bonus = 0
             if powerUps.count < Self.maxPowerUps {

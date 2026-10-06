@@ -53,7 +53,7 @@ final class PowerUpTests: XCTestCase {
             let rewards = game.award(points: max(0, Game.planThreshold(Game.roofCount) - game.score))
             let top = rewards.first { $0.reachedTop }
             XCTAssertNotNil(top)
-            XCTAssertTrue([PowerUp.fresser, .atom].contains(top!.powerUp!))
+            XCTAssertTrue(Game.topRewards.contains(top!.powerUp!))
         }
     }
 
@@ -126,6 +126,27 @@ final class PowerUpTests: XCTestCase {
         let result = game.finishFresser(round, eaten: [round.start, stone])
         XCTAssertEqual(try XCTUnwrap(result.steps.first).cleared, [round.start])
         XCTAssertFalse(game.powerUps.contains(.fresser))
+    }
+
+    func testArcadeRoundsClearHitCellsAndCascade() throws {
+        var game = Game(seed: 9)
+        XCTAssertFalse(game.startArcade(.invasion), "Ohne Power-up im Lager startet kein Minispiel")
+        XCTAssertFalse(game.startArcade(.bombe), "Nur Minispiele lassen sich so starten")
+        game.grant(.invasion)
+        XCTAssertTrue(game.startArcade(.invasion))
+        XCTAssertFalse(game.powerUps.contains(.invasion))
+
+        let hits: Set<Pos> = [Pos(0, 7), Pos(1, 7), Pos(2, 6), Pos(99, 99)]
+        let result = game.finishArcade(cleared: hits)
+        XCTAssertTrue(result.isValid)
+        XCTAssertEqual(Set(try XCTUnwrap(result.steps.first).cleared), [Pos(0, 7), Pos(1, 7), Pos(2, 6)])
+        XCTAssertTrue(game.board.positions.allSatisfy { game.board[$0] != nil }, "Brett ist danach wieder voll")
+
+        game.grant(.abriss)
+        XCTAssertTrue(game.startArcade(.abriss))
+        let empty = game.finishArcade(cleared: [])
+        XCTAssertTrue(empty.isValid)
+        XCTAssertTrue(empty.steps.isEmpty)
     }
 
     func testGameIsOnlyOverWithoutMovesAndPowerUps() {

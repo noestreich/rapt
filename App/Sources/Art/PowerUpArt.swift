@@ -111,7 +111,71 @@ enum PowerUpArt {
         case .fresser: return chomper(mouth: 30, size: 16)
         case .strudel: return spiralIcon().texture()
         case .atom: return atomIcon().texture()
+        case .invasion: return invaderIcon().texture()
+        case .abriss: return wreckingBallIcon().texture()
         }
+    }
+
+    /// Pixel-Invader in Magenta mit dunklem Rand.
+    private static func invaderIcon() -> PixelCanvas {
+        var c = PixelCanvas(width: 16, height: 16)
+        let rows = [
+            "..X.....X..",
+            "...X...X...",
+            "..XXXXXXX..",
+            ".XX.XXX.XX.",
+            "XXXXXXXXXXX",
+            "X.XXXXXXX.X",
+            "X.X.....X.X",
+            "...XX.XX...",
+        ]
+        let ox = 2, oy = 4
+        var inside = Set<Int>()
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "X" {
+                inside.insert((oy + y) * 16 + ox + x)
+                c.set(ox + x, oy + y, y < 3 ? RGBA(hex: 0xFFB0D8) : RGBA(hex: 0xFF4FA8))
+            }
+        }
+        for y in 0..<16 {
+            for x in 0..<16 where !inside.contains(y * 16 + x) {
+                let near = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { inside.contains((y + $0.1) * 16 + x + $0.0) && (0..<16).contains(x + $0.0) }
+                if near { c.set(x, y, RGBA(hex: 0x1A0A12)) }
+            }
+        }
+        return c
+    }
+
+    /// Glühende Abrissbirne an einer Kette, mit Schwungstrichen.
+    private static func wreckingBallIcon() -> PixelCanvas {
+        var c = PixelCanvas(width: 16, height: 16)
+        // Kette nach oben rechts
+        for (i, (x, y)) in [(13, 0), (12, 1), (12, 2), (11, 3), (10, 4), (10, 5), (9, 6)].enumerated() {
+            c.set(x, y, i % 2 == 0 ? RGBA(hex: 0xC9CEDD) : RGBA(hex: 0x6E6A80))
+        }
+        let ramp: [RGBA] = [0x7A2A10, 0xC8501F, 0xFFB070, 0xFFE2B0].map { RGBA(hex: $0) }
+        let cx = 7.0, cy = 10.5, r = 5.2
+        var inside = Set<Int>()
+        for y in 0..<16 {
+            for x in 0..<16 {
+                let dx = Double(x) + 0.5 - cx, dy = Double(y) + 0.5 - cy
+                let d = (dx * dx + dy * dy).squareRoot()
+                guard d <= r else { continue }
+                inside.insert(y * 16 + x)
+                let light = 0.6 - (dx + dy) / (r * 2.6) - d / r * 0.3
+                c.set(x, y, ramp[clamp(Int(light * 4), 0, 3)])
+            }
+        }
+        for y in 0..<16 {
+            for x in 0..<16 where !inside.contains(y * 16 + x) {
+                let near = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { inside.contains((y + $0.1) * 16 + x + $0.0) && (0..<16).contains(x + $0.0) }
+                if near { c.set(x, y, RGBA(hex: 0x1A0A06)) }
+            }
+        }
+        c.set(5, 8, .white)
+        // Schwungstriche links
+        for (x, y) in [(0, 7), (0, 8), (1, 12), (0, 13)] { c.set(x, y, RGBA(hex: 0xFFB347)) }
+        return c
     }
 
     /// Violetter Strudel.

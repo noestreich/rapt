@@ -7,6 +7,8 @@ final class SettingsPanel {
     var onClose: () -> Void = {}
     var onNewGame: () -> Void = {}
     var onHelp: () -> Void = {}
+    /// Debug: legt Invasion und Abrissbirne ins Lager.
+    var onTestArcade: () -> Void = {}
     var onChange: () -> Void = {}
     private(set) var isVisible = false
 
@@ -31,7 +33,7 @@ final class SettingsPanel {
     private static let dim = RGBA(hex: 0x4A4B56)
 
     private let designHeight: CGFloat
-    private let x0 = 8, y0 = 10, width = 184, height = 318
+    private let x0 = 8, y0 = 10, width = 184, height = 338
     private let rowWidth = 168
     private let trackX = 62, trackWidth = 104
     private var rows: [Row] = []
@@ -112,6 +114,9 @@ final class SettingsPanel {
             specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%" },
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
+        }
+        if settings.debugVisible {
+            specs.append((fixed("MINISPIELE"), .button(action: { [weak self] in self?.onTestArcade() })))
         }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
         specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))

@@ -50,12 +50,26 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - Sprung-Leiste unter dem Brett: Sprung n braucht 1500 × n Punkte (Sprung 1: 1500, Sprung 2: +3000 …).
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
-  dasselbe hintereinander (Bombe 32, Farbtilger 22, Strudel 18, Atombombe 16, Fresser 12). Jeder sechste Sprung
-  bringt garantiert Fresser oder Atombombe, dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
+  dasselbe hintereinander (Bombe 28, Farbtilger 19, Strudel 15, Atombombe 13, Fresser 9, Invasion 9, Abrissbirne 7). Jeder sechste Sprung
+  bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
   setzt ein und die Musik wird leiser; alles stärker je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
+
+### Minispiele
+
+Zwei Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
+Schwarz-Weiß-Flackern (normal und invertiert), Konzentrationslinien, Zoom aufs Brett und der Titel mit Farbsaum.
+Unter dem Brett erscheint eine Bahn mit Warnstreifen. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
+nach Ablauf der Zeit fallen neue Steine nach, Spezialsteine unter den Treffern zünden, Kaskaden laufen wie gewohnt.
+
+| Power-up | Vorbild | Ablauf |
+|---|---|---|
+| **Invasion** (9 s) | Space Invaders | Der Läufer fährt unter dem Brett (ziehen) und schießt automatisch nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
+| **Abrissbirne** (12 s) | Arkanoid, Raptor | Ein Jäger im Raptor-Stil (ziehen) schlägt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Jeder Abpraller vom Schiff feuert zwei Leuchtspur-Salven aus den Flügeln. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Schiff. |
+
+Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 
 ### Spezialsteine
 
@@ -76,8 +90,8 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
 
 | Kontakt | Liefert |
 |---|---|
-| KIRA | Linien-Stein |
-| BORIS | Bomben-Stein, Bombe |
+| KIRA | Linien-Stein, Invasion |
+| BORIS | Bomben-Stein, Bombe, Abrissbirne |
 | JUKI | Farbtilger |
 | MAMA ZORA | Hyperstein, Strudel |
 | K-9 | Fresser |

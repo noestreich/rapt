@@ -34,8 +34,8 @@ final class HelpPanel {
     private let x0 = 8, y0 = 10, width = 184, height = 300
     private var closeRect = CGRect.zero
     private var pageRect = CGRect.zero
-    private var tapTargets: [(rect: CGRect, action: () -> Void)] = []
-    private let pages = [SKNode(), SKNode()]
+    private var tapTargets: [(page: Int, rect: CGRect, action: () -> Void)] = []
+    private let pages = [SKNode(), SKNode(), SKNode()]
     private var page = 0
     private let pageLabel = SKSpriteNode()
 
@@ -83,6 +83,7 @@ final class HelpPanel {
 
         pages.forEach { node.addChild($0) }
         var parent = pages[0]
+        var pageIndex = 0
         var y = y0 + 22
         func section(_ text: String) {
             var c = PixelCanvas(width: width - 16, height: 7)
@@ -107,21 +108,26 @@ final class HelpPanel {
             }
             let h = max(24, 10 + e.lines.count * 7 + 4)
             if let tap = e.onTap {
-                tapTargets.append((CGRect(x: x0 + 4, y: y - 2, width: width - 8, height: h), tap))
+                tapTargets.append((pageIndex, CGRect(x: x0 + 4, y: y - 2, width: width - 8, height: h), tap))
             }
             y += h
         }
 
-        // Seite 1: Power-ups und Spezialsteine (antippbar)
+        // Seite 1: Power-ups (antippbar)
         section("POWER-UPS IM DÄCHERLAUF - ANTIPPEN!")
         powerUps.forEach(entry)
         parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
-        y += 8
-        section("SPEZIALSTEINE IN BEIDEN MODI")
+
+        // Seite 2: Spezialsteine (antippbar)
+        parent = pages[1]
+        pageIndex = 1
+        y = y0 + 22
+        section("SPEZIALSTEINE IN BEIDEN MODI - ANTIPPEN!")
         specials.forEach(entry)
 
-        // Seite 2: Dächerlauf, Punkte, Macher
-        parent = pages[1]
+        // Seite 3: Dächerlauf, Punkte, Macher
+        parent = pages[2]
+        pageIndex = 2
         y = y0 + 22
         for block in info {
             section(block.title)
@@ -131,7 +137,6 @@ final class HelpPanel {
             }
             y += 6
         }
-        pages[1].isHidden = true
 
         // Knöpfe unten: Seite wechseln, Schließen
         let w = 82
@@ -148,9 +153,9 @@ final class HelpPanel {
 
     private func showPage(_ index: Int) {
         page = index
-        pages[0].isHidden = index != 0
-        pages[1].isHidden = index != 1
-        let canvas = button(index == 0 ? "MEHR" : "POWER-UPS", width: 82)
+        for (i, p) in pages.enumerated() { p.isHidden = i != index }
+        let next = ["STEINE", "MEHR", "POWER-UPS"]
+        let canvas = button(next[index], width: 82)
         pageLabel.texture = canvas.texture()
         pageLabel.size = canvas.size
     }
@@ -174,8 +179,8 @@ final class HelpPanel {
         if closeRect.insetBy(dx: -3, dy: -3).contains(p) || !panel.contains(p) {
             onClose()
         } else if pageRect.insetBy(dx: -3, dy: -3).contains(p) {
-            showPage(page == 0 ? 1 : 0)
-        } else if page == 0, let target = tapTargets.first(where: { $0.rect.contains(p) }) {
+            showPage((page + 1) % pages.count)
+        } else if let target = tapTargets.first(where: { $0.page == page && $0.rect.contains(p) }) {
             target.action()
         }
     }

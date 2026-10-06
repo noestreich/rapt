@@ -17,6 +17,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
     case bomb
     case purge
     case chomp
+    case slam
+    case laser
+    case march
+    case ufo
+    case paddle
+    case brick
     case danger
     case gameOver
     case voiceKira
@@ -47,6 +53,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .bomb: return "Bombe"
         case .purge: return "Farbtilger"
         case .chomp: return "Fresser frisst"
+        case .slam: return "Minispiel-Auftakt"
+        case .laser: return "Invasion: Schuss"
+        case .march: return "Invasion: Marsch"
+        case .ufo: return "Invasion: UFO"
+        case .paddle: return "Abrissbirne: Schiff"
+        case .brick: return "Abrissbirne: Treffer"
         case .danger: return "Absturz-Alarm"
         case .gameOver: return "Keine Züge mehr"
         case .voiceKira: return "Funk: KIRA"
@@ -78,6 +90,12 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .bomb: return "Die Bombe zündet (zusätzlich zur Explosion)."
         case .purge: return "Der Farbtilger schlägt in alle Steine einer Farbe ein."
         case .chomp: return "Der Fresser frisst einen Stein. Wird mit jedem Bissen etwas höher."
+        case .slam: return "Manga-Blitz und Titel zu Beginn von Invasion und Abrissbirne."
+        case .laser: return "Der Läufer schießt bei der Invasion nach oben."
+        case .march: return "Marschtakt der Steine bei der Invasion; vier Töne, wird schneller."
+        case .ufo: return "Das UFO fliegt über das Brett (wird wiederholt)."
+        case .paddle: return "Die Abrissbirne prallt vom Raumschiff ab."
+        case .brick: return "Die Abrissbirne zerschlägt einen Stein. Wird mit jedem Treffer etwas höher."
         case .danger: return "Läuft in Schleife, solange die Figur am linken Rand steht; wird lauter, je näher der Absturz."
         case .gameOver: return "Kein Zug und kein Power-up mehr, Spielende."
         case .voiceKira: return "KIRA übergibt einen Linien-Stein. Eigene Aufnahmen bekommen automatisch Funkklang."

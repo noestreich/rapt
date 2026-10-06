@@ -5,7 +5,7 @@ Erwartet Querformat-Bilder (ca. 3:2). Ausgabe: App/Resources/portrait_<id>.png i
 Palette auf 128 Farben reduziert, damit sie neben der übrigen Pixel-Art bestehen.
 Dateinamen werden auf die Kontakt-IDs abgebildet (mama-zora → zora, robo-7 → robo).
 
-Ordner je Teil in der Hand (empfohlen): <Ordner>/<Teil>/portrait_*.png, z. B. Bombe/, Bombenstein/, Strudel/.
+Ordner je Teil in der Hand (empfohlen): <Ordner>/<Teil>/portrait_*.png, z. B. Bombe/, Bombenstein/, Strudel/, Invasion/, Abrissbirne/.
 Dann schreibt das Skript App/Resources/portraits.json: welches Porträt welches Teil hält. Ein Funkspruch zeigt
 nur Porträts, die genau das übergebene Teil in der Hand haben.
 
@@ -24,7 +24,8 @@ ALIASES = {"mama-zora": "zora", "mamazora": "zora", "robo-7": "robo", "robo7": "
 IDS = {"kira", "boris", "juki", "zora", "k9", "robo"}
 # Ordnername → Schlüssel im Spiel (PowerUp.rawValue bzw. Spezialstein)
 ITEMS = {"atombombe": "atom", "atom": "atom", "bombe": "bombe", "farbtilger": "farbtilger", "fresser": "fresser",
-         "strudel": "strudel", "bombenstein": "bombenstein", "hyperstein": "hyperstein", "linienstein": "linienstein"}
+         "strudel": "strudel", "bombenstein": "bombenstein", "hyperstein": "hyperstein", "linienstein": "linienstein",
+         "invasion": "invasion", "abrissbirne": "abriss", "abriss": "abriss"}
 # Korrekturen an Dateinamen (Momo ist eine Katze)
 RENAME = {"k9--momo--hund": "k9--momo--katze"}
 VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "katze", "roboter"}

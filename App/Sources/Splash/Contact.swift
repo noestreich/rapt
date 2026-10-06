@@ -95,8 +95,9 @@ struct Contact: Equatable {
 
     /// Zufälliges Porträt, das genau dieses Teil in der Hand hält; ohne Zuordnung der zuständige Kontakt.
     static func random(holding key: String, fallback: Contact) -> Contact {
-        let ids = holders[key] ?? []
-        return allWithVariants.filter { ids.contains($0.id) }.randomElement() ?? random(for: fallback)
+        // Ohne eigene Porträts (z. B. neue Power-ups) spricht der zuständige Kontakt selbst
+        guard let ids = holders[key] else { return fallback }
+        return allWithVariants.filter { ids.contains($0.id) }.randomElement() ?? fallback
     }
 
     static func random(delivering special: Special) -> Contact {
@@ -124,6 +125,8 @@ struct Contact: Equatable {
         case .strudel: return zora
         case .atom: return robo
         case .fresser: return k9
+        case .invasion: return kira
+        case .abriss: return boris
         }
     }
 
