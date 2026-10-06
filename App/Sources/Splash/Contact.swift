@@ -94,17 +94,19 @@ struct Contact: Equatable {
         }
     }
 
-    /// Ausgedachte Cyber-Funksprache aus japanisch klingenden Silben.
+    /// Ausgedachte Cyber-Funksprache in Katakana: zufällige Silbenfolgen, keine echten Sätze.
     static func gibberish<G: RandomNumberGenerator>(using rng: inout G) -> [String] {
-        let syllables = ["KA", "ZU", "RE", "MI", "NO", "TA", "SHI", "KO", "RI", "GA", "DO", "YU", "SE", "NE",
-                         "TSU", "HA", "BI", "RO", "KYO", "ZEN", "MA", "TO", "JI", "SA"]
+        let kana = Array("カキコサシスタツトナニネノハマミユリレロイ")
         func word() -> String {
-            (0..<Int.random(in: 2...3, using: &rng)).map { _ in syllables.randomElement(using: &rng)! }.joined()
+            var w = String((0..<Int.random(in: 2...3, using: &rng)).map { _ in kana.randomElement(using: &rng)! })
+            if Int.random(in: 0..<4, using: &rng) == 0 { w += "ー" }
+            if Int.random(in: 0..<4, using: &rng) == 0 { w += "ン" }
+            return w
         }
         let endings = ["!", "...", "!!", ""]
         return [
             "\(word()) \(word())\(endings.randomElement(using: &rng)!)",
-            "\(word())-\(word()) \(word())\(endings.randomElement(using: &rng)!)",
+            "\(word()) \(word()) \(word())\(endings.randomElement(using: &rng)!)",
         ]
     }
 }
