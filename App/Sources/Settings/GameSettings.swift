@@ -31,6 +31,8 @@ final class GameSettings: ObservableObject {
             }
         }
     }
+    /// Uhrzeit neben dem Logo (antippen von „RAPT“ schaltet um).
+    @Published var showClock: Bool { didSet { save(showClock, "showClock") } }
     /// Debug-Zeile in den Einstellungen freigeschaltet (5 s auf die Überschrift). Nur bis zum Beenden der App.
     var debugUnlocked = false
     /// Debug: Beschleunigung der Stadt pro Spielminute (0,1 = +10 %).
@@ -53,6 +55,7 @@ final class GameSettings: ObservableObject {
             "rapt.debugCityAcceleration": City.defaultAccelerationPerMinute,
             "rapt.debugVisible": false,
             "rapt.appIcon": 0,
+            "rapt.showClock": false,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -67,6 +70,7 @@ final class GameSettings: ObservableObject {
         debugVisible = false
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
         appIcon = defaults.integer(forKey: "rapt.appIcon")
+        showClock = defaults.bool(forKey: "rapt.showClock")
     }
 
     /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.

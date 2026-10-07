@@ -65,6 +65,11 @@ final class GameScene: SKScene {
     private let scoreLabel = SKSpriteNode()
     private let comboLabel = SKSpriteNode()
     private let recordLabel = SKSpriteNode()
+    /// Uhrzeit rechts neben dem Logo, gleiche Schrift und Farbe wie „HOCHPUNKTE“.
+    private let clockLabel = SKSpriteNode()
+    private var shownClock = ""
+    /// Logo „RAPT“ auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
+    private let logoRect = CGRect(x: 16, y: 9, width: 40, height: 20)
     private let planLabel = SKSpriteNode()
     private var planSegments: [SKSpriteNode] = []
 
@@ -346,6 +351,7 @@ final class GameScene: SKScene {
             (scoreLabel, CGPoint(x: 0, y: 1), design(24, 33)),
             (comboLabel, CGPoint(x: 1, y: 1), design(176, 33)),
             (recordLabel, CGPoint(x: 1, y: 1), design(177, 17)),
+            (clockLabel, CGPoint(x: 0, y: 1), design(56, 17)),
             (planLabel, CGPoint(x: 0, y: 1), design(Layout.boardX, planY)),
         ]
         for (label, anchor, position) in labels {
@@ -2377,6 +2383,21 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Uhrzeit neben dem Logo; wird nur neu gezeichnet, wenn sich die Minute ändert.
+    private func updateClock(force: Bool = false) {
+        guard GameSettings.shared.showClock else {
+            clockLabel.isHidden = true
+            shownClock = ""
+            return
+        }
+        let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        let text = String(format: "%02d:%02d", now.hour ?? 0, now.minute ?? 0)
+        clockLabel.isHidden = false
+        guard force || text != shownClock else { return }
+        shownClock = text
+        setText(clockLabel, text, color: Palette.label)
+    }
+
     /// Läufer angetippt? Großzügige Fläche um die 7 × 10 Pixel große Figur.
     private func isOnFigure(_ point: CGPoint) -> Bool {
         guard !figure.isHidden, !figureAway, !figureFalling else { return false }
@@ -2454,6 +2475,13 @@ final class GameScene: SKScene {
         }
         if settingsPanel.isVisible {
             settingsPanel.pointerDown(d)
+            return
+        }
+        if logoRect.contains(d) && !menuVisible {
+            pointerStart = nil
+            GameSettings.shared.showClock.toggle()
+            audio.play(.select, volume: 0.4)
+            updateClock(force: true)
             return
         }
         if gearRect.contains(d) && !minigameActive {
@@ -2628,6 +2656,7 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
         updateArcade(dt)
+        updateClock()
         updateTowerHold()
 
         // Lebendige Stadt: Fensterlicht und Sternschnuppen
