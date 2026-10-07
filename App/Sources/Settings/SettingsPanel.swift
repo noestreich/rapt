@@ -98,7 +98,7 @@ final class SettingsPanel {
         #if os(iOS)
         specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
-        specs.append((fixed("APP-ICON"), .choice(options: ["1", "2"], get: { settings.appIcon }, set: { settings.appIcon = $0 })))
+        specs.append((fixed("APP-ICON"), .choice(options: ["1", "2", "3"], get: { settings.appIcon }, set: { settings.appIcon = $0 })))
         // Versteckt: erscheint erst nach 5 Sekunden Drücken auf die Überschrift
         if settings.debugUnlocked {
             specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in

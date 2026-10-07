@@ -14,7 +14,7 @@ final class GameSettings: ObservableObject {
     @Published var hintsEnabled: Bool { didSet { save(hintsEnabled, "hintsEnabled") } }
     /// Plasma-Feuer am linken Rand im Dächerlauf.
     @Published var fireEnabled: Bool { didSet { save(fireEnabled, "fireEnabled") } }
-    /// Gewähltes App-Icon: 0 = Standard (rote Kugel), 1 = Alternative (Porträt).
+    /// Gewähltes App-Icon: 0 = Standard (rote Kugel), 1 = Porträt, 2 = R-Logo.
     @Published var appIcon: Int {
         didSet {
             save(appIcon, "appIcon")
