@@ -109,6 +109,8 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
 - **Wer hält was:** Liegen die Bilder in Ordnern je Teil (`Atombombe/`, `Bombe/`, `Bombenstein/`, `Farbtilger/`,
   `Fresser/`, `Hyperstein/`, `Linienstein/`, `Strudel/`), schreibt das Skript `App/Resources/portraits.json`.
   Ein Funkspruch zeigt dann nur Porträts, die genau das übergebene Teil in der Hand haben.
+  Fehlt ein Ordner für einen Spezialstein, leiht er sich eine Gruppe: Hyperstein → Farbtilger,
+  Bombenstein → Bombe, Linienstein → Invasion.
 - **Stimmen:** Ohne Datei spricht ein Synthesizer: KIRA und JUKI hell (Mädchen), MAMA ZORA (Frau, mit Vibrato),
   BORIS tief (Mann), K-9 bellt, knurrt und winselt, ROBO-7 spricht in Tonstufen mit Piepsern.
   Eigene Aufnahmen im Sound-Labor auf die Plätze `voiceKira` … `voiceRobo` ziehen; sie bekommen automatisch Funkklang

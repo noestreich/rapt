@@ -8,19 +8,16 @@
     "robo--byte--roboter",
     "robo--hikari--maedchen",
     "robo--pippa--maedchen",
+    "robo--ronin--frau",
     "robo"
   ],
   "bombe": [
-    "boris--igor--mann-tief",
     "boris--iwan--mann-tief",
     "boris--luna--maedchen",
+    "boris--niko--mann",
     "boris--oskar--mann",
     "boris--rox--frau",
-    "boris--viktor--mann-tief"
-  ],
-  "bombenstein": [
-    "boris--hana--maedchen",
-    "boris--niko--mann",
+    "boris--viktor--mann-tief",
     "boris"
   ],
   "farbtilger": [
@@ -33,27 +30,42 @@
   ],
   "fresser": [
     "k9--momo--katze",
+    "k9--ren--junge",
     "k9--rex--hund",
     "k9"
-  ],
-  "hyperstein": [
-    "zora--amina--frau",
-    "zora"
   ],
   "invasion": [
     "kira--moewe--roboter",
     "kira--neon-trio--junge",
-    "kira--ronin--frau"
-  ],
-  "linienstein": [
-    "kira--nova--frau",
-    "kira--phantom--roboter",
-    "kira--ren--junge",
-    "kira"
+    "kira--phantom--roboter"
   ],
   "strudel": [
+    "zora--amina--frau",
     "zora--lev--alt",
+    "zora--nova--frau",
     "zora--otto--alt",
     "zora--vera--frau"
+  ],
+  "hyperstein": [
+    "juki--aiko--frau",
+    "juki--ella--maedchen",
+    "juki--liv--frau",
+    "juki--mika--junge",
+    "juki--yuna--frau",
+    "juki"
+  ],
+  "bombenstein": [
+    "boris--iwan--mann-tief",
+    "boris--luna--maedchen",
+    "boris--niko--mann",
+    "boris--oskar--mann",
+    "boris--rox--frau",
+    "boris--viktor--mann-tief",
+    "boris"
+  ],
+  "linienstein": [
+    "kira--moewe--roboter",
+    "kira--neon-trio--junge",
+    "kira--phantom--roboter"
   ]
 }

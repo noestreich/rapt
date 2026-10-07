@@ -26,6 +26,8 @@ IDS = {"kira", "boris", "juki", "zora", "k9", "robo"}
 ITEMS = {"atombombe": "atom", "atom": "atom", "bombe": "bombe", "farbtilger": "farbtilger", "fresser": "fresser",
          "strudel": "strudel", "bombenstein": "bombenstein", "hyperstein": "hyperstein", "linienstein": "linienstein",
          "invasion": "invasion", "abrissbirne": "abriss", "abriss": "abriss"}
+# Spezialstein → Power-up-Gruppe, deren Porträts er nutzt, wenn sein Ordner fehlt
+BORROW = {"hyperstein": "farbtilger", "bombenstein": "bombe", "linienstein": "invasion"}
 # Korrekturen an Dateinamen (Momo ist eine Katze)
 RENAME = {"k9--momo--hund": "k9--momo--katze"}
 VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "katze", "roboter"}
@@ -79,6 +81,11 @@ def main():
         for src in sorted(sub.glob("portrait_*.png")):
             if cid := convert(src):
                 holders.setdefault(key, []).append(cid)
+    # Spezialsteine ohne eigenen Ordner leihen sich die Porträts einer passenden Power-up-Gruppe
+    for special, donor in BORROW.items():
+        if special not in holders and donor in holders:
+            holders[special] = list(holders[donor])
+            print(f"{special}: keine eigenen Porträts, nutzt die von {donor}")
     if holders:
         (OUT / "portraits.json").write_text(json.dumps(holders, indent=2, ensure_ascii=False) + "\n")
         print(f"portraits.json: {', '.join(f'{k} {len(v)}' for k, v in sorted(holders.items()))}")
