@@ -1418,12 +1418,28 @@ final class GameScene: SKScene {
         audio.play(.jump, volume: 0.6)
         haptics.explosion()
         let start = figure.position
-        let fall = SKAction.customAction(withDuration: 1.2) { node, elapsed in
+        let fall = SKAction.customAction(withDuration: 0.5) { node, elapsed in
             let t = elapsed
             node.position = CGPoint(x: (start.x - 14 * t).rounded(), y: (start.y + 30 * t - 160 * t * t).rounded())
             node.zRotation = -t * 5
         }
-        figure.run(.sequence([fall, .fadeOut(withDuration: 0.1)]))
+        // Im Sturz explodiert der Läufer: Blitz, Explosion, Splitter in seinen Farben, Rauch
+        let explode = SKAction.run { [weak self] in
+            guard let self else { return }
+            let p = CGPoint(x: self.figure.position.x, y: self.figure.position.y + 5)
+            self.figure.isHidden = true
+            self.fx.explosion(at: p, scale: 1.4)
+            self.fx.flash(at: p, color: .white)
+            self.fx.shrapnel(at: p, colors: [RGBA(hex: 0x3FD8FF).skColor, RGBA(hex: 0xFF4FA8).skColor, RGBA(hex: 0x4A4468).skColor, .white],
+                             count: 18, power: 1.1, bounces: false)
+            self.fx.steam(at: p)
+            self.fx.warpRing(at: p, color: RGBA(hex: 0xFF8A3D).skColor, radius: 50)
+            self.audio.play(.explosion, volume: 0.9)
+            self.audio.play(.bomb, volume: 0.6)
+            self.haptics.explosion()
+            self.shake(strength: 4)
+        }
+        figure.run(.sequence([fall, explode]))
         fx.popup("ABSTURZ!", at: CGPoint(x: max(30, start.x + 20), y: start.y + 16), color: Palette.red, scale: 2)
         fireWall?.burst()   // FireWall
         showGameOver()
@@ -2358,6 +2374,27 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Läufer angetippt? Großzügige Fläche um die 7 × 10 Pixel große Figur.
+    private func isOnFigure(_ point: CGPoint) -> Bool {
+        guard !figure.isHidden, !figureAway, !figureFalling else { return false }
+        let f = figure.position
+        return CGRect(x: f.x - 8, y: f.y - 3, width: 16, height: 18).contains(point)
+    }
+
+    /// Antippen: sofort eine Geste oder ein Hüpfer auf der Stelle, egal wann die letzte war.
+    private func pokeFigure() {
+        guard !figureJumping, !figureFalling, !figureAway else { return }
+        if Bool.random() {
+            hopFigure()
+        } else {
+            figure.removeAction(forKey: "gesture")
+            figure.xScale = 1
+            figureBob = 0
+            audio.play(.select, volume: 0.4)
+            playIdleGesture()
+        }
+    }
+
     /// Endlos: Sprung geschafft, der Läufer hüpft einmal hoch und landet wieder auf seinem Dach.
     private func hopFigure() {
         guard !figure.isHidden, !figureJumping, !figureFalling, !figureAway else { return }
@@ -2438,6 +2475,11 @@ final class GameScene: SKScene {
         }
         if arcadeIntro { return }
         if game.isOver { return }
+        if isOnFigure(point) {
+            pointerStart = nil
+            pokeFigure()
+            return
+        }
         if let slot = slotIndex(at: point) {
             pointerStart = nil
             handleSlot(slot)
