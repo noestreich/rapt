@@ -1495,7 +1495,8 @@ final class GameScene: SKScene {
     }
 
     /// Übergabe eines Power-ups: per Funk-Einblendung aus der Hand des Kontakts, sonst von der Figur aus.
-    private func deliver(_ kind: PowerUp) {
+    /// `landed` läuft, sobald das Power-up im Lager angekommen ist.
+    private func deliver(_ kind: PowerUp, landed: (() -> Void)? = nil) {
         let icon = iconTextures[kind] ?? SKTexture()
         let land: (CGPoint) -> Void = { [weak self] start in
             guard let self else { return }
@@ -1508,6 +1509,7 @@ final class GameScene: SKScene {
                 self.flashSlot(index)
                 self.audio.play(.powerUp, volume: 0.7)
                 self.haptics.select()
+                landed?()
             }
         }
         var delivery = SplashPresenter.Delivery(contact: Contact.random(delivering: kind), item: icon)
@@ -2370,16 +2372,29 @@ final class GameScene: SKScene {
             hopFigure()
             return
         }
-        jumpFigure(to: building) { [weak self] in
-            guard let self else { return }
-            let slotLabel = self.design(Layout.slotX(1), Layout.slotY - 6)
-            if let kind = reward.powerUp {
-                self.fx.popup("+ " + Self.name(kind), at: slotLabel, color: Palette.amber)
-                self.deliver(kind)
-            } else if reward.bonusPoints > 0 {
-                self.fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
+        // Reihenfolge: Funkspruch → Power-up landet im Lager → kurze Pause → Läufer springt aufs nächste Dach
+        var jumped = false
+        let jump: () -> Void = { [weak self] in
+            guard let self, !jumped else { return }
+            jumped = true
+            self.jumpFigure(to: building) { [weak self] in
+                if reward.reachedTop { self?.heroFireworks() }
             }
-            if reward.reachedTop { self.heroFireworks() }
+        }
+        let slotLabel = design(Layout.slotX(1), Layout.slotY - 6)
+        if let kind = reward.powerUp {
+            deliver(kind) { [weak self] in
+                guard let self else { return }
+                self.fx.popup("+ " + Self.name(kind), at: slotLabel, color: Palette.amber)
+                self.run(.sequence([.wait(forDuration: 0.35), .run(jump)]))
+            }
+            // Sicherheitsnetz, falls die Übergabe ausbleibt
+            run(.sequence([.wait(forDuration: 6), .run(jump)]))
+        } else {
+            if reward.bonusPoints > 0 {
+                fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
+            }
+            jump()
         }
     }
 
