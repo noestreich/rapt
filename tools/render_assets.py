@@ -65,7 +65,7 @@ class Canvas:
 
 
 # ---------- Steine (GemArt) ----------
-LOOKS = {"orden": (356, 82, 52), "zahnrad": (334, 85, 62), "signal": (47, 92, 56), "uranglas": (96, 75, 48),
+LOOKS = {"orden": (356, 82, 52), "zahnrad": (186, 62, 48), "signal": (47, 92, 56), "uranglas": (96, 75, 48),
          "kristall": (200, 85, 54), "roehre": (286, 62, 58), "niete": (215, 10, 72)}
 GEMS = list(LOOKS)
 
@@ -79,12 +79,15 @@ def field(gem, u, v):
     if gem == "orden":
         d = poly(u, v, 8, .8, TAU / 16)
     elif gem == "zahnrad":
-        # Herz (früher Zahnrad)
-        d = min(math.hypot(u + .32, v + .22) - .42, math.hypot(u - .32, v + .22) - .42, poly(u, v - .02, 4, .56, TAU / 8))
+        # Donut (früher Zahnrad, dann Herz)
+        d = abs(l - .52) - .32
+        return d, clamp(-d / .32, 0, 1) ** .6
     elif gem == "signal":
         d = poly(u, v * .85, 4, .56, TAU / 8)
     elif gem == "uranglas":
         d = max(poly(u, v, 4, .66, 0), poly(u, v, 4, .85, TAU / 8))
+        # Treppenschliff
+        return d, .5 * clamp(-d / .16, 0, 1) + .5 * clamp((-d - .26) / .16, 0, 1)
     elif gem == "kristall":
         d = poly(u, v - .25, 3, .5, TAU / 4)
     elif gem == "roehre":

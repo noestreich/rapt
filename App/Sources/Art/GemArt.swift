@@ -4,7 +4,7 @@ import SpriteKit
 /// Prozedurale Pixel-Steine (22 px). Die Form kommt aus einem Distanzfeld, die Facetten aus dessen Steigung.
 enum GemArt {
     static let tile = 22
-    /// Der Stein `.zahnrad` wird als pinkes Herz gezeichnet. `true` holt das alte orange Zahnrad zurück.
+    /// Der Stein `.zahnrad` wird als petrolfarbener Donut gezeichnet. `true` holt das alte orange Zahnrad zurück.
     static let useGear = false
 
     struct Look {
@@ -22,7 +22,7 @@ enum GemArt {
     static func look(_ gem: Gem) -> Look {
         switch gem {
         case .orden: return Look(hue: 356, sat: 82, light: 52)
-        case .zahnrad: return useGear ? Look(hue: 24, sat: 88, light: 54) : Look(hue: 334, sat: 85, light: 62)
+        case .zahnrad: return useGear ? Look(hue: 24, sat: 88, light: 54) : Look(hue: 186, sat: 62, light: 48)
         case .signal: return Look(hue: 47, sat: 92, light: 56)
         case .uranglas: return Look(hue: 96, sat: 75, light: 48)
         case .kristall: return Look(hue: 200, sat: 85, light: 54)
@@ -57,10 +57,8 @@ enum GemArt {
             let tooth = clamp(cos(atan2(v, u) * 8) * 2.5, -1, 1) * 0.5 + 0.5
             d = max(l - (0.6 + 0.24 * tooth), 0.2 - l)
         case .zahnrad:
-            // Herz: zwei Kreise oben, nach unten spitz zulaufende Raute
-            let left = ((u + 0.32) * (u + 0.32) + (v + 0.22) * (v + 0.22)).squareRoot() - 0.42
-            let right = ((u - 0.32) * (u - 0.32) + (v + 0.22) * (v + 0.22)).squareRoot() - 0.42
-            d = min(left, right, poly(u, v - 0.02, 4, 0.56, tau / 8))
+            // Donut: runder Ring mit Loch
+            d = abs(l - 0.52) - 0.32
         case .signal:
             d = poly(u, v * 0.85, 4, 0.56, tau / 8)
         case .uranglas:
@@ -73,7 +71,17 @@ enum GemArt {
         case .niete:
             d = poly(u, v, 6, 0.76, 0)
         }
-        var h = clamp(-d / 0.3, 0, 1)
+        var h: Double
+        switch gem {
+        case .zahnrad where !useGear:
+            // gewölbtes Rohr statt flacher Fase
+            h = pow(clamp(-d / 0.32, 0, 1), 0.6)
+        case .uranglas:
+            // Treppenschliff wie beim Smaragd: zwei Stufen statt einer Fase
+            h = 0.5 * clamp(-d / 0.16, 0, 1) + 0.5 * clamp((-d - 0.26) / 0.16, 0, 1)
+        default:
+            h = clamp(-d / 0.3, 0, 1)
+        }
         if gem == .niete { h -= 0.55 * clamp((0.32 - l) / 0.07, 0, 1) }
         return (d, h)
     }
