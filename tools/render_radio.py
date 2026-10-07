@@ -1,6 +1,6 @@
 """Rendert die Funksprüche aller Figuren als MP3 für die Webseite (Python-Spiegel von App/Sources/Audio/RadioVoice.swift).
 Aufruf: python3 tools/render_radio.py [Takes pro Figur, Standard 3]   (benötigt numpy und ffmpeg)
-Ausgabe: docs/assets/web/funk/funk_<name>_<take>.mp3"""
+Ausgabe: docs/assets/web/funk/funk_<teil>_<name>_<take>.mp3"""
 import json
 import math
 import subprocess
@@ -244,12 +244,22 @@ def render(v, seed):
 def main():
     takes = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     OUT.mkdir(parents=True, exist_ok=True)
+    for old in OUT.glob("funk_*.mp3"):
+        old.unlink()
     holders = json.loads((ROOT / "App/Resources/portraits.json").read_text())
-    ids = sorted({i for v in holders.values() for i in v})
-    for cid in ids:
+    # Dateiname: funk_<teil>_<name>_<take>.mp3; geliehene Gruppen (gleiche Liste wie ein Power-up) überspringen
+    seen = []
+    jobs = []
+    for item, ids in sorted(holders.items()):
+        if ids in seen:
+            continue
+        seen.append(ids)
+        for cid in ids:
+            jobs.append((item, cid))
+    for item, cid in jobs:
         parts = cid.split("--")
         v = PRESETS.get(parts[2], BASE[parts[0]]) if len(parts) == 3 else BASE[cid]
-        name = parts[1] if len(parts) == 3 else WEBNAME[cid]
+        name = f"{item}_" + (parts[1].split("_")[0] if len(parts) == 3 else WEBNAME[cid])
         for k in range(1, takes + 1):
             seed = sum(map(ord, cid)) * 7919 + k
             pcm = np.clip(np.asarray(render(v, seed)), -1, 1)
