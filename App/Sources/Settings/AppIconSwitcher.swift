@@ -4,7 +4,7 @@ import UIKit
 import AppKit
 #endif
 
-/// Wechselt zwischen Standard-Icon (rote Kugel) und den alternativen Icons (Porträt, R-Logo).
+/// Wechselt zwischen Standard-Icon (Frau mit Visor) und den alternativen Icons (rote Kugel, R-Logo).
 /// iOS: echtes Alternativ-Icon auf dem Home-Bildschirm. Mac: nur das Dock-Symbol, solange Rapt läuft.
 enum AppIconSwitcher {
     /// Index wie in den Einstellungen (0 = Standard): Name des Icon-Satzes und Bild fürs Mac-Dock.

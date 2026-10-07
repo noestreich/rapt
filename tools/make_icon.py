@@ -1,10 +1,11 @@
-"""Erzeugt das App-Icon im Neo-Pixel-Stil: Orden-Stein auf gedithertem Nebel, 32 px hart auf 1024 px skaliert,
-darüber weiches Leuchten. Aufruf: python3 tools/make_icon.py (benötigt Pillow)."""
+"""Erzeugt das erste Alternativ-Icon im Neo-Pixel-Stil (rote Kugel): Orden-Stein auf gedithertem Nebel,
+32 px hart auf 1024 px skaliert, darüber weiches Leuchten. Danach tools/make_alt_icon.py laufen lassen.
+Aufruf: python3 tools/make_icon.py (benötigt Pillow)."""
 import math
 from pathlib import Path
 from PIL import Image, ImageChops
 
-OUT = Path(__file__).resolve().parent.parent / "App/Resources/Assets.xcassets/AppIcon.appiconset"
+OUT = Path(__file__).resolve().parent.parent / "App/Resources/Assets.xcassets/AppIconAlt.appiconset"
 ART = 32
 BAYER = [(v + .5) / 16 for v in [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]]
 
