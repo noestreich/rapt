@@ -173,6 +173,9 @@ final class GameScene: SKScene {
     private var shownBuilding = 0
     private var figureFalling = false
     private var wasInDanger = false
+    /// Warn-Ticken bei Absturzgefahr: Zeit bis zum nächsten Tick und abwechselnde Tonhöhe (Tick–Tack).
+    private var dangerTickTimer: TimeInterval = 0
+    private var dangerTickHigh = true
 
     // Stadt
     private var buildingSprites: [Int: SKSpriteNode] = [:]
@@ -2653,6 +2656,17 @@ final class GameScene: SKScene {
             // Je näher am Rand, desto lauter brummt der Alarm
             let level = danger ? Float(1 - max(0, game.city.figureX) / City.dangerX) : 0
             audio.setDanger(level)
+            // Dezentes Ticken wie ein Parksensor: wird schneller und etwas lauter, je näher der Rand
+            if danger {
+                dangerTickTimer -= dt
+                if dangerTickTimer <= 0 {
+                    dangerTickTimer = 0.95 - 0.62 * Double(level)
+                    dangerTickHigh.toggle()
+                    audio.play(.dangerTick, volume: 0.1 + 0.16 * level, semitones: dangerTickHigh ? 0 : -4)
+                }
+            } else {
+                dangerTickTimer = 0
+            }
             fireWall?.update(dt, danger: level, touching: game.city.figureX < Double(FireWall.width))   // FireWall
             // Roter Glow um die Figur, pulsiert mit dem Brummen und wird stärker, je näher der Rand
             let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
@@ -2660,7 +2674,8 @@ final class GameScene: SKScene {
             dangerAura.setScale(CGFloat(0.9 + 0.5 * Double(level)))
             // Rahmen sofort sichtbar, sobald Gefahr besteht, und stärker je näher der Rand
             edgeGlow.alpha = danger ? CGFloat((0.35 + 0.55 * Double(level)) * pulse) : 0
-            duckMusic(danger ? 0.45 : 1, dt: dt)
+            // Musik nur ganz leicht zurücknehmen; das Ticken trägt die Warnung
+            duckMusic(danger ? 0.85 : 1, dt: dt)
         } else {
             // Endlos: Stadt steht still, der Läufer bleibt auf seinem Dach (auch nach Fenstergrößenwechsel)
             if mode == .endless && !figureFalling { updateCity() }

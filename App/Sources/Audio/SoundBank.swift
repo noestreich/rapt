@@ -302,6 +302,14 @@ final class SoundBank {
         case .match, .music, .voiceKira, .voiceBoris, .voiceJuki, .voiceZora, .voiceK9, .voiceRobo:
             return buffer(0.01) { _ in 0 }
 
+        case .dangerTick:
+            // Weicher, heller Tick: Sinus mit leisem Oberton, kurzer Anschlag, schnelles Abklingen
+            return buffer(0.09, crush: 1) { t in
+                phase += 1046.5 * dt
+                let tone = sin(2 * .pi * phase) + sin(4 * .pi * phase) * 0.25
+                return tone * min(1, t / 0.003) * exp(-t * 45) * 0.45
+            }
+
         case .jump:
             return buffer(0.2) { t in
                 phase += (280 + 900 * t / 0.2) * dt

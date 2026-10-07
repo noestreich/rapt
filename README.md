@@ -53,7 +53,8 @@ Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen ei
   dasselbe hintereinander (Bombe 30, Farbtilger 21, Strudel 16, Atombombe 12, Fresser 9, Invasion 6, Abrissbirne 6). Jeder sechste Sprung
   bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne, je 25 %), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
-  setzt ein und die Musik wird leiser; alles stärker je näher am Rand (Sound-Labor-Platz `danger`, läuft als Schleife).
+  setzt ein, dazu ein dezentes Tick–Tack wie ein Parksensor, das schneller wird (Sound-Labor-Plätze `danger` und
+  `dangerTick`); die Musik wird nur ganz leicht zurückgenommen.
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
 
