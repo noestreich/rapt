@@ -34,6 +34,19 @@
     "k9--rex--hund",
     "k9"
   ],
+  "hyperstein": [
+    "zora--boris--mann",
+    "zora--general-volt--mann-tief",
+    "zora--hikari--maedchen",
+    "zora--liv--frau",
+    "zora--luna--maedchen",
+    "zora--momo--katze",
+    "zora--niko--mann",
+    "zora--oskar--mann",
+    "zora--phantom--roboter",
+    "zora--stahl-ida--frau",
+    "zora--vera--frau"
+  ],
   "invasion": [
     "kira--moewe--roboter",
     "kira--neon-trio--junge",
@@ -44,15 +57,7 @@
     "zora--lev--alt",
     "zora--nova--frau",
     "zora--otto--alt",
-    "zora--vera--frau"
-  ],
-  "hyperstein": [
-    "juki--aiko--frau",
-    "juki--ella--maedchen",
-    "juki--liv--frau",
-    "juki--mika--junge",
-    "juki--yuna--frau",
-    "juki"
+    "zora--vera_strudel--frau"
   ],
   "bombenstein": [
     "boris--iwan--mann-tief",

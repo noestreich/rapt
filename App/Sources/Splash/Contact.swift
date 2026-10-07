@@ -59,7 +59,9 @@ struct Contact: Equatable {
             let parts = stem.dropFirst("portrait_".count).components(separatedBy: "--")
             guard parts.count == 3, let base = all.first(where: { $0.id == parts[0] }) else { continue }
             let voice = voicePresets[parts[2]] ?? base.voice
-            let name = parts[1].replacingOccurrences(of: "-", with: " ").uppercased()
+            // „vera_hyperstein“ → „VERA“: der Zusatz nach „_“ unterscheidet nur gleichnamige Dateien
+            let label = parts[1].components(separatedBy: "_")[0]
+            let name = label.replacingOccurrences(of: "-", with: " ").uppercased()
             let variant = Contact(id: String(stem.dropFirst("portrait_".count)), name: name, look: base.look,
                                   skin: base.skin, hair: base.hair, jacket: base.jacket, accent: base.accent,
                                   voice: voice, voiceSlot: nil)

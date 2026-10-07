@@ -33,7 +33,7 @@ RENAME = {"k9--momo--hund": "k9--momo--katze"}
 VOICES = {"mann", "mann-tief", "frau", "maedchen", "junge", "alt", "hund", "katze", "roboter"}
 
 
-def convert(src: Path) -> str | None:
+def convert(src: Path, key: str = "", taken: set[str] | None = None) -> str | None:
     name = src.stem.lower().removeprefix("portrait_")
     parts = name.split("--")
     cid = ALIASES.get(parts[0], parts[0])
@@ -47,6 +47,11 @@ def convert(src: Path) -> str | None:
             print(f"übersprungen: {src.name} (unbekannte Stimme „{voice}“, erlaubt: {', '.join(sorted(VOICES))})")
             return None
         cid = RENAME.get(f"{cid}--{variant}--{voice}", f"{cid}--{variant}--{voice}")
+        # Gleiche Figur in zwei Ordnern (z. B. Vera bei Strudel und Hyperstein): Ordner als Zusatz nach „_“,
+        # der im Spiel nicht angezeigt wird
+        if taken is not None and cid in taken:
+            base, name, voice = cid.split("--")
+            cid = f"{base}--{name}_{key}--{voice}"
     elif len(parts) != 1:
         print(f"übersprungen: {src.name} (Format: portrait_<kontakt>--<name>--<stimme>.png)")
         return None
@@ -73,13 +78,15 @@ def convert(src: Path) -> str | None:
 def main():
     folder = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
     holders: dict[str, list[str]] = {}
+    taken: set[str] = set()
     for sub in sorted(p for p in folder.iterdir() if p.is_dir() and not p.name.startswith("__")):
         key = ITEMS.get(sub.name.lower())
         if key is None:
             print(f"Ordner übersprungen: {sub.name} (bekannt: {', '.join(sorted(ITEMS))})")
             continue
         for src in sorted(sub.glob("portrait_*.png")):
-            if cid := convert(src):
+            if cid := convert(src, key, taken):
+                taken.add(cid)
                 holders.setdefault(key, []).append(cid)
     # Spezialsteine ohne eigenen Ordner leihen sich die Porträts einer passenden Power-up-Gruppe
     for special, donor in BORROW.items():
