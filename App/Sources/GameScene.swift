@@ -2405,18 +2405,13 @@ final class GameScene: SKScene {
         return CGRect(x: f.x - 8, y: f.y - 3, width: 16, height: 18).contains(point)
     }
 
-    /// Antippen: sofort eine Geste oder ein Hüpfer auf der Stelle, egal wann die letzte war.
+    /// Antippen: sofort ein Hüpfer auf der Stelle. Gesten bleiben dem Leerlauf vorbehalten.
     private func pokeFigure() {
         guard !figureJumping, !figureFalling, !figureAway else { return }
-        if Bool.random() {
-            hopFigure()
-        } else {
-            figure.removeAction(forKey: "gesture")
-            figure.xScale = 1
-            figureBob = 0
-            audio.play(.select, volume: 0.4)
-            playIdleGesture()
-        }
+        figure.removeAction(forKey: "gesture")
+        figure.xScale = 1
+        figureBob = 0
+        hopFigure()
     }
 
     /// Endlos: Sprung geschafft, der Läufer hüpft einmal hoch und landet wieder auf seinem Dach.
