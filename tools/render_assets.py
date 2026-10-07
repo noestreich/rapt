@@ -476,8 +476,8 @@ def main():
     portraits = {}
     for cid, *_rest in CONTACTS:
         args = _rest[1:]
+        # Platzhalter-Porträts nur für den Übersichtsbogen; die echten liegen in App/Resources
         portraits[cid] = portrait(cid, *args)
-        save(portraits[cid], f"portrait_{cid}")
 
     # Übersichtsbogen: pro Kontakt Porträt und die gelieferten Gegenstände
     deliveries = {
