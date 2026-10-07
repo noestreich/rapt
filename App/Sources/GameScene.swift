@@ -68,8 +68,8 @@ final class GameScene: SKScene {
     /// Uhrzeit rechts neben dem Logo, gleiche Schrift und Farbe wie „HOCHPUNKTE“.
     private let clockLabel = SKSpriteNode()
     private var shownClock = ""
-    /// Logo „RAPT“ auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
-    private let logoRect = CGRect(x: 16, y: 9, width: 40, height: 20)
+    /// Logo „RAPT“ und Uhrzeit daneben (Design-Koordinaten, großzügige Trefferfläche): antippen blendet die Uhr ein/aus.
+    private let logoRect = CGRect(x: 16, y: 9, width: 68, height: 20)
     private let planLabel = SKSpriteNode()
     private var planSegments: [SKSpriteNode] = []
 
