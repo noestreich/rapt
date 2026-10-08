@@ -178,7 +178,8 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   eingetragen in `App/Info.plist`. Zurück zum schwarzen Start: in `project.yml` die Zeile `INFOPLIST_FILE`
   durch `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
 - Vorspann nach dem Kaltstart: dasselbe Bild, der Titel glüht einmal auf, nach knapp einer Sekunde Überblendung
-  ins Spiel; Antippen überspringt. Abschalten: `LaunchSplash.enabled = false`.
+  ins Spiel; Antippen überspringt. Derzeit abgeschaltet (`LaunchSplash.enabled = false`), es erscheint nur der
+  Startbildschirm; mit `true` wieder einschalten.
 - Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je etwa 280 ms (220–340) Farbversatz
   (Rot und Blau in zufällige Richtungen), Raster, zwei verschobene Zeilen (oben und unten) und/oder Flackern, mit
   Funkrauschen (`App/Resources/glitch.wav`, Slot `glitch`). Genau drei Störungen pro Annäherung an

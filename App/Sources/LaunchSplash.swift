@@ -7,7 +7,7 @@ import SwiftUI
 /// Zum Abschalten `enabled` auf `false` setzen; zum vollständigen Entfernen diese Datei löschen und die
 /// mit `// LaunchSplash` markierten Zeilen in GameView.swift entfernen.
 struct LaunchSplash: View {
-    static let enabled = true
+    static let enabled = false
 
     /// Wird nach dem Ausblenden aufgerufen.
     var onFinish: () -> Void
