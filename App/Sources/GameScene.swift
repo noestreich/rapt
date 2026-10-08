@@ -50,6 +50,9 @@ final class GameScene: SKScene {
     private let backLayer = SKNode()
     private let hudLayer = SKNode()
     private let boardCrop = SKCropNode()
+    /// Hülle um Steine und Brett-Leuchten für den Schwarz-Weiß-Effekt.
+    private let boardFX = SKEffectNode()
+    private let boardMono = BoardMonoFilter()
     private let gemLayer = SKNode()
     private let glowLayer = SKNode()
     private let overlayLayer = SKNode()
@@ -293,13 +296,20 @@ final class GameScene: SKScene {
         mangaFX.addChild(world)
         world.addChild(shaker)
         let layers: [(SKNode, CGFloat)] = [
-            (backLayer, 0), (hudLayer, 10), (boardCrop, 20), (glowLayer, 25),
+            (backLayer, 0), (hudLayer, 10), (boardFX, 20),
             (fx.pixelLayer, 30), (fx.lightLayer, 40), (hintCursor, 44), (cursor, 45), (overlayLayer, 50),
         ]
         for (layer, z) in layers {
             layer.zPosition = z
             shaker.addChild(layer)
         }
+        // Steine und ihr Leuchten in derselben Reihenfolge wie zuvor (20, 25), aber in einer gemeinsamen Hülle
+        boardCrop.zPosition = 0
+        glowLayer.zPosition = 5
+        boardFX.addChild(boardCrop)
+        boardFX.addChild(glowLayer)
+        boardFX.shouldEnableEffects = false
+        boardFX.filter = boardMono
 
         // Hintergrund (Inhalt entsteht in rebuildBackdrop, sobald die Fenstergröße feststeht)
         nebula.anchorPoint = CGPoint(x: 0, y: 1)
@@ -458,6 +468,11 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        settingsPanel.onTestMono = { [weak self] oneBit in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            self.boardMonochrome(oneBit: oneBit, duration: 5)
+        }
         settingsPanel.onTestArcade = { [weak self] kind in
             guard let self else { return }
             self.settingsPanel.hide()
@@ -2032,6 +2047,8 @@ final class GameScene: SKScene {
         mangaFX.filter = mangaPlain
         mangaFX.setScale(1)
         mangaFX.position = .zero
+        boardFX.removeAction(forKey: "mono")
+        boardFX.shouldEnableEffects = false
     }
 
     /// Dachpunkt, auf dem der Läufer steht (Weltkoordinaten).
@@ -2243,6 +2260,23 @@ final class GameScene: SKScene {
                 self.mangaFX.filter = self.mangaPlain
             },
         ]), withKey: "glitch")
+    }
+
+    // MARK: Spielbrett ohne Farbe
+
+    /// Nimmt dem Spielbrett für `duration` Sekunden die Farbe (grau oder 1-Bit), mit kurzem Ein- und Ausblenden.
+    private func boardMonochrome(oneBit: Bool, duration: TimeInterval) {
+        let fade: CGFloat = 0.3
+        boardFX.removeAction(forKey: "mono")
+        boardMono.oneBit = oneBit
+        boardMono.amount = 0
+        boardFX.shouldEnableEffects = true
+        boardFX.run(.sequence([
+            .customAction(withDuration: fade) { [weak self] _, t in self?.boardMono.amount = t / fade },
+            .wait(forDuration: duration),
+            .customAction(withDuration: fade) { [weak self] _, t in self?.boardMono.amount = 1 - t / fade },
+            .run { [weak self] in self?.boardFX.shouldEnableEffects = false },
+        ]), withKey: "mono")
     }
 
     /// Schwarz-Weiß-Bilder hintereinander (`true` = invertiert), danach wieder Farbe.

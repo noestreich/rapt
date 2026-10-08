@@ -206,8 +206,9 @@ Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahme
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), die Bildstörungs-Regler **GLITCH**
-(Effekte einzeln, Dauer, **DAUERTEST**) und **MINISPIEL** mit den Knöpfen **INV** und **ABR** (Minispiel sofort
-starten) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+(Effekte einzeln, Dauer, **DAUERTEST**) und **TEST** mit den Knöpfen **INV** und **ABR** (Minispiel sofort starten)
+sowie **GRAU** und **1BIT** (Spielbrett 5 Sekunden ohne Farbe: Graustufen oder hart schwarz-weiß; Stadt, Läufer und
+Anzeige bleiben farbig; `BoardMonoFilter`) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

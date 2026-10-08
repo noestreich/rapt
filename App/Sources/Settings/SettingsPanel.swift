@@ -10,6 +10,8 @@ final class SettingsPanel {
     var onHelp: () -> Void = {}
     /// Debug: startet ein Minispiel sofort, ohne Power-up im Lager.
     var onTestArcade: (PowerUp) -> Void = { _ in }
+    /// Debug: Spielbrett 5 Sekunden ohne Farbe (`true` = 1-Bit, sonst grau).
+    var onTestMono: (Bool) -> Void = { _ in }
     var onChange: () -> Void = {}
     private(set) var isVisible = false
 
@@ -132,9 +134,13 @@ final class SettingsPanel {
                                       set: { GlitchFX.debugDuration = range.lowerBound + $0 * (range.upperBound - range.lowerBound) })))
                 specs.append((fixed("DAUERTEST"), .toggle(get: { GlitchFX.debugLoop }, set: { GlitchFX.debugLoop = $0 })))
             }
-            // Minispiele sofort starten
-            specs.append((fixed("MINISPIEL"), .actions(options: ["INV", "ABR"], perform: { [weak self] i in
-                self?.onTestArcade(i == 0 ? .invasion : .abriss)
+            // Minispiele sofort starten; Spielbrett 5 s ohne Farbe (grau oder 1-Bit)
+            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "GRAU", "1BIT"], perform: { [weak self] i in
+                switch i {
+                case 0: self?.onTestArcade(.invasion)
+                case 1: self?.onTestArcade(.abriss)
+                default: self?.onTestMono(i == 3)
+                }
             })))
         }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
