@@ -39,6 +39,10 @@ echo "Rapt $version ($build)"
 
 xcodegen generate
 
+# Heruntergeladene Dateien (Browser, AirDrop, ZIP) tragen die Quarantäne-Markierung; Apple lehnt macOS-Builds
+# damit ab (ITMS-91109). Darum vor jedem Archiv aus allen Quelldateien entfernen.
+xattr -dr com.apple.quarantine App Packages 2>/dev/null || true
+
 out=build/upload
 rm -rf "$out"
 mkdir -p "$out"
