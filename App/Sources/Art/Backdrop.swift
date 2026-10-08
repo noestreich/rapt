@@ -58,7 +58,8 @@ enum Backdrop {
     }
 
     /// Ein Plattenbau der vorderen Reihe mit Fensterraster. `lights` sind erleuchtete Fenster für weiches Licht.
-    static func building(width: Int, height: Int, seed: Int) -> (canvas: PixelCanvas, lights: [(x: Int, y: Int)]) {
+    /// `dark`: alle Fenster aus (Stromausfall).
+    static func building(width: Int, height: Int, seed: Int, dark: Bool = false) -> (canvas: PixelCanvas, lights: [(x: Int, y: Int)]) {
         var c = PixelCanvas(width: width, height: height)
         var lights: [(x: Int, y: Int)] = []
         c.fillRect(0, 0, width, height, RGBA(hex: 0x232330))
@@ -69,7 +70,7 @@ enum Backdrop {
             var wx = 3
             while wx < width - 4 {
                 let h = Noise.hash(wx, wy, seed)
-                let lit = h < 0.26
+                let lit = !dark && h < 0.26
                 let color: UInt32 = lit ? (Noise.hash(wx, wy, seed + 1) < 0.85 ? 0xE8A94A : 0x9FB4FF) : 0x121119
                 c.fillRect(wx, wy, 2, 2, RGBA(hex: color))
                 if lit && Noise.hash(wx, wy, seed + 2) < 0.3 { lights.append((wx + 1, wy + 1)) }

@@ -190,6 +190,8 @@ final class GameScene: SKScene {
 
     // Stadt
     private var buildingSprites: [Int: SKSpriteNode] = [:]
+    /// Stromausfall: Fenster der vorderen Häuserreihe dunkel.
+    private var cityLightsOn = true
     private var visibleLeft: CGFloat = 0
     private var visibleRight: CGFloat = Layout.width
     private var skyBottom: CGFloat = Layout.height
@@ -468,6 +470,11 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        settingsPanel.onTestBlackout = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            self.blackout(duration: 5)
+        }
         settingsPanel.onTestMono = { [weak self] oneBit in
             guard let self else { return }
             self.settingsPanel.hide()
@@ -1197,9 +1204,19 @@ final class GameScene: SKScene {
             g.colorBlendFactor = 1
             g.blendMode = .add
             g.alpha = 0.18
+            g.name = "windowGlow"
+            g.isHidden = !cityLightsOn
             g.position = CGPoint(x: CGFloat(light.x) + 0.5, y: CGFloat(b.height - light.y) - 0.5)
             sprite.addChild(g)
         }
+        // Dieselbe Fassade mit dunklen Fenstern, liegt über allen Fenstern; sichtbar beim Stromausfall
+        let darkArt = Backdrop.building(width: b.width, height: b.height, seed: index * 7 + 3, dark: true)
+        let dark = SKSpriteNode(texture: darkArt.canvas.texture(), size: darkArt.canvas.size)
+        dark.anchorPoint = .zero
+        dark.zPosition = 2
+        dark.name = "blackout"
+        dark.isHidden = cityLightsOn
+        sprite.addChild(dark)
         backLayer.addChild(sprite)
         buildingSprites[index] = sprite
         return sprite
@@ -1363,7 +1380,7 @@ final class GameScene: SKScene {
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
     private func toggleRandomWindow() {
-        guard let sprite = buildingSprites.values.randomElement() else { return }
+        guard cityLightsOn, let sprite = buildingSprites.values.randomElement() else { return }
         let w = Int(sprite.size.width), h = Int(sprite.size.height)
         let cols = max(1, (w - 7) / 4), rows = max(1, (h - 7) / 5)
         let wx = 3 + 4 * Int.random(in: 0..<cols), wy = 4 + 5 * Int.random(in: 0..<rows)
@@ -2049,6 +2066,8 @@ final class GameScene: SKScene {
         mangaFX.position = .zero
         boardFX.removeAction(forKey: "mono")
         boardFX.shouldEnableEffects = false
+        removeAction(forKey: "blackout")
+        setCityLights(on: true)
     }
 
     /// Dachpunkt, auf dem der Läufer steht (Weltkoordinaten).
@@ -2260,6 +2279,47 @@ final class GameScene: SKScene {
                 self.mangaFX.filter = self.mangaPlain
             },
         ]), withKey: "glitch")
+    }
+
+    // MARK: Stromausfall
+
+    /// Fenster der vorderen Häuserreihe an oder aus (der Fernsehturm hat Notstrom und blinkt weiter).
+    private func setCityLights(on: Bool) {
+        cityLightsOn = on
+        for sprite in buildingSprites.values {
+            sprite.childNode(withName: "blackout")?.isHidden = on
+            sprite.children.filter { $0.name == "windowGlow" }.forEach { $0.isHidden = !on }
+        }
+    }
+
+    /// Alle Fenster flackern einmal hell auf, gehen flackernd aus, die Stadt bleibt `duration` Sekunden dunkel
+    /// und das Spielbrett grau; danach springt der Strom flackernd wieder an.
+    private func blackout(duration: TimeInterval) {
+        removeAction(forKey: "blackout")
+        setCityLights(on: true)
+        let on = SKAction.run { [weak self] in self?.setCityLights(on: true) }
+        let off = SKAction.run { [weak self] in self?.setCityLights(on: false) }
+        // Aufflackern: Fensterlicht kurz kräftig
+        let surge = SKAction.run { [weak self] in
+            guard let self else { return }
+            for sprite in self.buildingSprites.values {
+                for glow in sprite.children where glow.name == "windowGlow" {
+                    glow.run(.sequence([.fadeAlpha(to: 0.6, duration: 0.05), .wait(forDuration: 0.08), .fadeAlpha(to: 0.18, duration: 0.05)]))
+                }
+            }
+            self.audio.play(.glitch, volume: 0.35, semitones: 2)
+        }
+        let crackle = SKAction.run { [weak self] in self?.audio.play(.glitch, volume: 0.45, semitones: -3) }
+        run(.sequence([
+            surge, .wait(forDuration: 0.2),
+            off, crackle, .wait(forDuration: 0.06), on, .wait(forDuration: 0.09),
+            off, .wait(forDuration: 0.05), on, .wait(forDuration: 0.14),
+            off,
+            .run { [weak self] in self?.boardMonochrome(oneBit: false, duration: duration) },
+            .wait(forDuration: duration + 0.3),
+            // Strom kommt zurück, während das Brett wieder Farbe bekommt
+            on, .wait(forDuration: 0.05), off, .wait(forDuration: 0.1), on, crackle,
+        ]), withKey: "blackout")
     }
 
     // MARK: Spielbrett ohne Farbe

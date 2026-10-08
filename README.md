@@ -208,7 +208,9 @@ Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekun
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), die Bildstörungs-Regler **GLITCH**
 (Effekte einzeln, Dauer, **DAUERTEST**) und **TEST** mit den Knöpfen **INV** und **ABR** (Minispiel sofort starten)
 sowie **GRAU** und **1BIT** (Spielbrett 5 Sekunden ohne Farbe: Graustufen oder hart schwarz-weiß; Stadt, Läufer und
-Anzeige bleiben farbig; `BoardMonoFilter`) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+Anzeige bleiben farbig; `BoardMonoFilter`) und **AUS** (Stromausfall: alle Fenster flackern hell auf und gehen
+flackernd aus, die Häuser bleiben 5 Sekunden dunkel und das Brett grau, der Fernsehturm blinkt weiter; danach springt
+der Strom wieder an) ein. Wann Stromausfall oder Graustufen im Spiel kommen, ist noch offen. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
