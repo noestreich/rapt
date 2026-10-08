@@ -10,3 +10,6 @@ DerivedData/
 # Python-Zwischendateien
 __pycache__/
 *.pyc
+
+# Archive und Exporte von tools/upload.sh
+build/

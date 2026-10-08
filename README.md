@@ -32,6 +32,7 @@ Nach Änderungen an `project.yml` oder neuen Dateien `xcodegen generate` erneut 
 | `App/Sources/SoundLabView.swift` | Sound-Labor (nur Mac, nur Debug-Build) |
 | `tools/make_icon.py` | Erzeugt das Alternativ-Icon „rote Kugel“ |
 | `tools/make_alt_icon.py` | Erzeugt die App-Icons: Standard (Frau mit Visor), rote Kugel, R-Logo (in den Einstellungen 1/2/3) |
+| `tools/upload.sh` | Archiviert und lädt nach App Store Connect hoch (`ios`, `mac` oder beide; `--bump` erhöht vorher die Build-Nummer) |
 | `tools/import_portraits.py` | Rechnet Porträts auf 184 × 121 Pixel mit 128 Farben herunter |
 | `tools/render_assets.py` | Rendert Steine, Spezialsteine, Power-up-Symbole und Porträts als PNG nach `docs/assets/` (Python-Spiegel der Swift-Generatoren) |
 
