@@ -195,3 +195,10 @@ Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekun
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
+
+### Abzüge und Webseiten-Export
+
+- `docs/assets/abzug_grafiken.png`: alle Spielgrafiken (Steine, Spezialsteine, Power-ups, Läufer, Minispiele, App-Icons)
+- `docs/assets/abzug_funker.png`: alle Funker-Porträts nach Power-up, mit Name und Stimme
+- `docs/assets/web/export/`: aktueller Export für die Webseite (Porträts als JPG, Steine, Symbole, Minispiele, Läufer, App-Icons)
+- `docs/assets/web/funk/`: Funksprüche als MP3 (`funk_<teil>_<name>_<1-3>.mp3`, erzeugt mit `tools/render_radio.py`)
