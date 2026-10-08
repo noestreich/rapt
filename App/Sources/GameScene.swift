@@ -149,6 +149,7 @@ final class GameScene: SKScene {
     private var speedLines: [SKTexture] = []
     private let glitchFilter = GlitchFilter()   // GlitchFX
     private var glitchTimer: TimeInterval = 0   // GlitchFX
+    private var glitchMarksPassed = 0   // GlitchFX
     /// Hintergrund der Sprung-Leiste (wird während der Minispiele mit Leiste und Lager ausgeblendet).
     private var planBar = SKSpriteNode()
     private var minigameActive: Bool { fresser != nil || arcade != nil || arcadeIntro }
@@ -2200,24 +2201,30 @@ final class GameScene: SKScene {
 
     // MARK: Bildstörung (GlitchFX)
 
-    /// Plant kurz vor dem Absturz Bildstörungen ein; immer häufiger, je höher `level`.
+    /// Kurz vor dem Absturz: je eine Bildstörung an den Marken in `GlitchFX.marks`, also drei pro Annäherung
+    /// an den Rand. Weicht die Figur zurück (Sprung), beginnt die Zählung neu.
     /// Im Debug-Dauertest laufen sie ständig, mit kurzer Pause dazwischen.
     private func updateGlitch(_ dt: TimeInterval, level: Float) {
-        let test = GlitchFX.debugActive && GlitchFX.debugLoop
-        guard GlitchFX.enabled, test || level > GlitchFX.threshold, arcade == nil, !arcadeIntro else {
-            glitchTimer = 0
+        guard GlitchFX.enabled else { return }
+        if level < GlitchFX.threshold { glitchMarksPassed = 0 }
+        guard arcade == nil, !arcadeIntro else { return }
+        if GlitchFX.debugActive && GlitchFX.debugLoop {
+            glitchTimer -= dt
+            if glitchTimer <= 0 {
+                glitchTimer = GlitchFX.debugDuration + 0.6
+                triggerGlitch(strength: 1)
+            }
             return
         }
-        let next = { test ? GlitchFX.debugDuration + 0.6 : GlitchFX.interval(level: level) }
-        if glitchTimer == 0 { glitchTimer = next() }
-        glitchTimer -= dt
-        if glitchTimer <= 0 {
-            glitchTimer = next()
-            triggerGlitch(strength: test ? 1 : (level - GlitchFX.threshold) / (1 - GlitchFX.threshold))
-        }
+        glitchTimer = 0
+        let marks = GlitchFX.marks
+        guard glitchMarksPassed < marks.count, level >= marks[glitchMarksPassed] else { return }
+        // Mehrere Marken auf einmal überschritten (z. B. nach Pause): nur eine Störung
+        while glitchMarksPassed < marks.count, level >= marks[glitchMarksPassed] { glitchMarksPassed += 1 }
+        triggerGlitch(strength: Float(glitchMarksPassed) / Float(marks.count))
     }
 
-    /// Eine Störung von 150–350 ms über die ganze Welt, mit leisem Funkknacksen.
+    /// Eine Störung von etwa 280 ms über die ganze Welt, mit Funkrauschen (glitch.wav).
     private func triggerGlitch(strength: Float) {
         // Manga-Blitz und Zoom haben Vorrang
         guard mangaFX.action(forKey: "flash") == nil, mangaFX.action(forKey: "zoom") == nil,
@@ -2226,7 +2233,7 @@ final class GameScene: SKScene {
         GlitchFX.randomize(glitchFilter, strength: strength)
         mangaFX.filter = glitchFilter
         mangaFX.shouldEnableEffects = true
-        audio.play(.glitch, volume: 0.06 + 0.06 * strength, semitones: Double.random(in: -3...3))
+        audio.play(.glitch, volume: 0.3 + 0.2 * strength, semitones: Double.random(in: -1...1))
         mangaFX.run(.sequence([
             .wait(forDuration: GlitchFX.duration()),
             .run { [weak self] in

@@ -161,7 +161,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `purge` | Farbtilger schlägt ein |
 | `chomp` | Fresser frisst einen Stein (wird pro Bissen höher) |
 | `danger` | Absturz-Alarm, läuft in Schleife (lauter je näher am Rand) |
-| `glitch` | Leises Funkknacksen bei jeder Bildstörung kurz vor dem Absturz |
+| `glitch` | Funkrauschen bei jeder Bildstörung kurz vor dem Absturz (mitgeliefert: `glitch.wav`) |
 | `voiceKira` … `voiceRobo` | Funkspruch des jeweiligen Kontakts (bekommt automatisch Funkklang) |
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
@@ -179,9 +179,11 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   durch `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
 - Vorspann nach dem Kaltstart: dasselbe Bild, der Titel glüht einmal auf, nach knapp einer Sekunde Überblendung
   ins Spiel; Antippen überspringt. Abschalten: `LaunchSplash.enabled = false`.
-- Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je 150–350 ms Farbversatz, Raster,
-  verschobene Zeile und/oder Flackern, mit leisem Funkknacksen (Slot `glitch`); anfangs alle 2–3 s, kurz vor dem
-  Absturz etwa alle 0,5 s. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
+- Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je etwa 280 ms (220–340) Farbversatz
+  (Rot und Blau in zufällige Richtungen), Raster, zwei verschobene Zeilen (oben und unten) und/oder Flackern, mit
+  Funkrauschen (`App/Resources/glitch.wav`, Slot `glitch`). Genau drei Störungen pro Annäherung an
+  den Rand, bei 60 %, 80 % und 93 % der Gefahr (`GlitchFX.marks`; bei Standardtempo etwa alle 8–10 s, die letzte
+  rund 4 s vor dem Absturz), jede etwas stärker; nach einem rettenden Sprung zählt es neu. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
   Debug-Regler: GLITCH schaltet Farbversatz (RGB), Raster (RAS), Zeile (ZEI) und Flackern (FLA) einzeln,
   darunter feste Dauer 50–1000 ms; DAUERTEST lässt die Störungen ständig laufen, auch ohne Absturzgefahr.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).

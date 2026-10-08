@@ -102,7 +102,7 @@ enum SoundSlot: String, CaseIterable, Identifiable, Codable {
         case .brick: return "Die Abrissbirne zerschlägt einen Stein. Wird mit jedem Treffer etwas höher."
         case .danger: return "Läuft in Schleife, solange die Figur am linken Rand steht; wird lauter, je näher der Absturz."
         case .dangerTick: return "Leises Tick–Tack bei Absturzgefahr, wird schneller, je näher die Figur am Rand ist."
-        case .glitch: return "Leises Funkknacksen bei jeder Bildstörung kurz vor dem Absturz."
+        case .glitch: return "Funkrauschen bei jeder Bildstörung kurz vor dem Absturz (glitch.wav im App-Bundle)."
         case .gameOver: return "Kein Zug und kein Power-up mehr, Spielende."
         case .voiceKira: return "KIRA übergibt einen Linien-Stein. Eigene Aufnahmen bekommen automatisch Funkklang."
         case .voiceBoris: return "BORIS übergibt einen Bomben-Stein oder eine Bombe."
