@@ -115,14 +115,13 @@ final class SettingsPanel {
             })))
         }
         if settings.debugVisible {
-            specs.append((fixed("DEBUG: TEMPO PX/S - BESCHL./MIN"), .section))
             // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
             let minSpeed = 0.2, maxSpeed = 4.0
-            specs.append(({ String(format: "%.2f", settings.debugCitySpeed) },
+            specs.append(({ String(format: "%.2fPX", settings.debugCitySpeed) },
                           .slider(get: { (settings.debugCitySpeed - minSpeed) / (maxSpeed - minSpeed) },
                                   set: { settings.debugCitySpeed = minSpeed + $0 * (maxSpeed - minSpeed) })))
             // Beschleunigung 0 … 50 % pro Spielminute
-            specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%" },
+            specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%/M" },
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
             if GlitchFX.enabled {
@@ -136,6 +135,7 @@ final class SettingsPanel {
                                       set: { GlitchFX.debugDuration = range.lowerBound + $0 * (range.upperBound - range.lowerBound) })))
                 specs.append((fixed("DAUERTEST"), .toggle(get: { GlitchFX.debugLoop }, set: { GlitchFX.debugLoop = $0 })))
             }
+            specs.append((fixed("ATOM: STROMAUSFALL"), .toggle(get: { PowerCut.afterAtomBomb }, set: { PowerCut.afterAtomBomb = $0 })))
             // Minispiele sofort starten; Spielbrett 5 s ohne Farbe (grau oder 1-Bit); Stromausfall
             specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "GRAU", "1BIT", "AUS"], perform: { [weak self] i in
                 switch i {

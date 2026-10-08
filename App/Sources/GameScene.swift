@@ -1706,6 +1706,10 @@ final class GameScene: SKScene {
             warp(at: c, strength: 12, color: SKColor(red: 0.95, green: 0.85, blue: 0.3, alpha: 1))
             shake(strength: 4)
             run(.sequence([.wait(forDuration: 0.18), .run { [weak self] in self?.play(result, index: 0) }]))
+            // Der Blitz legt das Stromnetz lahm (vorerst nur mit Debug-Schalter)
+            if PowerCut.active {
+                run(.sequence([.wait(forDuration: 0.5), .run { [weak self] in self?.blackout(duration: PowerCut.duration) }]))
+            }
 
         case .purge:
             guard let color = game.board.color(at: p) else { return }

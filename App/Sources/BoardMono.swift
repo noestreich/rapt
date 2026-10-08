@@ -28,3 +28,11 @@ final class BoardMonoFilter: CIFilter {
             .applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: image])
     }
 }
+
+/// Stromausfall als Folge der Atombombe: Fenster gehen aus, das Spielbrett wird grau.
+/// Vorerst nur mit eingeschaltetem Debug-Schalter „ATOM: STROMAUSFALL“ (wird nicht gespeichert).
+enum PowerCut {
+    static var afterAtomBomb = false
+    static let duration: TimeInterval = 5
+    static var active: Bool { afterAtomBomb && GameSettings.shared.debugVisible }
+}
