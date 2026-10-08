@@ -1214,7 +1214,8 @@ final class GameScene: SKScene {
         let darkArt = Backdrop.building(width: b.width, height: b.height, seed: index * 7 + 3, dark: true)
         let dark = SKSpriteNode(texture: darkArt.canvas.texture(), size: darkArt.canvas.size)
         dark.anchorPoint = .zero
-        dark.zPosition = 2
+        // Über allen Fenstern (0,1), aber unter Feuer und Läufer: Haus 3,5 + 0,2 = 3,7
+        dark.zPosition = 0.2
         dark.name = "blackout"
         dark.isHidden = cityLightsOn
         sprite.addChild(dark)
@@ -1390,7 +1391,8 @@ final class GameScene: SKScene {
         let pane = SKSpriteNode(color: RGBA(hex: turnOn ? 0xE8A94A : 0x121119).skColor, size: CGSize(width: 2, height: 2))
         pane.anchorPoint = CGPoint(x: 0, y: 1)
         pane.position = CGPoint(x: wx, y: h - wy)
-        pane.zPosition = 1
+        // Innerhalb des Hauses bleibt alles unter 0,3, damit Feuer (3,8) und Läufer (4) davor liegen
+        pane.zPosition = 0.1
         sprite.addChild(pane)
         if turnOn {
             // Leuchtstoffröhre: kurz flackern, dann an
