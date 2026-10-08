@@ -310,6 +310,17 @@ final class SoundBank {
                 return tone * min(1, t / 0.003) * exp(-t * 45) * 0.45
             }
 
+        case .glitch:
+            // Kurzes Funkknacksen: bandbegrenztes Rauschen in zwei, drei Stößen, leise
+            return buffer(0.12, crush: 4) { t in
+                let raw = noise.next()
+                low += (raw - low) * 0.35
+                low2 += (low - low2) * 0.35
+                let band = low - low2 * 0.8
+                let bursts = (t < 0.025 || (t > 0.045 && t < 0.06) || (t > 0.085 && t < 0.095)) ? 1.0 : 0.12
+                return tanh(band * 3) * bursts * exp(-t * 14) * 0.5
+            }
+
         case .jump:
             return buffer(0.2) { t in
                 phase += (280 + 900 * t / 0.2) * dt

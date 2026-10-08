@@ -147,6 +147,8 @@ final class GameScene: SKScene {
         return filter
     }()
     private var speedLines: [SKTexture] = []
+    private let glitchFilter = GlitchFilter()   // GlitchFX
+    private var glitchTimer: TimeInterval = 0   // GlitchFX
     /// Hintergrund der Sprung-Leiste (wird während der Minispiele mit Leiste und Lager ausgeblendet).
     private var planBar = SKSpriteNode()
     private var minigameActive: Bool { fresser != nil || arcade != nil || arcadeIntro }
@@ -2196,8 +2198,45 @@ final class GameScene: SKScene {
         ]), withKey: "manga")
     }
 
+    // MARK: Bildstörung (GlitchFX)
+
+    /// Plant kurz vor dem Absturz Bildstörungen ein; immer häufiger, je höher `level`.
+    private func updateGlitch(_ dt: TimeInterval, level: Float) {
+        guard GlitchFX.enabled, level > GlitchFX.threshold, arcade == nil, !arcadeIntro else {
+            glitchTimer = 0
+            return
+        }
+        if glitchTimer == 0 { glitchTimer = GlitchFX.interval(level: level) }
+        glitchTimer -= dt
+        if glitchTimer <= 0 {
+            glitchTimer = GlitchFX.interval(level: level)
+            triggerGlitch(strength: (level - GlitchFX.threshold) / (1 - GlitchFX.threshold))
+        }
+    }
+
+    /// Eine Störung von 60–150 ms über die ganze Welt, mit leisem Funkknacksen.
+    private func triggerGlitch(strength: Float) {
+        // Manga-Blitz und Zoom haben Vorrang
+        guard mangaFX.action(forKey: "flash") == nil, mangaFX.action(forKey: "zoom") == nil,
+              mangaFX.action(forKey: "glitch") == nil else { return }
+        glitchFilter.designWidth = size.width / max(0.01, world.xScale)
+        GlitchFX.randomize(glitchFilter, strength: strength)
+        mangaFX.filter = glitchFilter
+        mangaFX.shouldEnableEffects = true
+        audio.play(.glitch, volume: 0.06 + 0.06 * strength, semitones: Double.random(in: -3...3))
+        mangaFX.run(.sequence([
+            .wait(forDuration: Double.random(in: 0.06...0.15)),
+            .run { [weak self] in
+                guard let self else { return }
+                self.mangaFX.shouldEnableEffects = false
+                self.mangaFX.filter = self.mangaPlain
+            },
+        ]), withKey: "glitch")
+    }
+
     /// Schwarz-Weiß-Bilder hintereinander (`true` = invertiert), danach wieder Farbe.
     private func mangaFlash(_ pattern: [Bool], step: TimeInterval) {
+        mangaFX.removeAction(forKey: "glitch")   // GlitchFX
         var actions: [SKAction] = []
         for inverted in pattern {
             actions.append(.run { [weak self] in
@@ -2707,6 +2746,7 @@ final class GameScene: SKScene {
                 dangerTickTimer = 0
             }
             fireWall?.update(dt, danger: level, touching: game.city.figureX < Double(FireWall.width))   // FireWall
+            updateGlitch(dt, level: level)   // GlitchFX
             // Roter Glow um die Figur, pulsiert mit dem Brummen und wird stärker, je näher der Rand
             let pulse = 0.75 + 0.25 * sin(clock * 2 * .pi * 1.5)
             dangerAura.alpha = CGFloat(Double(level) * 0.85 * pulse)
@@ -2719,6 +2759,7 @@ final class GameScene: SKScene {
             // Endlos: Stadt steht still, der Läufer bleibt auf seinem Dach (auch nach Fenstergrößenwechsel)
             if mode == .endless && !figureFalling { updateCity() }
             audio.setDanger(0)
+            updateGlitch(dt, level: 0)   // GlitchFX
             dangerAura.alpha = 0
             edgeGlow.alpha = 0
             duckMusic(1, dt: dt)

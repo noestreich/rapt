@@ -37,7 +37,10 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.puzzle-games
         # Exportkontrolle: keine eigene Verschlüsselung → kein „Missing Compliance“ in App Store Connect
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # Startbildschirm mit Key-Art aus App/Info.plist (LaunchImage, LaunchBackground).
+        # Zurück zum schlichten schwarzen Start: die Zeile INFOPLIST_FILE durch
+        # `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
+        INFOPLIST_FILE: App/Info.plist
         INFOPLIST_KEY_UIStatusBarHidden: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"

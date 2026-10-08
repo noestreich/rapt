@@ -161,6 +161,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 | `purge` | Farbtilger schlägt ein |
 | `chomp` | Fresser frisst einen Stein (wird pro Bissen höher) |
 | `danger` | Absturz-Alarm, läuft in Schleife (lauter je näher am Rand) |
+| `glitch` | Leises Funkknacksen bei jeder Bildstörung kurz vor dem Absturz |
 | `voiceKira` … `voiceRobo` | Funkspruch des jeweiligen Kontakts (bekommt automatisch Funkklang) |
 | `gameOver` | Kein Zug und kein Power-up mehr |
 | `music` | Hintergrundmusik in Schleife |
@@ -173,6 +174,14 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 - Feuerwand: links hinter den Häusern lodert im Dächerlauf ein Plasma-Feuer (Cyan, Blau, Magenta) mit Rauch,
   bei Absturzgefahr breiter; steht die Figur im Feuer, züngelt es bis zur Bildschirmmitte, beim Absturz mit Ausbruch.
   Spieler: Schalter „FEUER“ in den Einstellungen. Entwickler: `FireWall.enabled = false` entfernt es samt Schalter.
+- Startbildschirm (iOS): Key-Art „RAPT“ (`LaunchImage`, 480 × 960 pt mittig, Rest in `LaunchBackground`),
+  eingetragen in `App/Info.plist`. Zurück zum schwarzen Start: in `project.yml` die Zeile `INFOPLIST_FILE`
+  durch `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
+- Vorspann nach dem Kaltstart: dasselbe Bild, der Titel glüht einmal auf, nach knapp einer Sekunde Überblendung
+  ins Spiel; Antippen überspringt. Abschalten: `LaunchSplash.enabled = false`.
+- Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je 60–150 ms Farbversatz, Raster,
+  verschobene Zeile und/oder Flackern, mit leisem Funkknacksen (Slot `glitch`); anfangs alle 2–3 s, kurz vor dem
+  Absturz etwa alle 0,5 s. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
 ## Musik

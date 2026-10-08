@@ -2,6 +2,7 @@ import SpriteKit
 import SwiftUI
 
 struct GameView: View {
+    @State private var showSplash = LaunchSplash.enabled   // LaunchSplash
     @State private var scene: GameScene = {
         let scene = GameScene(size: CGSize(width: 390, height: 844))
         scene.scaleMode = .resizeFill
@@ -14,6 +15,9 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .onAppear { scene.safeInsets = ScreenInsets(geo.safeAreaInsets) }
                 .onChange(of: geo.safeAreaInsets) { _, insets in scene.safeInsets = ScreenInsets(insets) }
+        }
+        .overlay {   // LaunchSplash
+            if showSplash { LaunchSplash { showSplash = false } }
         }
         .background(Color.black)
         #if os(iOS)
