@@ -55,6 +55,8 @@ final class GameScene: SKScene {
     private let boardMono = BoardMonoFilter()
     private let gemLayer = SKNode()
     private let glowLayer = SKNode()
+    /// Leuchten der Steine; liegt mit den Steinen in `boardFX`, damit es beim Grau-Effekt mitgeht.
+    private let gemGlowLayer = SKNode()
     private let overlayLayer = SKNode()
     private let cursor = SKNode()
     private let hintCursor = SKNode()
@@ -298,18 +300,18 @@ final class GameScene: SKScene {
         mangaFX.addChild(world)
         world.addChild(shaker)
         let layers: [(SKNode, CGFloat)] = [
-            (backLayer, 0), (hudLayer, 10), (boardFX, 20),
+            (backLayer, 0), (hudLayer, 10), (boardFX, 20), (glowLayer, 25),
             (fx.pixelLayer, 30), (fx.lightLayer, 40), (hintCursor, 44), (cursor, 45), (overlayLayer, 50),
         ]
         for (layer, z) in layers {
             layer.zPosition = z
             shaker.addChild(layer)
         }
-        // Steine und ihr Leuchten in derselben Reihenfolge wie zuvor (20, 25), aber in einer gemeinsamen Hülle
+        // Steine und ihr Leuchten in einer gemeinsamen Hülle; Turm- und Anzeigeleuchten bleiben außerhalb farbig
         boardCrop.zPosition = 0
-        glowLayer.zPosition = 5
+        gemGlowLayer.zPosition = 5
         boardFX.addChild(boardCrop)
-        boardFX.addChild(glowLayer)
+        boardFX.addChild(gemGlowLayer)
         boardFX.shouldEnableEffects = false
         boardFX.filter = boardMono
 
@@ -725,7 +727,7 @@ final class GameScene: SKScene {
         applySpecial(special, to: node)
         node.position = center(of: p)
         gemLayer.addChild(node)
-        glowLayer.addChild(node.glow)
+        gemGlowLayer.addChild(node.glow)
         return node
     }
 
