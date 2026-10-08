@@ -2201,20 +2201,23 @@ final class GameScene: SKScene {
     // MARK: Bildstörung (GlitchFX)
 
     /// Plant kurz vor dem Absturz Bildstörungen ein; immer häufiger, je höher `level`.
+    /// Im Debug-Dauertest laufen sie ständig, mit kurzer Pause dazwischen.
     private func updateGlitch(_ dt: TimeInterval, level: Float) {
-        guard GlitchFX.enabled, level > GlitchFX.threshold, arcade == nil, !arcadeIntro else {
+        let test = GlitchFX.debugActive && GlitchFX.debugLoop
+        guard GlitchFX.enabled, test || level > GlitchFX.threshold, arcade == nil, !arcadeIntro else {
             glitchTimer = 0
             return
         }
-        if glitchTimer == 0 { glitchTimer = GlitchFX.interval(level: level) }
+        let next = { test ? GlitchFX.debugDuration + 0.6 : GlitchFX.interval(level: level) }
+        if glitchTimer == 0 { glitchTimer = next() }
         glitchTimer -= dt
         if glitchTimer <= 0 {
-            glitchTimer = GlitchFX.interval(level: level)
-            triggerGlitch(strength: (level - GlitchFX.threshold) / (1 - GlitchFX.threshold))
+            glitchTimer = next()
+            triggerGlitch(strength: test ? 1 : (level - GlitchFX.threshold) / (1 - GlitchFX.threshold))
         }
     }
 
-    /// Eine Störung von 60–150 ms über die ganze Welt, mit leisem Funkknacksen.
+    /// Eine Störung von 150–350 ms über die ganze Welt, mit leisem Funkknacksen.
     private func triggerGlitch(strength: Float) {
         // Manga-Blitz und Zoom haben Vorrang
         guard mangaFX.action(forKey: "flash") == nil, mangaFX.action(forKey: "zoom") == nil,
@@ -2225,7 +2228,7 @@ final class GameScene: SKScene {
         mangaFX.shouldEnableEffects = true
         audio.play(.glitch, volume: 0.06 + 0.06 * strength, semitones: Double.random(in: -3...3))
         mangaFX.run(.sequence([
-            .wait(forDuration: Double.random(in: 0.06...0.15)),
+            .wait(forDuration: GlitchFX.duration()),
             .run { [weak self] in
                 guard let self else { return }
                 self.mangaFX.shouldEnableEffects = false

@@ -179,9 +179,11 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   durch `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
 - Vorspann nach dem Kaltstart: dasselbe Bild, der Titel glüht einmal auf, nach knapp einer Sekunde Überblendung
   ins Spiel; Antippen überspringt. Abschalten: `LaunchSplash.enabled = false`.
-- Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je 60–150 ms Farbversatz, Raster,
+- Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je 150–350 ms Farbversatz, Raster,
   verschobene Zeile und/oder Flackern, mit leisem Funkknacksen (Slot `glitch`); anfangs alle 2–3 s, kurz vor dem
   Absturz etwa alle 0,5 s. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
+  Debug-Regler: GLITCH schaltet Farbversatz (RGB), Raster (RAS), Zeile (ZEI) und Flackern (FLA) einzeln,
+  darunter feste Dauer 50–1000 ms; DAUERTEST lässt die Störungen ständig laufen, auch ohne Absturzgefahr.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
 ## Musik
@@ -199,8 +201,9 @@ Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit un
 Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
-**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und die Knöpfe **INVASION** und
-**ABRISSBIRNE** (Minispiel sofort starten) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), die Bildstörungs-Regler **GLITCH**
+(Effekte einzeln, Dauer, **DAUERTEST**) und **MINISPIEL** mit den Knöpfen **INV** und **ABR** (Minispiel sofort
+starten) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

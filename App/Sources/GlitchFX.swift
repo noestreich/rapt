@@ -6,7 +6,7 @@ import AppKit
 #endif
 
 /// Bildstörungen kurz vor dem Absturz im Dächerlauf: Farbversatz, Rasterpunkte, verschobene Zeilen und
-/// Helligkeitsflackern, je 60–150 ms, immer häufiger, je näher die Figur am Rand steht. Bei „Bewegung
+/// Helligkeitsflackern, je 150–350 ms, immer häufiger, je näher die Figur am Rand steht. Bei „Bewegung
 /// reduzieren“ nur das Flackern.
 ///
 /// Zum Abschalten `enabled` auf `false` setzen; zum vollständigen Entfernen diese Datei löschen und die
@@ -24,6 +24,23 @@ enum GlitchFX {
         return base * Double.random(in: 0.8...1.2)
     }
 
+    /// Wie lange eine Störung sichtbar bleibt.
+    static func duration() -> TimeInterval {
+        debugActive ? debugDuration : Double.random(in: 0.15...0.35)
+    }
+
+    // MARK: Debug (nur bei eingeblendeten Debug-Reglern, wird nicht gespeichert)
+
+    /// Effekte einzeln: Farbversatz, Raster, Zeile, Flackern.
+    static let debugNames = ["RGB", "RAS", "ZEI", "FLA"]
+    static var debugEffects = [true, true, true, true]
+    /// Feste Dauer einer Störung, 50 … 1000 ms.
+    static var debugDuration: TimeInterval = 0.3
+    static let debugDurationRange: ClosedRange<TimeInterval> = 0.05...1.0
+    /// Dauertest: Störungen laufen ständig, auch ohne Absturzgefahr.
+    static var debugLoop = false
+    static var debugActive: Bool { GameSettings.shared.debugVisible }
+
     static var reduceMotion: Bool {
         #if os(iOS)
         return UIAccessibility.isReduceMotionEnabled
@@ -34,6 +51,17 @@ enum GlitchFX {
 
     /// Stellt eine zufällige Kombination für eine Störung ein; `strength` 0…1 steigt mit der Gefahr.
     static func randomize(_ filter: GlitchFilter, strength: Float) {
+        filter.tearY = CGFloat.random(in: 0.1...0.9)
+        filter.tearHeight = CGFloat.random(in: 0.015...0.05)
+        if debugActive {
+            // Gewählte Effekte immer zeigen, damit man sie einzeln betrachten kann
+            let on = debugEffects
+            filter.rgbShift = on[0] ? 2 : 0
+            filter.halftone = on[1]
+            filter.tear = on[2] ? 4 * (Bool.random() ? 1 : -1) : 0
+            filter.dim = on[3] ? 0.15 : 0
+            return
+        }
         filter.dim = Float.random(in: 0.08...0.18) * (0.6 + 0.4 * strength)
         if reduceMotion {
             filter.rgbShift = 0
@@ -44,8 +72,6 @@ enum GlitchFX {
         filter.rgbShift = Bool.random() ? CGFloat.random(in: 1...2) : 0
         filter.halftone = Double.random(in: 0...1) < 0.3
         filter.tear = Bool.random() ? CGFloat.random(in: 2...5) * (Bool.random() ? 1 : -1) : 0
-        filter.tearY = CGFloat.random(in: 0.1...0.9)
-        filter.tearHeight = CGFloat.random(in: 0.015...0.05)
         if filter.rgbShift == 0 && !filter.halftone && filter.tear == 0 { filter.rgbShift = 1 }
     }
 }

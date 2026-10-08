@@ -19,6 +19,10 @@ final class SettingsPanel {
         case slider(get: () -> Double, set: (Double) -> Void)
         case choice(options: [String], get: () -> Int, set: (Int) -> Void)
         case button(action: () -> Void)
+        /// Mehrere Felder, jedes einzeln an/aus.
+        case multi(options: [String], get: (Int) -> Bool, toggle: (Int) -> Void)
+        /// Kleine Knöpfe nebeneinander, jeder löst etwas aus.
+        case actions(options: [String], perform: (Int) -> Void)
     }
 
     private struct Row {
@@ -107,21 +111,31 @@ final class SettingsPanel {
             })))
         }
         if settings.debugVisible {
+            specs.append((fixed("DEBUG: TEMPO PX/S - BESCHL./MIN"), .section))
             // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
             let minSpeed = 0.2, maxSpeed = 4.0
-            specs.append((fixed("DEBUG: STADT-TEMPO PX/S"), .section))
             specs.append(({ String(format: "%.2f", settings.debugCitySpeed) },
                           .slider(get: { (settings.debugCitySpeed - minSpeed) / (maxSpeed - minSpeed) },
                                   set: { settings.debugCitySpeed = minSpeed + $0 * (maxSpeed - minSpeed) })))
             // Beschleunigung 0 … 50 % pro Spielminute
-            specs.append((fixed("DEBUG: BESCHLEUNIGUNG PRO MIN"), .section))
             specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%" },
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
-        }
-        if settings.debugVisible {
-            specs.append((fixed("INVASION"), .button(action: { [weak self] in self?.onTestArcade(.invasion) })))
-            specs.append((fixed("ABRISSBIRNE"), .button(action: { [weak self] in self?.onTestArcade(.abriss) })))
+            if GlitchFX.enabled {
+                // Bildstörung: Effekte einzeln, feste Dauer 50 … 1000 ms, Dauertest ohne Absturzgefahr
+                specs.append((fixed("GLITCH"), .multi(options: GlitchFX.debugNames,
+                                                      get: { GlitchFX.debugEffects[$0] },
+                                                      toggle: { GlitchFX.debugEffects[$0].toggle() })))
+                let range = GlitchFX.debugDurationRange
+                specs.append(({ String(Int((GlitchFX.debugDuration * 1000).rounded())) + "MS" },
+                              .slider(get: { (GlitchFX.debugDuration - range.lowerBound) / (range.upperBound - range.lowerBound) },
+                                      set: { GlitchFX.debugDuration = range.lowerBound + $0 * (range.upperBound - range.lowerBound) })))
+                specs.append((fixed("DAUERTEST"), .toggle(get: { GlitchFX.debugLoop }, set: { GlitchFX.debugLoop = $0 })))
+            }
+            // Minispiele sofort starten
+            specs.append((fixed("MINISPIEL"), .actions(options: ["INV", "ABR"], perform: { [weak self] i in
+                self?.onTestArcade(i == 0 ? .invasion : .abriss)
+            })))
         }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
         specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))
@@ -181,6 +195,33 @@ final class SettingsPanel {
                     c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
                     c.fillRect(x, 10, 18, 1, active ? RGBA(hex: 0xB4521C) : Self.dim)
                     PixelFont.draw(text, into: &c, x: x + (18 - PixelFont.width(text)) / 2, y: 3, color: active ? RGBA(hex: 0x1A0A06) : Self.dim)
+                }
+
+            case .multi(let options, let get, _):
+                c = PixelCanvas(width: rowWidth, height: 11)
+                PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
+                let bx = rowWidth - options.count * 19 + 1
+                for (i, text) in options.enumerated() {
+                    let active = get(i)
+                    let x = bx + i * 19
+                    c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))
+                    c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
+                    c.fillRect(x, 10, 18, 1, active ? RGBA(hex: 0xB4521C) : Self.dim)
+                    PixelFont.draw(text, into: &c, x: x + (18 - PixelFont.width(text)) / 2, y: 3, color: active ? RGBA(hex: 0x1A0A06) : Self.dim)
+                }
+
+            case .actions(let options, _):
+                c = PixelCanvas(width: rowWidth, height: 11)
+                PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
+                let bx = rowWidth - options.count * 19 + 1
+                for (i, text) in options.enumerated() {
+                    let x = bx + i * 19
+                    c.fillRect(x, 0, 18, 11, RGBA(hex: 0x1B1A24))
+                    c.fillRect(x, 0, 18, 1, Self.amber)
+                    c.fillRect(x, 10, 18, 1, Self.amber)
+                    c.fillRect(x, 0, 1, 11, Self.amber)
+                    c.fillRect(x + 17, 0, 1, 11, Self.amber)
+                    PixelFont.draw(text, into: &c, x: x + (18 - PixelFont.width(text)) / 2, y: 3, color: Self.cream)
                 }
 
             case .slider(let get, _):
@@ -290,9 +331,27 @@ final class SettingsPanel {
         case .button(let action):
             onChange()
             action()
+        case .multi(let options, _, let toggle):
+            if let k = boxIndex(at: p, count: options.count) {
+                toggle(k)
+                onChange()
+                render()
+            }
+        case .actions(let options, let perform):
+            if let k = boxIndex(at: p, count: options.count) {
+                onChange()
+                perform(k)
+            }
         case .section:
             break
         }
+    }
+
+    /// Welches der rechtsbündigen Felder (je 19 Pixel) getroffen wurde; nil auf der Beschriftung.
+    private func boxIndex(at p: CGPoint, count: Int) -> Int? {
+        let bx = CGFloat(x0 + 8 + rowWidth - count * 19 + 1)
+        guard p.x >= bx else { return nil }
+        return min(Int((p.x - bx) / 19), count - 1)
     }
 
     func pointerMoved(_ p: CGPoint) {
