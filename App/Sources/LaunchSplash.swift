@@ -17,7 +17,7 @@ struct LaunchSplash: View {
     @State private var finished = false
 
     /// Lage des Titels im Bild (Mitte, relativ zu Breite und Höhe).
-    private let titleCenter = CGPoint(x: 0.5, y: 0.17)
+    private let titleCenter = CGPoint(x: 0.5, y: 0.23)
 
     var body: some View {
         ZStack {

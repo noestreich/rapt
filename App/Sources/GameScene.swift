@@ -2201,7 +2201,7 @@ final class GameScene: SKScene {
 
     // MARK: Bildstörung (GlitchFX)
 
-    /// Kurz vor dem Absturz: je eine Bildstörung an den Marken in `GlitchFX.marks`, also drei pro Annäherung
+    /// Kurz vor dem Absturz: je eine Bildstörung an den Marken in `GlitchFX.marks`, also zwei pro Annäherung
     /// an den Rand. Weicht die Figur zurück (Sprung), beginnt die Zählung neu.
     /// Im Debug-Dauertest laufen sie ständig, mit kurzer Pause dazwischen.
     private func updateGlitch(_ dt: TimeInterval, level: Float) {

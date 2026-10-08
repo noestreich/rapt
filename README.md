@@ -174,7 +174,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 - Feuerwand: links hinter den Häusern lodert im Dächerlauf ein Plasma-Feuer (Cyan, Blau, Magenta) mit Rauch,
   bei Absturzgefahr breiter; steht die Figur im Feuer, züngelt es bis zur Bildschirmmitte, beim Absturz mit Ausbruch.
   Spieler: Schalter „FEUER“ in den Einstellungen. Entwickler: `FireWall.enabled = false` entfernt es samt Schalter.
-- Startbildschirm (iOS): Key-Art „RAPT“ (`LaunchImage`, 480 × 960 pt mittig, Rest in `LaunchBackground`),
+- Startbildschirm (iOS): Key-Art „RAPT“ (`LaunchImage`, 440 × 956 pt mittig, Titel auch auf dem iPhone SE ganz sichtbar, Rest in `LaunchBackground`),
   eingetragen in `App/Info.plist`. Zurück zum schwarzen Start: in `project.yml` die Zeile `INFOPLIST_FILE`
   durch `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
 - Vorspann nach dem Kaltstart: dasselbe Bild, der Titel glüht einmal auf, nach knapp einer Sekunde Überblendung
@@ -182,9 +182,9 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   Startbildschirm; mit `true` wieder einschalten.
 - Bildstörungen kurz vor dem Absturz (zweite Hälfte der Gefahrenzone): je etwa 280 ms (220–340) Farbversatz
   (Rot und Blau in zufällige Richtungen), Raster, zwei verschobene Zeilen (oben und unten) und/oder Flackern, mit
-  Funkrauschen (`App/Resources/glitch.wav`, Slot `glitch`). Genau drei Störungen pro Annäherung an
-  den Rand, bei 60 %, 80 % und 93 % der Gefahr (`GlitchFX.marks`; bei Standardtempo etwa alle 8–10 s, die letzte
-  rund 4 s vor dem Absturz), jede etwas stärker; nach einem rettenden Sprung zählt es neu. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
+  Funkrauschen (`App/Resources/glitch.wav`, Slot `glitch`). Genau zwei Störungen pro Annäherung an
+  den Rand, bei 70 % und 93 % der Gefahr (`GlitchFX.marks`; bei Standardtempo etwa 12 s auseinander, die letzte
+  rund 4 s vor dem Absturz), die zweite stärker; nach einem rettenden Sprung zählt es neu. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
   Debug-Regler: GLITCH schaltet Farbversatz (RGB), Raster (RAS), Zeile (ZEI) und Flackern (FLA) einzeln,
   darunter feste Dauer 50–1000 ms; DAUERTEST lässt die Störungen ständig laufen, auch ohne Absturzgefahr.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).

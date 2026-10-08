@@ -6,8 +6,8 @@ import AppKit
 #endif
 
 /// Bildstörungen kurz vor dem Absturz im Dächerlauf: Farbversatz, Rasterpunkte, verschobene Zeilen und
-/// Helligkeitsflackern, je etwa 280 ms (220–340). Genau drei Störungen auf dem Weg zum Rand (bei Standardtempo
-/// etwa alle 8–10 s), jede etwas stärker. Bei „Bewegung reduzieren“ nur das Flackern.
+/// Helligkeitsflackern, je etwa 280 ms (220–340). Genau zwei Störungen auf dem Weg zum Rand (bei Standardtempo
+/// etwa 12 s auseinander), die zweite stärker. Bei „Bewegung reduzieren“ nur das Flackern.
 ///
 /// Zum Abschalten `enabled` auf `false` setzen; zum vollständigen Entfernen diese Datei löschen und die
 /// mit `// GlitchFX` markierten Zeilen in GameScene.swift entfernen (dazu `.glitch` in SoundSlot/SoundBank).
@@ -19,7 +19,7 @@ enum GlitchFX {
 
     /// Gefahrenlevel, an denen je eine Störung kommt (einmal pro Annäherung an den Rand). Die letzte liegt
     /// bei Standardtempo etwa 4 s vor dem Absturz.
-    static let marks: [Float] = [0.6, 0.8, 0.93]
+    static let marks: [Float] = [0.7, 0.93]
 
     /// Wie lange eine Störung sichtbar bleibt: etwa 280 ms, leicht gestreut.
     static func duration() -> TimeInterval {

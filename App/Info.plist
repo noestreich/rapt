@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Startbildschirm (iOS): Key-Art „RAPT“ mittig, 480 × 960 pt, Rest in Nachtblau.
+	<!-- Startbildschirm (iOS): Key-Art „RAPT“ mittig, 440 × 956 pt (wie das größte iPhone), Rest in Nachtblau.
 	     Wird mit den generierten Einträgen aus project.yml (INFOPLIST_KEY_*) zusammengeführt. -->
 	<key>UILaunchScreen</key>
 	<dict>
