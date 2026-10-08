@@ -203,7 +203,8 @@ final class GameScene: SKScene {
     private var pendingDeliveries = 0
 
     private static var savedMode: GameMode {
-        GameMode(rawValue: UserDefaults.standard.string(forKey: "rapt.mode") ?? "") ?? .endless
+        // Nach der Installation: Dächerlauf; danach der zuletzt gespielte Modus
+        GameMode(rawValue: UserDefaults.standard.string(forKey: "rapt.mode") ?? "") ?? .rooftop
     }
     // MARK: Lebenszyklus
 
@@ -1077,12 +1078,12 @@ final class GameScene: SKScene {
             text("NOCHMAL:", color: Palette.label, scale: 1, y: buttonY - 12)
         } else {
             text("SPIELMODUS", color: Palette.amber, scale: 2, y: 22)
-            text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.endless)) + " / " + String(format: "%08d", Highscore.load(.rooftop)),
+            text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
                  color: Palette.label, scale: 1, y: 40)
         }
         let options: [(GameMode, String, String)] = [
-            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
             (.rooftop, "DÄCHERLAUF", "STADT WANDERT - POWER-UPS"),
+            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
         ]
         for (i, option) in options.enumerated() {
             let w = 150, h = 28

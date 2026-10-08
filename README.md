@@ -40,12 +40,13 @@ hochskaliert. Licht und Partikel rendern in voller Auflösung darüber.
 
 ## Spiel
 
-Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen eigenen Rekord.
+Zwei Modi, Auswahl beim Start und nach jedem Spielende. Jeder Modus hat einen eigenen Rekord. Nach der Installation
+ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
 
 | Modus | Ablauf |
 |---|---|
-| **Endlos** | Klassisch: kein Zeitdruck, keine Power-ups; der Läufer steht auf seinem Dach, die Stadt steht still; bei jedem geschafften Sprung hüpft er einmal hoch. Ende, wenn kein Zug mehr möglich ist. |
 | **Dächerlauf** | Die Plattenbau-Reihe wandert langsam nach links (0,66 px/s, +9 % pro Plan, +6 % pro Spielminute; per Debug-Regler in den Einstellungen änderbar), rechts entstehen neue Häuser. Jeder erfüllte Plan lässt die Figur ein Haus weiterspringen und bringt ein Power-up. Kommt die Figur dem linken Rand nahe, blinkt „ABSTURZGEFAHR!“; wird sie hinausgeschoben, stürzt sie ab und das Spiel ist vorbei. |
+| **Endlos** | Klassisch: kein Zeitdruck, keine Power-ups; der Läufer steht auf seinem Dach, die Stadt steht still; bei jedem geschafften Sprung hüpft er einmal hoch. Ende, wenn kein Zug mehr möglich ist. |
 
 - Steine tauschen: wischen oder zweimal tippen. Im Dächerlauf endet das Spiel außerdem, wenn kein Zug **und** kein Power-up mehr übrig ist.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
