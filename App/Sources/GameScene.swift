@@ -153,7 +153,6 @@ final class GameScene: SKScene {
     }()
     private var speedLines: [SKTexture] = []
     private let glitchFilter = GlitchFilter()   // GlitchFX
-    private var glitchTimer: TimeInterval = 0   // GlitchFX
     private var glitchMarksPassed = 0   // GlitchFX
     /// Hintergrund der Sprung-Leiste (wird während der Minispiele mit Leiste und Lager ausgeblendet).
     private var planBar = SKSpriteNode()
@@ -477,10 +476,10 @@ final class GameScene: SKScene {
             self.settingsPanel.hide()
             self.blackout(duration: 5)
         }
-        settingsPanel.onTestMono = { [weak self] oneBit in
+        settingsPanel.onTestMono = { [weak self] in
             guard let self else { return }
             self.settingsPanel.hide()
-            self.boardMonochrome(oneBit: oneBit, duration: 5)
+            self.boardMonochrome(duration: 5)
         }
         settingsPanel.onTestArcade = { [weak self] kind in
             guard let self else { return }
@@ -1708,8 +1707,8 @@ final class GameScene: SKScene {
             warp(at: c, strength: 12, color: SKColor(red: 0.95, green: 0.85, blue: 0.3, alpha: 1))
             shake(strength: 4)
             run(.sequence([.wait(forDuration: 0.18), .run { [weak self] in self?.play(result, index: 0) }]))
-            // Der Blitz legt das Stromnetz lahm (vorerst nur mit Debug-Schalter)
-            if PowerCut.active {
+            // Der Blitz legt manchmal das Stromnetz lahm
+            if PowerCut.enabled, Double.random(in: 0..<1) < PowerCut.chanceAfterAtomBomb {
                 run(.sequence([.wait(forDuration: 0.5), .run { [weak self] in self?.blackout(duration: PowerCut.duration) }]))
             }
 
@@ -2246,20 +2245,10 @@ final class GameScene: SKScene {
 
     /// Kurz vor dem Absturz: je eine Bildstörung an den Marken in `GlitchFX.marks`, also zwei pro Annäherung
     /// an den Rand. Weicht die Figur zurück (Sprung), beginnt die Zählung neu.
-    /// Im Debug-Dauertest laufen sie ständig, mit kurzer Pause dazwischen.
     private func updateGlitch(_ dt: TimeInterval, level: Float) {
         guard GlitchFX.enabled else { return }
         if level < GlitchFX.threshold { glitchMarksPassed = 0 }
         guard arcade == nil, !arcadeIntro else { return }
-        if GlitchFX.debugActive && GlitchFX.debugLoop {
-            glitchTimer -= dt
-            if glitchTimer <= 0 {
-                glitchTimer = GlitchFX.debugDuration + 0.6
-                triggerGlitch(strength: 1)
-            }
-            return
-        }
-        glitchTimer = 0
         let marks = GlitchFX.marks
         guard glitchMarksPassed < marks.count, level >= marks[glitchMarksPassed] else { return }
         // Mehrere Marken auf einmal überschritten (z. B. nach Pause): nur eine Störung
@@ -2321,7 +2310,7 @@ final class GameScene: SKScene {
             off, crackle, .wait(forDuration: 0.06), on, .wait(forDuration: 0.09),
             off, .wait(forDuration: 0.05), on, .wait(forDuration: 0.14),
             off,
-            .run { [weak self] in self?.boardMonochrome(oneBit: false, duration: duration) },
+            .run { [weak self] in self?.boardMonochrome(duration: duration) },
             .wait(forDuration: duration + 0.3),
             // Strom kommt zurück, während das Brett wieder Farbe bekommt
             on, .wait(forDuration: 0.05), off, .wait(forDuration: 0.1), on, crackle,
@@ -2330,11 +2319,10 @@ final class GameScene: SKScene {
 
     // MARK: Spielbrett ohne Farbe
 
-    /// Nimmt dem Spielbrett für `duration` Sekunden die Farbe (grau oder 1-Bit), mit kurzem Ein- und Ausblenden.
-    private func boardMonochrome(oneBit: Bool, duration: TimeInterval) {
+    /// Färbt das Spielbrett für `duration` Sekunden grau, mit kurzem Ein- und Ausblenden.
+    private func boardMonochrome(duration: TimeInterval) {
         let fade: CGFloat = 0.3
         boardFX.removeAction(forKey: "mono")
-        boardMono.oneBit = oneBit
         boardMono.amount = 0
         boardFX.shouldEnableEffects = true
         boardFX.run(.sequence([

@@ -10,8 +10,8 @@ final class SettingsPanel {
     var onHelp: () -> Void = {}
     /// Debug: startet ein Minispiel sofort, ohne Power-up im Lager.
     var onTestArcade: (PowerUp) -> Void = { _ in }
-    /// Debug: Spielbrett 5 Sekunden ohne Farbe (`true` = 1-Bit, sonst grau).
-    var onTestMono: (Bool) -> Void = { _ in }
+    /// Debug: Spielbrett 5 Sekunden grau.
+    var onTestMono: () -> Void = {}
     /// Debug: Stromausfall (Fenster aus, Spielbrett grau, 5 Sekunden).
     var onTestBlackout: () -> Void = {}
     var onChange: () -> Void = {}
@@ -23,8 +23,6 @@ final class SettingsPanel {
         case slider(get: () -> Double, set: (Double) -> Void)
         case choice(options: [String], get: () -> Int, set: (Int) -> Void)
         case button(action: () -> Void)
-        /// Mehrere Felder, jedes einzeln an/aus.
-        case multi(options: [String], get: (Int) -> Bool, toggle: (Int) -> Void)
         /// Kleine Knöpfe nebeneinander, jeder löst etwas aus.
         case actions(options: [String], perform: (Int) -> Void)
     }
@@ -115,6 +113,7 @@ final class SettingsPanel {
             })))
         }
         if settings.debugVisible {
+            specs.append((fixed("DEBUG: TEMPO PX/S - BESCHL./MIN"), .section))
             // Stadt-Tempo 0,2 … 4,0 Pixel pro Sekunde, Schieber 0 … 1
             let minSpeed = 0.2, maxSpeed = 4.0
             specs.append(({ String(format: "%.2fPX", settings.debugCitySpeed) },
@@ -124,24 +123,12 @@ final class SettingsPanel {
             specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%/M" },
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
-            if GlitchFX.enabled {
-                // Bildstörung: Effekte einzeln, feste Dauer 50 … 1000 ms, Dauertest ohne Absturzgefahr
-                specs.append((fixed("GLITCH"), .multi(options: GlitchFX.debugNames,
-                                                      get: { GlitchFX.debugEffects[$0] },
-                                                      toggle: { GlitchFX.debugEffects[$0].toggle() })))
-                let range = GlitchFX.debugDurationRange
-                specs.append(({ String(Int((GlitchFX.debugDuration * 1000).rounded())) + "MS" },
-                              .slider(get: { (GlitchFX.debugDuration - range.lowerBound) / (range.upperBound - range.lowerBound) },
-                                      set: { GlitchFX.debugDuration = range.lowerBound + $0 * (range.upperBound - range.lowerBound) })))
-                specs.append((fixed("DAUERTEST"), .toggle(get: { GlitchFX.debugLoop }, set: { GlitchFX.debugLoop = $0 })))
-            }
-            specs.append((fixed("ATOM: STROMAUSFALL"), .toggle(get: { PowerCut.afterAtomBomb }, set: { PowerCut.afterAtomBomb = $0 })))
-            // Minispiele sofort starten; Spielbrett 5 s ohne Farbe (grau oder 1-Bit); Stromausfall
-            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "GRAU", "1BIT", "AUS"], perform: { [weak self] i in
+            // Minispiele sofort starten; Spielbrett 5 s grau; Stromausfall
+            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "GRAU", "AUS"], perform: { [weak self] i in
                 switch i {
                 case 0: self?.onTestArcade(.invasion)
                 case 1: self?.onTestArcade(.abriss)
-                case 2, 3: self?.onTestMono(i == 3)
+                case 2: self?.onTestMono()
                 default: self?.onTestBlackout()
                 }
             })))
@@ -199,19 +186,6 @@ final class SettingsPanel {
                 let bx = rowWidth - options.count * 19 + 1
                 for (i, text) in options.enumerated() {
                     let active = i == selected
-                    let x = bx + i * 19
-                    c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))
-                    c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
-                    c.fillRect(x, 10, 18, 1, active ? RGBA(hex: 0xB4521C) : Self.dim)
-                    PixelFont.draw(text, into: &c, x: x + (18 - PixelFont.width(text)) / 2, y: 3, color: active ? RGBA(hex: 0x1A0A06) : Self.dim)
-                }
-
-            case .multi(let options, let get, _):
-                c = PixelCanvas(width: rowWidth, height: 11)
-                PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
-                let bx = rowWidth - options.count * 19 + 1
-                for (i, text) in options.enumerated() {
-                    let active = get(i)
                     let x = bx + i * 19
                     c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))
                     c.fillRect(x, 0, 18, 1, active ? Self.cream : Self.dim)
@@ -340,12 +314,6 @@ final class SettingsPanel {
         case .button(let action):
             onChange()
             action()
-        case .multi(let options, _, let toggle):
-            if let k = boxIndex(at: p, count: options.count) {
-                toggle(k)
-                onChange()
-                render()
-            }
         case .actions(let options, let perform):
             if let k = boxIndex(at: p, count: options.count) {
                 onChange()

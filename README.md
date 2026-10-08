@@ -186,8 +186,9 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   Funkrauschen (`App/Resources/glitch.wav`, Slot `glitch`). Genau zwei Störungen pro Annäherung an
   den Rand, bei 70 % und 93 % der Gefahr (`GlitchFX.marks`; bei Standardtempo etwa 12 s auseinander, die letzte
   rund 4 s vor dem Absturz), die zweite stärker; nach einem rettenden Sprung zählt es neu. Bei „Bewegung reduzieren“ nur Flackern. Abschalten: `GlitchFX.enabled = false`.
-  Debug-Regler: GLITCH schaltet Farbversatz (RGB), Raster (RAS), Zeile (ZEI) und Flackern (FLA) einzeln,
-  darunter feste Dauer 50–1000 ms; DAUERTEST lässt die Störungen ständig laufen, auch ohne Absturzgefahr.
+- Stromausfall nach der Atombombe (mit 33 % Wahrscheinlichkeit): alle Fenster der Häuser flackern hell auf und gehen
+  flackernd aus, die Stadt bleibt 5 Sekunden dunkel und das Spielbrett grau (`BoardMonoFilter`), der Fernsehturm blinkt
+  mit Notstrom rot weiter; danach springt der Strom flackernd wieder an. Abschalten: `PowerCut.enabled = false`.
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
 ## Musik
@@ -205,13 +206,8 @@ Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit un
 Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
-**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), die Bildstörungs-Regler **GLITCH**
-(Effekte einzeln, Dauer, **DAUERTEST**) und **TEST** mit den Knöpfen **INV** und **ABR** (Minispiel sofort starten)
-sowie **GRAU** und **1BIT** (Spielbrett 5 Sekunden ohne Farbe: Graustufen oder hart schwarz-weiß; Stadt, Läufer und
-Anzeige bleiben farbig; `BoardMonoFilter`) und **AUS** (Stromausfall: alle Fenster flackern hell auf und gehen
-flackernd aus, die Häuser bleiben 5 Sekunden dunkel und das Brett grau, der Fernsehturm blinkt weiter; danach springt
-der Strom wieder an) ein. Schalter **ATOM: STROMAUSFALL**: Ist er an (und sind die Debug-Regler eingeblendet),
-löst jede Atombombe einen Stromausfall aus (`PowerCut`); beim App-Start ist er aus. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und **TEST** mit den Knöpfen **INV** und
+**ABR** (Minispiel sofort starten), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

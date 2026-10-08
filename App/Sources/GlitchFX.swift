@@ -23,20 +23,8 @@ enum GlitchFX {
 
     /// Wie lange eine Störung sichtbar bleibt: etwa 280 ms, leicht gestreut.
     static func duration() -> TimeInterval {
-        debugActive ? debugDuration : Double.random(in: 0.22...0.34)
+        Double.random(in: 0.22...0.34)
     }
-
-    // MARK: Debug (nur bei eingeblendeten Debug-Reglern, wird nicht gespeichert)
-
-    /// Effekte einzeln: Farbversatz, Raster, Zeile, Flackern.
-    static let debugNames = ["RGB", "RAS", "ZEI", "FLA"]
-    static var debugEffects = [true, true, true, true]
-    /// Feste Dauer einer Störung, 50 … 1000 ms.
-    static var debugDuration: TimeInterval = 0.28
-    static let debugDurationRange: ClosedRange<TimeInterval> = 0.05...1.0
-    /// Dauertest: Störungen laufen ständig, auch ohne Absturzgefahr.
-    static var debugLoop = false
-    static var debugActive: Bool { GameSettings.shared.debugVisible }
 
     static var reduceMotion: Bool {
         #if os(iOS)
@@ -75,15 +63,6 @@ enum GlitchFX {
         filter.blueShift = .zero
         filter.halftone = false
         filter.tears = []
-        if debugActive {
-            // Gewählte Effekte immer zeigen, damit man sie einzeln betrachten kann
-            let on = debugEffects
-            if on[0] { shiftColors(filter) }
-            filter.halftone = on[1]
-            if on[2] { tearLines(filter, strength: 1) }
-            filter.dim = on[3] ? 0.15 : 0
-            return
-        }
         filter.dim = Float.random(in: 0.08...0.18) * (0.6 + 0.4 * strength)
         if reduceMotion { return }
         var picked = false
