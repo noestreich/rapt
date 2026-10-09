@@ -42,7 +42,10 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     private let centers: [Double]
     private let halfWidths: [Double]
     private let crop = SKCropNode()
-    private let track: SKSpriteNode
+    /// Die Bahn in Abschnitten; nur sichtbare hängen in der Szene. Ein einziges langes Bild (oder Münzen weit über
+    /// dem Brett) würde beim Manga-Effekt das Zwischenbild der ganzen Welt riesig machen (Speicher über 3 GB).
+    private let trackChunks: [SKSpriteNode]
+    private static let chunkHeight = 200
     private var coins: [Coin] = []
     /// Wie weit die Bahn schon durchgelaufen ist; negativ, solange sie noch von oben hereinkommt.
     private var scroll: CGFloat = 0
@@ -79,8 +82,21 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         let canvas = ArcadeArt.starTrack(width: Int(b.width), length: length,
                                          center: { centers[min(length - 1, max(0, Int($0)))] },
                                          halfWidth: { halfWidths[min(length - 1, max(0, Int($0)))] })
-        track = SKSpriteNode(texture: canvas.texture(), size: canvas.size)
-        track.anchorPoint = .zero
+        let full = canvas.texture()
+        var chunks: [SKSpriteNode] = []
+        for start in stride(from: 0, to: length, by: Self.chunkHeight) {
+            let h = min(Self.chunkHeight, length - start)
+            // Textur-Koordinaten zählen von unten; unterste Zeile = Bahnanfang
+            let rect = CGRect(x: 0, y: CGFloat(start) / CGFloat(length), width: 1, height: CGFloat(h) / CGFloat(length))
+            let texture = SKTexture(rect: rect, in: full)
+            texture.filteringMode = .nearest
+            let chunk = SKSpriteNode(texture: texture, size: CGSize(width: b.width, height: CGFloat(h)))
+            chunk.anchorPoint = .zero
+            chunk.zPosition = 0
+            chunk.userData = ["start": start]
+            chunks.append(chunk)
+        }
+        trackChunks = chunks
         let spec = ArcadeCraft.Spec(texture: ArcadeArt.starShip(), size: CGSize(width: 22, height: 21), runnerRow: 6,
                                     nozzleRow: 14, hoverX: [], neon: false)
         super.init(host: host, duration: Self.duration, craft: spec, hover: 0, baseY: b.minY + 4, rise: false)
@@ -91,8 +107,6 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         crop.maskNode = mask
         crop.zPosition = 1
         node.addChild(crop)
-        track.zPosition = 0
-        crop.addChild(track)
 
         // Münzen in Bögen über die Fahrbahn, teils knapp an den Banden
         let coinTexture = ArcadeArt.coin()
@@ -105,7 +119,6 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
             let glow = glowSprite(Self.gold.skColor, size: 18, alpha: 0.35)
             glow.zPosition = -1
             sprite.addChild(glow)
-            crop.addChild(sprite)
             coins.append(Coin(sprite: sprite, s: CGFloat(meter), x: CGFloat(centers[meter] + offset)))
         }
 
@@ -156,9 +169,24 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     /// Bahn und Münzen an die aktuelle Durchlaufstrecke anpassen.
     private func layout() {
         let b = host.board
-        track.position = CGPoint(x: b.minX, y: (b.minY - scroll).rounded())
+        let base = (b.minY - scroll).rounded()
+        for chunk in trackChunks {
+            let start = CGFloat(chunk.userData?["start"] as? Int ?? 0)
+            chunk.position = CGPoint(x: b.minX, y: base + start)
+            show(chunk, chunk.position.y + chunk.size.height >= b.minY - 2 && chunk.position.y <= b.maxY + 2)
+        }
         for coin in coins {
             coin.sprite.position = CGPoint(x: (b.minX + coin.x).rounded(), y: (b.minY + coin.s - scroll).rounded())
+            show(coin.sprite, coin.sprite.position.y >= b.minY - 14 && coin.sprite.position.y <= b.maxY + 14)
+        }
+    }
+
+    /// Nur was im Brett zu sehen ist, hängt in der Szene.
+    private func show(_ sprite: SKNode, _ visible: Bool) {
+        if visible, sprite.parent == nil {
+            crop.addChild(sprite)
+        } else if !visible, sprite.parent != nil {
+            sprite.removeFromParent()
         }
     }
 
