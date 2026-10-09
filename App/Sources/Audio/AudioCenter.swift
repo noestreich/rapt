@@ -42,19 +42,23 @@ final class AudioCenter {
     /// Läuft im Hintergrund: Apple warnt, dass diese Aufrufe im Haupt-Thread die Oberfläche blockieren können.
     private static let sessionQueue = DispatchQueue(label: "de.ncls.rapt.audiosession", qos: .userInitiated)
 
-    /// `wait`: erst zurückkehren, wenn der Modus gesetzt ist (beim Start, bevor eine Engine läuft).
+    /// `wait`: die Kategorie sofort setzen (beim Start, bevor eine Engine läuft). Das Aktivieren läuft immer im
+    /// Hintergrund, denn `setActive` im Haupt-Thread kann die Oberfläche blockieren (Warnung von iOS).
     private static func configureSession(musicOn: Bool, wait: Bool = false) {
         #if os(iOS)
-        let apply = {
-            let session = AVAudioSession.sharedInstance()
+        let session = AVAudioSession.sharedInstance()
+        let setCategory = {
             if musicOn {
                 try? session.setCategory(.soloAmbient)
             } else {
                 try? session.setCategory(.ambient, options: [.mixWithOthers])
             }
+        }
+        if wait { setCategory() }
+        sessionQueue.async {
+            if !wait { setCategory() }
             try? session.setActive(true)
         }
-        if wait { sessionQueue.sync(execute: apply) } else { sessionQueue.async(execute: apply) }
         #endif
     }
 
