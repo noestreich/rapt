@@ -1620,12 +1620,15 @@ final class GameScene: SKScene {
     private func setStatus(_ text: String, color: RGBA = Palette.label, blink: Bool = false) {
         statusLabel.removeAction(forKey: "blink")
         statusLabel.alpha = 1
-        guard text != statusText || blink else { return }
-        statusText = text
+        // Leerer Status: immer ausblenden, auch wenn er schon „leer“ war (die Anzeige kann zwischendurch
+        // wieder eingeblendet worden sein, z. B. nach einem Minispiel)
         if text.isEmpty {
+            statusText = ""
             statusLabel.isHidden = true
             return
         }
+        guard text != statusText || blink else { return }
+        statusText = text
         statusLabel.isHidden = false
         setText(statusLabel, text, color: color)
         if blink {
@@ -1997,7 +2000,8 @@ final class GameScene: SKScene {
     /// Sprung-Leiste, Lager und Statuszeile während der Minispiele ausblenden, damit die Fluggeräte frei
     /// über dem Nachthimmel fliegen.
     private func setArcadeHUD(visible: Bool) {
-        statusLabel.isHidden = !visible
+        // Statuszeile nur zeigen, wenn sie gerade etwas zu sagen hat (sonst stünde der alte Text wieder da)
+        statusLabel.isHidden = !visible || statusText.isEmpty
         let nodes: [SKNode] = [planLabel, planBar, armedBracket] + planSegments + slotFrames + slotIcons
         for node in nodes {
             node.removeAction(forKey: "arcadeHUD")
