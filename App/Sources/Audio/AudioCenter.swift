@@ -13,6 +13,9 @@ final class AudioCenter {
     private var subscriptions: Set<AnyCancellable> = []
 
     private init() {
+        // Zuerst den Audio-Modus setzen und darauf warten: Die Effekt-Engine startet gleich beim Anlegen, und ohne
+        // gesetzten Modus nimmt iOS den Standard (nur diese App), der Musik oder Podcasts anderer Apps anhält.
+        Self.configureSession(musicOn: GameSettings.shared.musicEnabled, wait: true)
         effects = SoundBank(library: library)
         music = MusicPlayer(library: library)
 
@@ -39,9 +42,10 @@ final class AudioCenter {
     /// Läuft im Hintergrund: Apple warnt, dass diese Aufrufe im Haupt-Thread die Oberfläche blockieren können.
     private static let sessionQueue = DispatchQueue(label: "de.ncls.rapt.audiosession", qos: .userInitiated)
 
-    private static func configureSession(musicOn: Bool) {
+    /// `wait`: erst zurückkehren, wenn der Modus gesetzt ist (beim Start, bevor eine Engine läuft).
+    private static func configureSession(musicOn: Bool, wait: Bool = false) {
         #if os(iOS)
-        sessionQueue.async {
+        let apply = {
             let session = AVAudioSession.sharedInstance()
             if musicOn {
                 try? session.setCategory(.soloAmbient)
@@ -50,6 +54,7 @@ final class AudioCenter {
             }
             try? session.setActive(true)
         }
+        if wait { sessionQueue.sync(execute: apply) } else { sessionQueue.async(execute: apply) }
         #endif
     }
 
