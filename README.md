@@ -79,9 +79,10 @@ Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 **Sternenbahn** (12 s, jeder 10. Sprung im Dächerlauf, ohne Funkspruch, zusätzlich zum Power-up): Alle Steine blenden
 aus, ein Kristall gleitet in die untere Brettmitte und wird im Blitz zum grauen Raumschiff (Kristallform in Nietengrau,
 Rostflecken, Cockpitfenster, zwei Heckdüsen); der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“. Von oben schiebt
-sich eine Rennbahn mit rot-schwarzen Banden ins Brett, die schneller, schmaler und kurviger wird. Ziehen lenkt; goldene
-Münzen (Donuts in halber Größe) bringen 100 Punkte, in Folge bis 300. Banden schubsen nur zurück (Funken, Serie reißt ab),
-kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
+sich während des Auftakts eine Rennbahn mit rot-schwarzen Banden ins Brett; sie wird schmaler und mit der Zeit und jeder
+gesammelten Münze schneller. Ziehen lenkt; goldene Münzen (Donuts in halber Größe) bringen 100 Punkte, in Folge bis 300;
+alle 5 Münzen Kombo-Ruf („STARK x5“, „BRAVO x10“ …) und ein Schwert-Laut in Katakana. Banden schubsen nur zurück
+(Funken, Serie reißt ab, ein, zwei Münzen springen davon), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
 seltenes Power-up. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
 
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.

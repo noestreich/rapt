@@ -1509,7 +1509,8 @@ final class GameScene: SKScene {
     // MARK: Power-ups
 
     /// Lob für Kettenreaktionen, steigert sich mit der Stufe.
-    private static func cheer(for combo: Int) -> String {
+    /// Kombo-Ruf („STARK“, „BRAVO“ …); auch für Serien in der Sternenbahn.
+    static func cheer(for combo: Int) -> String {
         let words = ["STARK", "BRAVO", "LEISTUNG", "STURM", "HURRA", "HEPP HEPP"]
         return words[min(max(combo - 2, 0), words.count - 1)]
     }

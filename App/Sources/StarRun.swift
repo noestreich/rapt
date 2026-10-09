@@ -31,7 +31,8 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     private static let length = 1300
     private static let halfShip: CGFloat = 10
     private static let gold = RGBA(hex: 0xFFC247)
-    private static let words = ["KLING!", "キラッ!", "GOLD!", "ZING!"]
+    /// Schwert-Laute wie im Samurai-Manga: Klingenklirren, Schnitt, Stich, Kiai.
+    private static let words = ["カキーン!", "キン!", "キリ!", "ツキ!", "カタナ!", "ハッ!", "サッ!"]
 
     /// Mitte und halbe Breite der Fahrbahn je Bahnmeter, relativ zur linken Brettkante.
     private let centers: [Double]
@@ -40,7 +41,9 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     private let track: SKSpriteNode
     private var coins: [Coin] = []
     /// Wie weit die Bahn schon durchgelaufen ist; negativ, solange sie noch von oben hereinkommt.
-    private var scroll: CGFloat = -80
+    private var scroll: CGFloat = 0
+    /// Die Bahn gleitet während des Manga-Auftakts von oben ins Brett.
+    private var slidingIn = true
     private var streak = 0
     private var bumpCooldown = 0.0
 
@@ -112,6 +115,27 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
             flame.run(.repeatForever(.animate(with: frames.shuffled(), timePerFrame: 0.05)))
             craft.node.addChild(flame)
         }
+        // Während des Auftakts von oben hereingleiten, damit die Bahn zum Start das ganze Brett füllt
+        let height = b.height
+        scroll = -height
+        layout()
+        let slide: CGFloat = 0.9
+        node.run(.sequence([
+            .customAction(withDuration: TimeInterval(slide)) { [weak self] _, t in
+                guard let self, self.slidingIn else { return }
+                let k = min(1, t / slide)
+                self.scroll = -height * (1 - k) * (1 - k)
+                self.layout()
+            },
+            .run { [weak self] in self?.finishSlide() },
+        ]), withKey: "slide")
+    }
+
+    private func finishSlide() {
+        guard slidingIn else { return }
+        slidingIn = false
+        node.removeAction(forKey: "slide")
+        scroll = 0
         layout()
     }
 
@@ -138,8 +162,10 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         elapsed += dt
         timeLeft -= dt
         bumpCooldown -= dt
-        // Die Bahn wird langsam schneller
-        scroll += (62 + 2.5 * CGFloat(elapsed)) * CGFloat(dt)
+        finishSlide()
+        // Die Bahn wird mit der Zeit und mit jeder gesammelten Münze schneller
+        let speed = min(165, 74 + 1.5 * CGFloat(elapsed) + 2.2 * CGFloat(collected))
+        scroll += speed * CGFloat(dt)
         moveCraft(dt, maxSpeed: 260, stiffness: 18, response: 22)
         layout()
 
@@ -182,8 +208,12 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         host.fx.shrapnel(at: p, colors: [Self.gold.skColor, .white], count: 6, power: 0.5, bounces: false)
         host.sound(.select, 0.55, Double(min(streak, 14)))
         if streak % 5 == 0 {
+            // Serie: Kombo-Ruf wie im normalen Spiel, dazu ein Schwert-Laut
             host.tick()
             onomatopoeia(Self.words.randomElement()!, at: CGPoint(x: p.x, y: p.y + 18), color: Self.gold)
+            let b = host.board
+            host.fx.popup("\(GameScene.cheer(for: streak / 5 + 1)) x\(streak)", at: CGPoint(x: b.midX, y: b.maxY - 24),
+                          color: RGBA(hex: 0xFFB347), scale: 2)
         }
     }
 
@@ -196,6 +226,31 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         host.fx.shrapnel(at: p, colors: [RGBA(hex: 0xFF8A3D).skColor, .white], count: 6, power: 0.5, bounces: false)
         host.sound(.paddle, 0.35, -7)
         host.shake(1)
+        loseCoins(away: p.x < shipCenter.x ? 1 : -1)
+    }
+
+    /// Bandenkontakt kostet ein, zwei Münzen: Sie springen aus dem Schiff davon und zählen als verpasst.
+    private func loseCoins(away direction: CGFloat) {
+        let lost = min(collected, Int.random(in: 1...2))
+        guard lost > 0 else { return }
+        collected -= lost
+        missed += lost
+        points = max(0, points - 100 * lost)
+        let start = shipCenter
+        for i in 0..<lost {
+            let coin = SKSpriteNode(texture: ArcadeArt.coin(), size: CGSize(width: 11, height: 11))
+            coin.position = start
+            coin.zPosition = 3
+            node.addChild(coin)
+            let dx = direction * CGFloat.random(in: 18...34) + CGFloat(i) * direction * 8
+            let arc = SKAction.customAction(withDuration: 0.5) { node, t in
+                let k = t / 0.5
+                node.position = CGPoint(x: (start.x + dx * k).rounded(), y: (start.y + sin(.pi * k) * 22 - 10 * k).rounded())
+            }
+            coin.run(.sequence([.group([arc, .sequence([.wait(forDuration: 0.3), .fadeOut(withDuration: 0.2)])]), .removeFromParent()]))
+        }
+        host.sound(.brick, 0.35, -5)
+        host.fx.popup("-\(lost)", at: CGPoint(x: start.x, y: start.y + 18), color: RGBA(hex: 0xE0452B))
     }
 
     /// Ende: Schiff löst sich im Blitz auf (die Szene lässt dort den Kristall zurückgleiten).
