@@ -232,7 +232,7 @@ Während die Einstellungen offen sind, steht die Stadt still.
 - `docs/assets/abzug_grafiken.png`: alle Spielgrafiken (Steine, Spezialsteine, Power-ups, Läufer, Minispiele, App-Icons)
 - `docs/assets/abzug_funker.png`: alle Funker-Porträts nach Power-up, mit Name und Stimme
 - `docs/assets/web/export/`: aktueller Export für die Webseite (Porträts als JPG, Steine, Symbole, Minispiele, Läufer, App-Icons)
-- `docs/assets/originale/portraits/<Teil>/`: alle 44 Funker-Porträts in voller Auflösung (1536 × 1024 PNG), nach dem
+- `docs/assets/originale/portraits/<Teil>/`: alle 46 Funker-Porträts in voller Auflösung (1536 × 1024 PNG), nach dem
   Teil sortiert, das die Figur in der Hand hält. Daraus entstehen die Spiel-Porträts:
   `python3 tools/import_portraits.py docs/assets/originale/portraits` (schreibt `App/Resources/portrait_*.png`
   und `portraits.json`)
