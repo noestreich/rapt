@@ -1509,6 +1509,7 @@ final class GameScene: SKScene {
             }
         }
         func radioFor(_ kind: PowerUp) -> () -> Void { radio({ Contact.random(delivering: kind) }, iconTextures[kind]) }
+        let shipIcon = ArcadeArt.starShip()
         let powerUps: [HelpPanel.Entry] = [
             .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
                   lines: ["FELD ANTIPPEN: SPRENGT 3X3."], onTap: radioFor(.bombe)),
@@ -1524,6 +1525,10 @@ final class GameScene: SKScene {
                   lines: ["9 SEK. ZIEHEN: DER LÄUFER ZIELT", "UND SCHIESST VON UNTEN. UFO!"], onTap: radioFor(.invasion)),
             .init(icon: icon(.abriss), title: "ABRISSBIRNE", badge: percent(.abriss),
                   lines: ["12 SEK. ZIEHEN: DER LÄUFER", "STEMMT DIE STANGE, DIE BIRNE", "PRALLT IN DIE STEINE."], onTap: radioFor(.abriss)),
+            // Sternenbahn: kein Lager-Power-up, nur eine Andeutung, wie man sie auslöst
+            .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: "STERNENBAHN", badge: "BONUS",
+                  lines: ["VIER KRISTALLE IN EINER REIHE ...", "12 SEK. LENKEN: MÜNZEN SAMMELN."],
+                  onTap: radio({ Contact.random(holding: "sternenbahn", fallback: .zora) }, shipIcon)),
         ]
 
         let lineStone = SKNode()

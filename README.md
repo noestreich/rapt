@@ -87,7 +87,8 @@ gesammelten Münze schneller. Ziehen lenkt; goldene Münzen (Donuts in halber Gr
 aktuellen Plans (anteilig nach Münzen, `Game.starRunPoints`), also nie mehr als einen Sprung;
 alle 5 Münzen Kombo-Ruf („STARK x5“, „BRAVO x10“ …) und ein Schwert-Laut in Katakana. Banden schubsen nur zurück
 (Funken, Serie reißt ab, 20 % der gesammelten Münzen springen davon, mindestens eine), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
-seltenes Power-up. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
+seltenes Power-up. In der Hilfe steht sie unter den Power-ups mit Schiff-Symbol und der Andeutung „VIER KRISTALLE IN
+EINER REIHE ...“; antippen spielt den Funkspruch von Greta oder Yanko. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
 
 Sprung-Leiste und Minispiele: Zu Beginn eines Minispiels (Invasion, Abrissbirne, Sternenbahn) bleibt die Leiste auf
 ihrem Stand stehen. Danach füllt sie sich sichtbar Segment für Segment (leuchtende Spitze, leise Ticks, „+Punkte“);
