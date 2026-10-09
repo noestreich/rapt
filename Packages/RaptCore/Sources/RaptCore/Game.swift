@@ -542,6 +542,38 @@ public struct Game: Sendable {
         return true
     }
 
+    // MARK: Sternenbahn
+
+    /// Alle so viele Sprünge startet im Dächerlauf die Sternenbahn (ohne Funkspruch, zusätzlich zum Power-up).
+    public static let starRunEvery = 10
+    /// Anteil der Münzen, ab dem es ein seltenes Power-up gibt.
+    public static let starRunRareShare = 0.8
+
+    /// Ist der Sprung, der zu `plan` führt, ein Sternenbahn-Sprung (10., 20., 30. …)?
+    public static func isStarRunJump(plan: Int) -> Bool {
+        let jump = plan - 1
+        return jump > 0 && jump % starRunEvery == 0
+    }
+
+    /// Beendet die Sternenbahn: Münzpunkte gutschreiben; ab 80 % der Münzen ein seltenes Power-up
+    /// (bei vollem Lager stattdessen Bonuspunkte). Das Brett bleibt unverändert.
+    public mutating func finishStarRun(points: Int, collected: Int, total: Int) -> (result: SwapResult, powerUp: PowerUp?) {
+        score += max(0, points)
+        var granted: PowerUp?
+        if total > 0, Double(collected) >= Double(total) * Self.starRunRareShare {
+            let kind = pickReward(from: Self.topRewards, uniform: true)
+            if powerUps.count < Self.maxPowerUps {
+                powerUps.append(kind)
+                granted = kind
+            } else {
+                score += Self.fullStorageBonus
+            }
+        }
+        let rewards = collectRewards()
+        updateOver()
+        return (SwapResult(isValid: true, steps: [], rewards: rewards, isGameOver: isOver), granted)
+    }
+
     /// Für Tests: Punkte gutschreiben und Belohnungen auswerten.
     mutating func award(points: Int) -> [PlanReward] {
         score += points

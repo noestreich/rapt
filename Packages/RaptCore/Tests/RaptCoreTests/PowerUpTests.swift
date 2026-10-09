@@ -149,6 +149,34 @@ final class PowerUpTests: XCTestCase {
         XCTAssertTrue(empty.steps.isEmpty)
     }
 
+    func testStarRunEveryTenthJumpAndRareRewardFromEightyPercent() {
+        XCTAssertFalse(Game.isStarRunJump(plan: 1))
+        XCTAssertFalse(Game.isStarRunJump(plan: 10), "Plan 10 ist der 9. Sprung")
+        XCTAssertTrue(Game.isStarRunJump(plan: 11))
+        XCTAssertTrue(Game.isStarRunJump(plan: 21))
+        XCTAssertFalse(Game.isStarRunJump(plan: 22))
+
+        var game = Game(seed: 4)
+        let few = game.finishStarRun(points: 300, collected: 7, total: 10)
+        XCTAssertNil(few.powerUp, "Unter 80 %: nur Punkte")
+        XCTAssertEqual(game.score, 300)
+        XCTAssertTrue(few.result.isValid)
+        XCTAssertTrue(few.result.steps.isEmpty)
+
+        let many = game.finishStarRun(points: 400, collected: 8, total: 10)
+        XCTAssertTrue(many.result.rewards.isEmpty, "700 Punkte reichen noch nicht für den nächsten Sprung")
+        let rare = many.powerUp
+        XCTAssertNotNil(rare)
+        if let rare {
+            XCTAssertTrue(Game.topRewards.contains(rare))
+            XCTAssertEqual(game.powerUps, [rare])
+        }
+        XCTAssertEqual(game.score, 700)
+
+        let none = game.finishStarRun(points: 0, collected: 0, total: 0)
+        XCTAssertNil(none.powerUp, "Ohne Münzen kein Bonus")
+    }
+
     func testGameIsOnlyOverWithoutMovesAndPowerUps() {
         // 2×2 kann nie eine Dreierreihe bilden
         var game = Game(board: Board(["OZ", "SU"]), seed: 1)

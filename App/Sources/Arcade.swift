@@ -39,7 +39,8 @@ struct ArcadeHost {
 }
 
 protocol ArcadeRound: AnyObject {
-    var kind: PowerUp { get }
+    /// Name im Countdown, z. B. „INVASION“.
+    var title: String { get }
     var node: SKNode { get }
     var cleared: Set<Pos> { get }
     var timeLeft: Double { get }
@@ -138,6 +139,22 @@ final class ArcadeCraft {
 
     func dip(_ pixels: CGFloat = 2) { kick = max(kick, pixels) }
 
+    /// Hält das Gerät zwischen `minX` und `maxX` (Banden); prallt dabei leicht ab. `true` bei Kontakt.
+    @discardableResult
+    func confine(_ minX: CGFloat, _ maxX: CGFloat) -> Bool {
+        let lo = min(minX, maxX), hi = max(minX, maxX)
+        guard x < lo || x > hi else { return false }
+        if x < lo {
+            x = lo
+            velocity = max(0, -velocity * 0.35)
+        } else {
+            x = hi
+            velocity = min(0, -velocity * 0.35)
+        }
+        node.position.x = x.rounded()
+        return true
+    }
+
     /// Gleitet zum Ziel: weich beschleunigen und abbremsen.
     /// `stiffness` und `response` bestimmen, wie direkt das Gerät folgt (klein = träge, groß = präzise).
     func update(_ dt: Double, target: CGFloat, maxSpeed: CGFloat, stiffness: CGFloat = 9, response: CGFloat = 10) {
@@ -185,20 +202,24 @@ class ArcadeBase {
 
     var shots: [Shot] = []
 
-    init(host: ArcadeHost, duration: Double, craft spec: ArcadeCraft.Spec, hover: CGFloat) {
+    /// `baseY`: Unterkante des Geräts (Welt-y); ohne Angabe schwebt es über der Bahn unter dem Brett.
+    /// `rise`: steigt hinter den Häusern auf (sonst steht es sofort an seinem Platz).
+    init(host: ArcadeHost, duration: Double, craft spec: ArcadeCraft.Spec, hover: CGFloat, baseY: CGFloat? = nil, rise: Bool = true) {
         self.host = host
         timeLeft = duration
         let mid = host.board.midX
         target = mid
-        craft = ArcadeCraft(spec: spec, figure: host.figure, glow: host.glowTexture, x: mid, baseY: host.groundY + hover)
+        craft = ArcadeCraft(spec: spec, figure: host.figure, glow: host.glowTexture, x: mid, baseY: baseY ?? host.groundY + hover)
         craft.node.zPosition = 2
         node.addChild(craft.node)
-        // Auftritt: steigt hinter den Häusern auf (die Szene hängt die Runde dafür kurz hinter die Häuser)
-        let resting = craft.node.position
-        craft.node.position.y = resting.y - 70
-        let rise = SKAction.move(to: resting, duration: 0.5)
-        rise.timingMode = .easeOut
-        craft.node.run(rise)
+        if rise {
+            // Auftritt: steigt hinter den Häusern auf (die Szene hängt die Runde dafür kurz hinter die Häuser)
+            let resting = craft.node.position
+            craft.node.position.y = resting.y - 70
+            let up = SKAction.move(to: resting, duration: 0.5)
+            up.timingMode = .easeOut
+            craft.node.run(up)
+        }
         if host.entrance { board() }
     }
 
@@ -343,6 +364,7 @@ class ArcadeBase {
 /// werfen Zickzack-Geschosse (Treffer lähmen kurz), und zweimal fliegt ein UFO vorbei: Abschuss → Blitze.
 final class InvasionRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.invasion
+    let title = "INVASION"
     var hint: String { "ZIEHEN ZUM ZIELEN" }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 
@@ -519,6 +541,7 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
 /// Abrissbirne in die Steine. Jeder Abpraller feuert zwei Leuchtspur-Salven aus den Endkappen (Raptor-Gruß).
 final class AbrissRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.abriss
+    let title = "ABRISSBIRNE"
     var hint: String { "ZIEHEN ZUM STEUERN" }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 

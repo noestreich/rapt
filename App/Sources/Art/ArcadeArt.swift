@@ -133,6 +133,86 @@ enum ArcadeArt {
         return c.texture()
     }
 
+    // MARK: Sternenbahn
+
+    /// Raumschiff (22 × 21) aus dem Kristall: Kristallform in Nietengrau mit Rostflecken wie beim Glider,
+    /// Cockpitfenster (durchsichtig, der Läufer sitzt dahinter), Warnstreifen und zwei Heckdüsen.
+    static func starShip() -> SKTexture {
+        let grey = GemArt.Look(hue: 215, sat: 10, light: 72)
+        let source = GemArt.makeCanvas(.kristall, size: 26, look: grey).canvas
+        let w = 22, h = 21
+        var c = PixelCanvas(width: w, height: h)
+        for y in 0..<19 {
+            for x in 0..<w { c.set(x, y, source.get(x + 2, y + 4)) }
+        }
+        let rust: [UInt32] = [0x5A2E1E, 0x8A4A2A, 0xB8642E]
+        for y in 0..<19 {
+            for x in 0..<w {
+                let p = c.get(x, y)
+                // Umriss bleibt dunkel
+                guard p.a > 0, Int(p.r) + Int(p.g) + Int(p.b) >= 60 else { continue }
+                let n = Noise.hash(x / 2, y / 2, 7) * 0.6 + Noise.hash(x, y, 3) * 0.4
+                if n < 0.2 { c.set(x, y, RGBA(hex: rust[min(2, Int(Noise.hash(x, y, 9) * 3))])) }
+            }
+        }
+        // Cockpit: dunkler Rahmen, Fenster durchsichtig
+        c.fillRect(7, 5, 8, 9, RGBA(hex: 0x22232B))
+        c.fillRect(8, 6, 6, 7, .clear)
+        // Warnstreifen über dem Boden
+        for x in 0..<w {
+            let p = c.get(x, 17)
+            guard p.a > 0, Int(p.r) + Int(p.g) + Int(p.b) >= 60 else { continue }
+            c.set(x, 17, RGBA(hex: (x / 2) % 2 == 0 ? 0xE0452B : 0x22232B))
+        }
+        // zwei Heckdüsen
+        for nx in [5, 15] {
+            c.fillRect(nx, 19, 2, 1, RGBA(hex: 0x4A4B56))
+            c.fillRect(nx, 20, 2, 1, RGBA(hex: 0x14141A))
+        }
+        return c.texture()
+    }
+
+    /// Schubfeuer der Heckdüsen (2 × 5), zeigt nach unten. Drei flackernde Bilder.
+    static func thruster() -> [SKTexture] {
+        let palette: [Character: UInt32] = ["Y": 0xFFF3D6, "O": 0xFFB347, "R": 0xE0452B]
+        return [
+            ["YY", "YO", "OO", "RO", ".R"],
+            ["YY", "OY", "OR", "R.", ".."],
+            ["YY", "YO", "OR", ".R", "R."],
+        ].map { sprite($0, palette).texture() }
+    }
+
+    /// Münze: goldoranger Donut in halber Steingröße (11 × 11).
+    static func coin() -> SKTexture {
+        GemArt.makeCanvas(.zahnrad, size: 11, look: GemArt.Look(hue: 40, sat: 96, light: 64)).canvas.texture()
+    }
+
+    /// Rennbahn als langes Bild (unterste Zeile = Bahnanfang). `center` und `halfWidth` geben für jeden
+    /// Bahnmeter die Mitte und die halbe Breite der freien Fahrbahn an. Außerhalb abgedunkelt, die Banden
+    /// in rot-schwarzen Schrägstreifen, in der Mitte ein gestrichelter Leitstreifen.
+    static func starTrack(width: Int, length: Int, center: (Double) -> Double, halfWidth: (Double) -> Double) -> PixelCanvas {
+        var c = PixelCanvas(width: width, height: length)
+        let shade = RGBA(hex: 0x05040A, alpha: 170)
+        let rim = RGBA(hex: 0x0B0A11)
+        let red = RGBA(hex: 0xE0452B), black = RGBA(hex: 0x1A1418)
+        let dash = RGBA(hex: 0xFFB347, alpha: 70)
+        for row in 0..<length {
+            let s = Double(length - 1 - row)
+            let m = center(s), hw = halfWidth(s)
+            let left = Int((m - hw).rounded()), right = Int((m + hw).rounded())
+            for x in 0..<width {
+                if x < left - 6 || x > right + 6 {
+                    c.set(x, row, shade)
+                } else if x < left || x > right {
+                    let edge = x == left - 6 || x == right + 6
+                    c.set(x, row, edge ? rim : (((x + row) / 3) % 2 == 0 ? red : black))
+                }
+            }
+            if Int(s) % 14 < 5 { c.set(Int(m.rounded()), row, dash) }
+        }
+        return c
+    }
+
     // MARK: Manga-Auftakt
 
     /// Konzentrationslinien wie im Manga: weiße Strahlen auf transparentem Grund, die zur Mitte zeigen

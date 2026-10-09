@@ -88,7 +88,12 @@ enum GemArt {
 
     /// `petrified`: graue Steinversion für den Fresser.
     static func makeSprite(_ gem: Gem, size: Int = tile, petrified: Bool = false) -> Sprite {
-        let style = petrified ? Look(hue: 30, sat: 6, light: 40) : look(gem)
+        let (canvas, ramp) = makeCanvas(gem, size: size, look: petrified ? Look(hue: 30, sat: 6, light: 40) : look(gem))
+        return Sprite(texture: canvas.texture(), ramp: ramp)
+    }
+
+    /// Stein als Pixelbild in beliebiger Farbe (z. B. goldene Münzen, graues Raumschiff der Sternenbahn).
+    static func makeCanvas(_ gem: Gem, size: Int = tile, look style: Look) -> (canvas: PixelCanvas, ramp: [RGBA]) {
         let steps = 5
         let ramp: [RGBA] = (0..<steps).map { i in
             let k = Double(i) / Double(steps - 1)
@@ -130,7 +135,7 @@ enum GemArt {
                 if near { canvas.set(px, py, outline) }
             }
         }
-        return Sprite(texture: canvas.texture(), ramp: ramp)
+        return (canvas, ramp)
     }
 
     private static func normalize(_ x: Double, _ y: Double, _ z: Double) -> (Double, Double, Double) {

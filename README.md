@@ -76,6 +76,14 @@ Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 | **Invasion** (9 s) | Space Invaders | Der Läufer sitzt in einem dunklen Neon-Gleiter (ziehen; gleitet mit Trägheit, Seitendüsen zeigen den Schub) und schießt automatisch aus der Kanone nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
 | **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen, folgt dem Finger direkt); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
 
+**Sternenbahn** (12 s, jeder 10. Sprung im Dächerlauf, ohne Funkspruch, zusätzlich zum Power-up): Alle Steine blenden
+aus, ein Kristall gleitet in die untere Brettmitte und wird im Blitz zum grauen Raumschiff (Kristallform in Nietengrau,
+Rostflecken, Cockpitfenster, zwei Heckdüsen); der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“. Von oben schiebt
+sich eine Rennbahn mit rot-schwarzen Banden ins Brett, die schneller, schmaler und kurviger wird. Ziehen lenkt; goldene
+Münzen (Donuts in halber Größe) bringen 100 Punkte, in Folge bis 300. Banden schubsen nur zurück (Funken, Serie reißt ab),
+kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
+seltenes Power-up. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
+
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 
 ### Spezialsteine
@@ -211,7 +219,7 @@ Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahme
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und **TEST** mit den Knöpfen **INV** und
-**ABR** (Minispiel sofort starten), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+**ABR** (Minispiel sofort starten), **BAHN** (Sternenbahn sofort), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

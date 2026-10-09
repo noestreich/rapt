@@ -139,6 +139,11 @@ final class GameScene: SKScene {
     private var fresser: FresserState?
     /// Spezialsteine, die im laufenden Minispiel oder beim Fresser schon ausgelöst haben.
     private var spentSpecials: Set<Pos> = []
+    /// Sternenbahn startet, sobald nach dem 10., 20., … Sprung alles ruhig ist.
+    private var pendingStarRun = false
+    /// Während der Sternenbahn: der Kristall, der zum Schiff wurde, und die Glow-Stärken der ausgeblendeten Steine.
+    private var starCrystal: Pos?
+    private var starGlows: [Pos: CGFloat] = [:]
     /// Laufendes Minispiel (Invasion, Abrissbirne); `arcadeIntro` während des Manga-Auftakts davor.
     private var arcade: ArcadeRound?
     /// Minispiel, dessen Fluggerät schon während des Auftakts einfliegt.
@@ -473,6 +478,12 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        settingsPanel.onTestStarRun = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            guard !self.busy, !self.minigameActive, !self.game.isOver, !self.menuVisible else { return }
+            self.startStarRun()
+        }
         settingsPanel.onTestBlackout = { [weak self] in
             guard let self else { return }
             self.settingsPanel.hide()
@@ -2037,7 +2048,7 @@ final class GameScene: SKScene {
         let seconds = max(0, Int(ceil(round.timeLeft)))
         if seconds != shownArcadeSeconds {
             shownArcadeSeconds = seconds
-            setText(countdownLabel, "\(Self.name(round.kind)) \(seconds)", color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
+            setText(countdownLabel, "\(round.title) \(seconds)", color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
             if seconds <= 3 && seconds > 0 { audio.play(.select, volume: 0.5) }
         }
         if round.isFinished { endArcade() }
@@ -2045,6 +2056,10 @@ final class GameScene: SKScene {
 
     private func endArcade() {
         guard let round = arcade else { return }
+        if let star = round as? StarRunRound {
+            endStarRun(star)
+            return
+        }
         arcade = nil
         let cleared = round.cleared
         let from = round.seat
@@ -2071,6 +2086,8 @@ final class GameScene: SKScene {
     /// Abbruch ohne Auswertung, z. B. bei Absturz oder neuem Spiel.
     private func abortArcade() {
         spentSpecials = []
+        pendingStarRun = false
+        restoreStarBoard(from: nil)
         arcade?.teardown()
         arcade = nil
         pendingRound?.teardown()
@@ -2299,6 +2316,159 @@ final class GameScene: SKScene {
                 self.mangaFX.filter = self.mangaPlain
             },
         ]), withKey: "glitch")
+    }
+
+    // MARK: Sternenbahn
+
+    /// Ein Kristall verwandelt sich ins Raumschiff: die anderen Steine blenden aus, der Kristall gleitet in die
+    /// untere Brettmitte, Blitz, das Schiff steht da; der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“.
+    private func startStarRun() {
+        guard !busy, !minigameActive else { return }
+        busy = true
+        spentSpecials = []
+        setSelected(nil)
+        setArmed(nil)
+        arcadeIntro = true
+        refreshStatus()
+        setArcadeHUD(visible: false)
+        let canBoard = !figure.isHidden && !figureFalling
+        let host = arcadeHost(entrance: !canBoard)
+        let shipBase = CGPoint(x: host.board.midX, y: host.board.minY + 4)
+        let shipCenter = CGPoint(x: shipBase.x, y: shipBase.y + 10)
+
+        // Kristall wählen: der nächste zur unteren Brettmitte (ohne Kristall irgendein Stein)
+        let candidates = gems.filter { !$0.value.isDying }
+        let crystals = candidates.filter { $0.value.gem == .kristall }
+        let pool = crystals.isEmpty ? candidates : crystals
+        func distance(_ node: GemNode) -> CGFloat {
+            hypot(node.position.x - shipCenter.x, node.position.y - shipCenter.y)
+        }
+        let chosen = pool.min { distance($0.value) < distance($1.value) }
+        starCrystal = chosen?.key
+        starGlows = [:]
+        for (p, node) in gems where p != chosen?.key {
+            starGlows[p] = node.glow.alpha
+            node.run(.fadeOut(withDuration: 0.3), withKey: "star")
+            node.glow.run(.fadeOut(withDuration: 0.3), withKey: "star")
+        }
+        audio.play(.warp, volume: 0.6)
+        var morph: [SKAction] = [.wait(forDuration: 0.3)]
+        if let chosen {
+            let p = chosen.key, node = chosen.value
+            starGlows[p] = node.glow.alpha
+            fx.flash(at: node.position, color: GemArt.glowColor(node.gem))
+            let glide = SKAction.move(to: shipCenter, duration: 0.55)
+            glide.timingMode = .easeInEaseOut
+            node.glow.run(.fadeOut(withDuration: 0.3), withKey: "star")
+            node.run(glide, withKey: "star")
+            morph.append(.wait(forDuration: 0.55))
+        }
+        morph.append(.run { [weak self] in
+            guard let self, self.arcadeIntro else { return }
+            if let p = chosen?.key { self.gems[p]?.alpha = 0 }
+            self.fx.flash(at: shipCenter, color: .white)
+            self.fx.warpRing(at: shipCenter, color: RGBA(hex: 0x3FD8FF).skColor, radius: 40)
+            self.fx.shrapnel(at: shipCenter, colors: [RGBA(hex: 0x3FD8FF).skColor, RGBA(hex: 0xB8BCC8).skColor, .white],
+                             count: 14, power: 0.8, bounces: false)
+            self.audio.play(.powerUp, volume: 0.6)
+            let round = StarRunRound(host: host)
+            round.node.zPosition = 6
+            self.fx.pixelLayer.addChild(round.node)
+            self.pendingRound = round
+            if canBoard {
+                self.leapFigure(to: { [weak round] in round?.seat ?? .zero }, delay: 0.15) { [weak self, weak round] jumper in
+                    guard let self else { return }
+                    jumper.removeFromParent()
+                    round?.board()
+                    self.audio.play(.land, volume: 0.6)
+                    if let seat = round?.seat { self.fx.steam(at: seat) }
+                }
+            }
+            self.mangaIntro("STERNENBAHN!", color: RGBA(hex: 0xFFC247)) { [weak self] in
+                guard let self, self.arcadeIntro else { return }
+                self.arcadeIntro = false
+                self.pendingRound = nil
+                round.board()
+                self.fx.popup(round.hint, at: CGPoint(x: host.board.midX, y: host.board.minY + 40), color: Palette.amber)
+                self.arcade = round
+                self.shownArcadeSeconds = -1
+                self.countdownLabel.isHidden = false
+                self.refreshStatus()
+            }
+        })
+        run(.sequence(morph), withKey: "starMorph")
+    }
+
+    /// Ende der Sternenbahn: Schiff wird wieder zum Kristall und gleitet an seinen Platz, die Steine kehren zurück,
+    /// Münzpunkte und (ab 80 %) ein seltenes Power-up.
+    private func endStarRun(_ round: StarRunRound) {
+        arcade = nil
+        let from = round.seat
+        let ship = round.shipCenter
+        round.teardown()
+        returnFigure(from: from)
+        countdownLabel.isHidden = true
+        setArcadeHUD(visible: true)
+        mangaFlash([true], step: 0.07)
+        audio.play(.slam, volume: 0.6)
+        fx.warpRing(at: ship, color: RGBA(hex: 0xFFC247).skColor, radius: 90)
+        let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
+        fx.popup("\(round.collected) MÜNZEN  +\(round.points)", at: mid, color: Palette.amber, scale: 2)
+        restoreStarBoard(from: ship)
+        let (result, rare) = game.finishStarRun(points: round.points, collected: round.collected, total: round.total)
+        refreshStatus()
+        run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
+            guard let self else { return }
+            if let rare {
+                // Seltenes Power-up fliegt vom Brett ins Lager (ohne Funkspruch)
+                self.pendingDeliveries += 1
+                self.updateSlots()
+                let index = max(0, min(Game.maxPowerUps - 1, self.game.powerUps.count - self.pendingDeliveries))
+                let target = self.design(Layout.slotX(index) + Layout.slotSize / 2, Layout.slotY + Layout.slotSize / 2)
+                self.fx.popup("80 % GESCHAFFT!", at: CGPoint(x: mid.x, y: mid.y - 20), color: Palette.cream)
+                self.flyItem(self.iconTextures[rare] ?? SKTexture(), from: mid, to: { target }) { [weak self] in
+                    guard let self else { return }
+                    self.pendingDeliveries = max(0, self.pendingDeliveries - 1)
+                    self.updateSlots()
+                    self.flashSlot(index)
+                    self.audio.play(.powerUp, volume: 0.7)
+                    self.fx.popup("+ " + Self.name(rare), at: self.design(Layout.slotX(1), Layout.slotY - 6), color: Palette.amber)
+                    self.refreshStatus()
+                }
+            }
+            self.finish(result)
+        }]))
+    }
+
+    /// Steine wieder einblenden; der Kristall gleitet von `ship` an seinen Platz zurück (`nil`: sofort, z. B. bei Abbruch).
+    private func restoreStarBoard(from ship: CGPoint?) {
+        removeAction(forKey: "starMorph")
+        guard starCrystal != nil || !starGlows.isEmpty else { return }
+        for (p, node) in gems {
+            node.removeAction(forKey: "star")
+            node.glow.removeAction(forKey: "star")
+            let glow = starGlows[p] ?? node.glow.alpha
+            let home = center(of: p)
+            if p == starCrystal, let ship {
+                node.position = ship
+                node.alpha = 1
+                fx.flash(at: ship, color: GemArt.glowColor(node.gem))
+                let back = SKAction.move(to: home, duration: 0.5)
+                back.timingMode = .easeInEaseOut
+                node.run(back)
+                node.glow.run(.sequence([.wait(forDuration: 0.4), .fadeAlpha(to: glow, duration: 0.2)]))
+            } else if ship != nil {
+                node.position = home
+                node.run(.fadeIn(withDuration: 0.35))
+                node.glow.run(.fadeAlpha(to: glow, duration: 0.35))
+            } else {
+                node.position = home
+                node.alpha = 1
+                node.glow.alpha = glow
+            }
+        }
+        starCrystal = nil
+        starGlows = [:]
     }
 
     // MARK: Stromausfall
@@ -2542,6 +2712,8 @@ final class GameScene: SKScene {
             jumped = true
             self.jumpFigure(to: building) { [weak self] in
                 if reward.reachedTop { self?.heroFireworks() }
+                // Jeder 10. Sprung: Sternenbahn (ohne Funkspruch)
+                if Game.isStarRunJump(plan: reward.plan) { self?.pendingStarRun = true }
             }
         }
         let slotLabel = design(Layout.slotX(1), Layout.slotY - 6)
@@ -2829,6 +3001,11 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
         updateArcade(dt)
+        if pendingStarRun, mode == .rooftop, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
+           !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible {
+            pendingStarRun = false
+            startStarRun()
+        }
         updateClock()
         updateTowerHold()
 

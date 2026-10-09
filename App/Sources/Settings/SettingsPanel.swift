@@ -14,6 +14,8 @@ final class SettingsPanel {
     var onTestMono: () -> Void = {}
     /// Debug: Stromausfall (Fenster aus, Spielbrett grau, 5 Sekunden).
     var onTestBlackout: () -> Void = {}
+    /// Debug: Sternenbahn sofort starten.
+    var onTestStarRun: () -> Void = {}
     var onChange: () -> Void = {}
     private(set) var isVisible = false
 
@@ -124,11 +126,12 @@ final class SettingsPanel {
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
             // Minispiele sofort starten; Spielbrett 5 s grau; Stromausfall
-            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "GRAU", "AUS"], perform: { [weak self] i in
+            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "BAHN", "GRAU", "AUS"], perform: { [weak self] i in
                 switch i {
                 case 0: self?.onTestArcade(.invasion)
                 case 1: self?.onTestArcade(.abriss)
-                case 2: self?.onTestMono()
+                case 2: self?.onTestStarRun()
+                case 3: self?.onTestMono()
                 default: self?.onTestBlackout()
                 }
             })))
