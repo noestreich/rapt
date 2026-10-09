@@ -1,9 +1,6 @@
 import AVFoundation
 import Combine
 import Foundation
-#if os(iOS)
-import UIKit
-#endif
 
 /// Gemeinsamer Zugang zu Effekten, Musik und Dateizuordnung, damit Spiel und Sound-Labor
 /// dieselben Instanzen nutzen und Änderungen sofort im laufenden Spiel ankommen.
@@ -42,8 +39,7 @@ final class AudioCenter {
         effects.onStartFailure = { [weak self] in self?.resumeAfterInterruption() }
 
         #if os(iOS)
-        // Hat eine andere App den Ton übernommen (z. B. Spracheingabe, Anruf), stoppt iOS unsere Engines. Danach die
-        // Audio-Sitzung neu aktivieren und die Effekte sicher neu starten – sonst bleibt nur die Musik hörbar.
+        // Endet eine Unterbrechung (Anruf, andere App mit Ton), Sitzung neu aktivieren und Effekte wieder anwerfen
         NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] note in
@@ -51,10 +47,6 @@ final class AudioCenter {
                       AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
                 self?.resumeAfterInterruption()
             }
-            .store(in: &subscriptions)
-        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.resumeAfterInterruption() }
             .store(in: &subscriptions)
         #endif
     }

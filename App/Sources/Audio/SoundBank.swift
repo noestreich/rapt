@@ -116,13 +116,14 @@ final class SoundBank {
         }
     }
 
-    /// Nach einer Unterbrechung (andere App spielt Ton, Anruf) oder der Rückkehr in den Vordergrund: Engine sicher
-    /// neu starten. `isRunning` meldet danach teils noch „läuft“, obwohl kein Ton mehr herauskommt.
+    /// Nach dem erneuten Aktivieren der Audio-Sitzung: Engine starten, falls sie steht (nie anhalten, sonst
+    /// riskieren wir, sie gar nicht mehr hochzubekommen), und die Player wieder anwerfen.
     func resume() {
-        engine.stop()
-        do { try engine.start() } catch { return }
-        voices.forEach { $0.player.play() }
-        voicePlayer.play()
+        if !engine.isRunning {
+            do { try engine.start() } catch { return }
+        }
+        voices.forEach { if !$0.player.isPlaying { $0.player.play() } }
+        if !voicePlayer.isPlaying { voicePlayer.play() }
         dangerActive = false
     }
 
