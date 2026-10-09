@@ -2414,9 +2414,10 @@ final class GameScene: SKScene {
         audio.play(.slam, volume: 0.6)
         fx.warpRing(at: ship, color: RGBA(hex: 0xFFC247).skColor, radius: 90)
         let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
-        fx.popup("\(round.collected) MÜNZEN  +\(round.points)", at: mid, color: Palette.amber, scale: 2)
         restoreStarBoard(from: ship)
-        let (result, rare) = game.finishStarRun(points: round.points, collected: round.collected, total: round.total)
+        // Punkte anteilig nach Münzen, höchstens ein halber Sprung (wächst mit dem Spielfortschritt)
+        let (result, rare, points) = game.finishStarRun(collected: round.collected, total: round.total)
+        fx.popup("\(round.collected) MÜNZEN  +\(points)", at: mid, color: Palette.amber, scale: 2)
         refreshStatus()
         run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
             guard let self else { return }

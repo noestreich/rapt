@@ -157,24 +157,37 @@ final class PowerUpTests: XCTestCase {
         XCTAssertFalse(Game.isStarRunJump(plan: 22))
 
         var game = Game(seed: 4)
-        let few = game.finishStarRun(points: 300, collected: 7, total: 10)
+        // Plan 1: ein Sprung sind 1500 Punkte, alle Münzen zusammen höchstens die Hälfte
+        XCTAssertEqual(game.starRunPoints(collected: 10, total: 10), 750)
+        let few = game.finishStarRun(collected: 6, total: 10)
         XCTAssertNil(few.powerUp, "Unter 80 %: nur Punkte")
-        XCTAssertEqual(game.score, 300)
+        XCTAssertEqual(few.points, 450)
+        XCTAssertEqual(game.score, 450)
         XCTAssertTrue(few.result.isValid)
         XCTAssertTrue(few.result.steps.isEmpty)
 
-        let many = game.finishStarRun(points: 400, collected: 8, total: 10)
-        XCTAssertTrue(many.result.rewards.isEmpty, "700 Punkte reichen noch nicht für den nächsten Sprung")
+        let many = game.finishStarRun(collected: 8, total: 10)
+        XCTAssertEqual(many.points, 600)
+        XCTAssertTrue(many.result.rewards.isEmpty, "1050 Punkte reichen noch nicht für den nächsten Sprung")
         let rare = many.powerUp
         XCTAssertNotNil(rare)
         if let rare {
             XCTAssertTrue(Game.topRewards.contains(rare))
             XCTAssertEqual(game.powerUps, [rare])
         }
-        XCTAssertEqual(game.score, 700)
+        XCTAssertEqual(game.score, 1050)
 
-        let none = game.finishStarRun(points: 0, collected: 0, total: 0)
+        let none = game.finishStarRun(collected: 0, total: 0)
         XCTAssertNil(none.powerUp, "Ohne Münzen kein Bonus")
+        XCTAssertEqual(none.points, 0)
+
+        // Eine volle Fahrt bringt nie mehr als einen Sprung
+        var late = Game(seed: 6)
+        _ = late.award(points: Game.planThreshold(11))
+        let plan = late.plan
+        let full = late.finishStarRun(collected: 30, total: 30)
+        XCTAssertLessThanOrEqual(full.result.rewards.count, 1)
+        XCTAssertLessThanOrEqual(late.plan, plan + 1)
     }
 
     func testGameIsOnlyOverWithoutMovesAndPowerUps() {

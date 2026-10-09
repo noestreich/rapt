@@ -548,6 +548,17 @@ public struct Game: Sendable {
     public static let starRunEvery = 10
     /// Anteil der Münzen, ab dem es ein seltenes Power-up gibt.
     public static let starRunRareShare = 0.8
+    /// Alle Münzen zusammen bringen diesen Anteil des aktuellen Sprungs (so höchstens ein Sprung je Fahrt).
+    public static let starRunPlanShare = 0.5
+
+    /// Punkte der Sternenbahn: anteilig nach eingesammelten Münzen bis zu einem halben Sprung des aktuellen
+    /// Plans; wächst so mit dem Spielfortschritt mit. Auf 10 gerundet.
+    public func starRunPoints(collected: Int, total: Int) -> Int {
+        guard total > 0, collected > 0 else { return 0 }
+        let step = Double(Self.pointsPerPlanStep * plan)
+        let share = min(1, Double(collected) / Double(total))
+        return Int((step * Self.starRunPlanShare * share / 10).rounded()) * 10
+    }
 
     /// Ist der Sprung, der zu `plan` führt, ein Sternenbahn-Sprung (10., 20., 30. …)?
     public static func isStarRunJump(plan: Int) -> Bool {
@@ -555,10 +566,11 @@ public struct Game: Sendable {
         return jump > 0 && jump % starRunEvery == 0
     }
 
-    /// Beendet die Sternenbahn: Münzpunkte gutschreiben; ab 80 % der Münzen ein seltenes Power-up
-    /// (bei vollem Lager stattdessen Bonuspunkte). Das Brett bleibt unverändert.
-    public mutating func finishStarRun(points: Int, collected: Int, total: Int) -> (result: SwapResult, powerUp: PowerUp?) {
-        score += max(0, points)
+    /// Beendet die Sternenbahn: Münzpunkte gutschreiben (`starRunPoints`); ab 80 % der Münzen ein seltenes
+    /// Power-up (bei vollem Lager stattdessen Bonuspunkte). Das Brett bleibt unverändert.
+    public mutating func finishStarRun(collected: Int, total: Int) -> (result: SwapResult, powerUp: PowerUp?, points: Int) {
+        let points = starRunPoints(collected: collected, total: total)
+        score += points
         var granted: PowerUp?
         if total > 0, Double(collected) >= Double(total) * Self.starRunRareShare {
             let kind = pickReward(from: Self.topRewards, uniform: true)
@@ -571,7 +583,7 @@ public struct Game: Sendable {
         }
         let rewards = collectRewards()
         updateOver()
-        return (SwapResult(isValid: true, steps: [], rewards: rewards, isGameOver: isOver), granted)
+        return (SwapResult(isValid: true, steps: [], rewards: rewards, isGameOver: isOver), granted, points)
     }
 
     /// Für Tests: Punkte gutschreiben und Belohnungen auswerten.

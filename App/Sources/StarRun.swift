@@ -14,7 +14,6 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     /// Eingesammelte und verpasste Münzen (nur solche, die schon am Schiff vorbei sind).
     private(set) var collected = 0
     private(set) var missed = 0
-    private(set) var points = 0
     var total: Int { collected + missed }
 
     /// Mitte des Schiffs (Welt), z. B. für die Rückverwandlung in den Kristall.
@@ -202,8 +201,6 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         coin.sprite.removeFromParent()
         streak += 1
         collected += 1
-        // 100 Punkte, mit jeder Münze in Folge 20 mehr (bis 300)
-        points += 100 + 20 * min(streak - 1, 10)
         host.fx.flash(at: p, color: Self.gold.skColor)
         host.fx.shrapnel(at: p, colors: [Self.gold.skColor, .white], count: 6, power: 0.5, bounces: false)
         host.sound(.select, 0.55, Double(min(streak, 14)))
@@ -235,7 +232,6 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         guard lost > 0 else { return }
         collected -= lost
         missed += lost
-        points = max(0, points - 100 * lost)
         let start = shipCenter
         for i in 0..<lost {
             let coin = SKSpriteNode(texture: ArcadeArt.coin(), size: CGSize(width: 11, height: 11))
