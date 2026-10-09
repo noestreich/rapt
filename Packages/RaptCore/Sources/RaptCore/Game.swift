@@ -591,6 +591,12 @@ public struct Game: Sendable {
         return (SwapResult(isValid: true, steps: [], rewards: rewards, isGameOver: isOver), granted, points)
     }
 
+    /// Debug: so viele Pläne auf einmal schaffen (Sprünge samt Power-ups), ohne Steine zu bewegen.
+    public mutating func debugAdvance(plans: Int) -> SwapResult {
+        score = max(score, Self.planThreshold(plan + max(0, plans)))
+        return finish([])
+    }
+
     /// Für Tests: Punkte gutschreiben und Belohnungen auswerten.
     mutating func award(points: Int) -> [PlanReward] {
         score += points

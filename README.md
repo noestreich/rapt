@@ -206,6 +206,10 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 - Stromausfall nach der Atombombe (mit 33 % Wahrscheinlichkeit): alle Fenster der Häuser flackern hell auf und gehen
   flackernd aus, die Stadt bleibt 5 Sekunden dunkel und das Spielbrett grau (`BoardMonoFilter`), der Fernsehturm blinkt
   mit Notstrom rot weiter; danach springt der Strom flackernd wieder an. Abschalten: `PowerCut.enabled = false`.
+- Läufer außer Sicht: Springt er auf ein Dach rechts außerhalb des Bildes, landet er stattdessen mit einem hohen
+  Sprung auf der Oberkante des Spielfeldrahmens (beim ersten Mal „HOCH HINAUS!“). Je weiter sein Dach entfernt ist,
+  desto weiter links steht er; die Stadt drängt ihn langsam nach rechts (Staub, Windlinien), und sobald sein Dach im
+  Bild ist, springt er hinunter („ハッ!“). Rein optisch, die Spiellogik rechnet mit dem echten Haus (`standPoint`).
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
 ## Musik
@@ -224,7 +228,7 @@ Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahme
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und **TEST** mit den Knöpfen **INV** und
-**ABR** (Minispiel sofort starten), **BAHN** (Sternenbahn sofort), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+**ABR** (Minispiel sofort starten), **BAHN** (Sternenbahn sofort), **+3** (drei Sprünge auf einmal), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
 Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

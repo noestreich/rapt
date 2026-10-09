@@ -212,6 +212,14 @@ final class PowerUpTests: XCTestCase {
         XCTAssertFalse(Game.hasStarRunTrigger(.invalid))
     }
 
+    func testDebugAdvanceJumpsSeveralPlansAtOnce() {
+        var game = Game(seed: 3)
+        let result = game.debugAdvance(plans: 3)
+        XCTAssertEqual(game.plan, 4)
+        XCTAssertEqual(result.rewards.map(\.plan), [2, 3, 4])
+        XCTAssertTrue(result.steps.isEmpty)
+    }
+
     func testGameIsOnlyOverWithoutMovesAndPowerUps() {
         // 2×2 kann nie eine Dreierreihe bilden
         var game = Game(board: Board(["OZ", "SU"]), seed: 1)

@@ -195,6 +195,11 @@ final class GameScene: SKScene {
     /// Haus, auf dem die Figur sichtbar steht. Die Spiellogik springt sofort, die Szene erst mit der Animation.
     private var shownBuilding = 0
     private var figureFalling = false
+    /// Der Läufer steht auf der Oberkante des Spielfeldrahmens, weil sein Dach rechts außerhalb des Bildes liegt.
+    private var figureOnLedge = false
+    /// „HOCH HINAUS!“ nur beim ersten Mal pro Spiel.
+    private var ledgeHintShown = false
+    private var ledgeDustTimer: TimeInterval = 0
     private var wasInDanger = false
     /// Warn-Ticken bei Absturzgefahr: Zeit bis zum nächsten Tick und abwechselnde Tonhöhe (Tick–Tack).
     private var dangerTickTimer: TimeInterval = 0
@@ -482,6 +487,12 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        settingsPanel.onTestJumps = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            guard !self.busy, !self.minigameActive, !self.game.isOver, !self.menuVisible else { return }
+            self.finish(self.game.debugAdvance(plans: 3))
+        }
         settingsPanel.onTestStarRun = { [weak self] in
             guard let self else { return }
             self.settingsPanel.hide()
@@ -689,6 +700,9 @@ final class GameScene: SKScene {
         wasInDanger = false
         lastStarRun = nil
         pendingStarRun = false
+        figureOnLedge = false
+        ledgeHintShown = false
+        figure.removeAction(forKey: "ledgeDrop")
         shownBuilding = game.city.figureIndex
         startFigureIdle()
         let rooftop = newMode == .rooftop
@@ -1211,9 +1225,81 @@ final class GameScene: SKScene {
             buildingSprites[i] = nil
         }
         if !figureJumping && !figureFalling && !figureAway {
-            let b = city.buildings[min(shownBuilding, city.buildings.count - 1)]
-            figure.position = design(CGFloat(city.screenX(b.center)).rounded(), skyBottom - CGFloat(b.height) - figureBob)
+            let spot = standPoint(for: shownBuilding)
+            if figureOnLedge && !spot.onLedge {
+                // Sein Dach ist wieder im Bild: von der Kante hinunterspringen
+                dropFromLedge()
+            } else {
+                figureOnLedge = spot.onLedge
+                figure.position = CGPoint(x: spot.point.x, y: spot.point.y + figureBob)
+            }
         }
+    }
+
+    // MARK: Oberkante des Spielfelds
+
+    /// Wo der Läufer für das Haus `building` steht (Fußpunkt, Weltkoordinaten): auf dem Dach – oder, wenn das Dach
+    /// rechts außerhalb des Bildes liegt, auf der Oberkante des Spielfeldrahmens. Je weiter das Dach entfernt ist,
+    /// desto weiter links; während die Stadt wandert, wird er langsam nach rechts gedrängt. Rein optisch: die
+    /// Spiellogik rechnet weiter mit dem echten Haus.
+    private func standPoint(for building: Int) -> (point: CGPoint, onLedge: Bool) {
+        let city = game.city
+        let b = city.buildings[min(max(0, building), city.buildings.count - 1)]
+        let x = CGFloat(city.screenX(b.center)).rounded()
+        // Rechte Bildkante (visibleRight hat 1 px Reserve), das Dach soll mindestens 6 px im Bild sein
+        let edge = visibleRight - 1 - 6
+        guard mode == .rooftop, x > edge else {
+            return (design(x, skyBottom - CGFloat(b.height)), false)
+        }
+        let ledgeLeft = CGFloat(Layout.boardX - 6) + 5
+        let ledgeRight = CGFloat(Layout.boardX + Layout.boardSize + 6) - 5
+        let lx = max(ledgeLeft, ledgeRight - (x - edge) * 0.5).rounded()
+        return (design(lx, CGFloat(Layout.boardY - 6)), true)
+    }
+
+    /// Das Dach ist wieder im Bild: von der rechten oberen Ecke hinunter aufs Dach.
+    private func dropFromLedge() {
+        figureJumping = true
+        stopFigureIdle()
+        figure.texture = figureJump
+        let from = figure.position
+        fx.popup("ハッ!", at: CGPoint(x: from.x - 8, y: from.y + 16), color: Palette.cream)
+        audio.play(.jump, volume: 0.5, semitones: -3)
+        let duration: CGFloat = 0.7
+        let fall = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
+            guard let self else { return }
+            let to = self.standPoint(for: self.shownBuilding).point
+            let t = min(1, elapsed / duration)
+            // erst kurz hoch, dann im Fall immer schneller
+            node.position = CGPoint(x: (from.x + (to.x - from.x) * t).rounded(),
+                                    y: (from.y + (to.y - from.y) * t * t + sin(.pi * t) * 10).rounded())
+        }
+        figure.run(.sequence([fall, .run { [weak self] in
+            guard let self else { return }
+            self.figureJumping = false
+            self.figureOnLedge = false
+            self.updateCity()
+            self.startFigureIdle()
+            self.audio.play(.land, volume: 0.6)
+            self.fx.steam(at: self.figure.position)
+            self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
+        }]), withKey: "ledgeDrop")
+    }
+
+    /// Auf der Kante: die „unsichtbare Kraft“ drängt ihn nach rechts – Staub an den Füßen, Windlinien von links.
+    private func updateLedge(_ dt: TimeInterval) {
+        guard figureOnLedge, !figureJumping, !figureAway, !figure.isHidden else { return }
+        ledgeDustTimer -= dt
+        guard ledgeDustTimer <= 0 else { return }
+        ledgeDustTimer = Double.random(in: 0.5...0.9)
+        let feet = figure.position
+        fx.shrapnel(at: CGPoint(x: feet.x - 3, y: feet.y + 1), colors: [RGBA(hex: 0x9A9CAB).skColor, RGBA(hex: 0x585A67).skColor],
+                    count: 3, power: 0.25, bounces: false)
+        let line = SKSpriteNode(color: SKColor(white: 1, alpha: 0.5), size: CGSize(width: CGFloat(Int.random(in: 4...8)), height: 1))
+        line.position = CGPoint(x: feet.x - 22, y: feet.y + CGFloat(Int.random(in: 2...9)))
+        line.zPosition = 6
+        fx.pixelLayer.addChild(line)
+        line.run(.sequence([.group([.moveBy(x: 18, y: 0, duration: 0.35), .fadeOut(withDuration: 0.35)]), .removeFromParent()]))
     }
 
     private func makeBuilding(_ b: Building, index: Int) -> SKSpriteNode {
@@ -2132,9 +2218,7 @@ final class GameScene: SKScene {
 
     /// Dachpunkt, auf dem der Läufer steht (Weltkoordinaten).
     private func roofPoint() -> CGPoint {
-        let city = game.city
-        let b = city.buildings[min(shownBuilding, city.buildings.count - 1)]
-        return design(CGFloat(city.screenX(b.center)).rounded(), skyBottom - CGFloat(b.height))
+        standPoint(for: shownBuilding).point
     }
 
     /// Sprung-Double des Läufers vor allen Ebenen: fliegt im Bogen zu `target` (wird jedes Bild neu gelesen).
@@ -2702,19 +2786,25 @@ final class GameScene: SKScene {
             completion()
             return
         }
+        // Ein laufender Abstieg von der Kante wird vom neuen Sprung abgelöst
+        figure.removeAction(forKey: "ledgeDrop")
         figureJumping = true
         audio.play(.jump, volume: 0.6)
         stopFigureIdle()
         figure.texture = figureJump
         let from = figure.position
         fx.steam(at: CGPoint(x: from.x, y: from.y + 3))
-        let duration: CGFloat = 0.7
+        let target = standPoint(for: building)
+        // Von einem Dach hinauf auf die Kante: extra hoher, langer Sprung mit Pfeifton
+        let upToLedge = target.onLedge && !figureOnLedge
+        let alongLedge = target.onLedge && figureOnLedge
+        if upToLedge { audio.play(.jump, volume: 0.5, semitones: 7) }
+        let duration: CGFloat = upToLedge ? 0.95 : 0.7
         let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { [weak self] node, elapsed in
             guard let self else { return }
-            let b = self.game.city.buildings[building]
-            let to = self.design(CGFloat(self.game.city.screenX(b.center)), self.skyBottom - CGFloat(b.height))
-            // Halbe Sinuskurve: deutlich über beide Dächer hinweg
-            let height = 26 + abs(to.y - from.y) / 2
+            let to = self.standPoint(for: building).point
+            // Halbe Sinuskurve: deutlich über beide Dächer hinweg; auf der Kante nur ein kleiner Hüpfer
+            let height = alongLedge ? 12 : 26 + abs(to.y - from.y) / 2
             let t = min(1, elapsed / duration)
             node.position = CGPoint(x: (from.x + (to.x - from.x) * t).rounded(),
                                     y: (from.y + (to.y - from.y) * t + sin(.pi * t) * height).rounded())
@@ -2723,6 +2813,11 @@ final class GameScene: SKScene {
             guard let self else { return }
             self.shownBuilding = building
             self.figureJumping = false
+            if upToLedge && !self.ledgeHintShown {
+                self.ledgeHintShown = true
+                self.fx.popup("HOCH HINAUS!", at: CGPoint(x: min(self.figure.position.x, Layout.width - 40), y: self.figure.position.y + 18),
+                              color: Palette.amber)
+            }
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
@@ -3043,6 +3138,7 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
         updateArcade(dt)
+        updateLedge(dt)
         if pendingStarRun, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
            !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible {
             pendingStarRun = false
