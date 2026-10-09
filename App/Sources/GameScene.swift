@@ -2886,8 +2886,7 @@ final class GameScene: SKScene {
         figure.texture = figureJump
         let from = figure.position
         let target = standPoint(for: building)
-        // Dampf nur auf den Dächern, nicht auf der Kante (dort wäre es zu unruhig)
-        if !figureOnLedge { fx.steam(at: CGPoint(x: from.x, y: from.y + 3)) }
+        fx.steam(at: CGPoint(x: from.x, y: from.y + 3))
         // Von einem Dach hinauf auf die Kante: extra hoher, langer Sprung mit Pfeifton
         let upToLedge = target.onLedge && !figureOnLedge
         let alongLedge = target.onLedge && figureOnLedge
@@ -2914,7 +2913,7 @@ final class GameScene: SKScene {
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
-            if !self.figureOnLedge { self.fx.steam(at: self.figure.position) }
+            self.fx.steam(at: self.figure.position)
             self.refreshStatus()
             completion()
         }]))
@@ -3002,7 +3001,7 @@ final class GameScene: SKScene {
         figure.texture = figureJump
         audio.play(.jump, volume: 0.6)
         let base = roofPoint()
-        if !figureOnLedge { fx.steam(at: base) }
+        fx.steam(at: base)
         let duration: CGFloat = 0.6
         let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
             let t = min(1, elapsed / duration)
@@ -3014,10 +3013,8 @@ final class GameScene: SKScene {
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
-            if !self.figureOnLedge {
-                self.fx.steam(at: self.figure.position)
-                self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
-            }
+            self.fx.steam(at: self.figure.position)
+            self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
         }]))
     }
 
