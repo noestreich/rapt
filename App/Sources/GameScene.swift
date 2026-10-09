@@ -77,6 +77,10 @@ final class GameScene: SKScene {
     private let logoRect = CGRect(x: 16, y: 9, width: 68, height: 20)
     private let planLabel = SKSpriteNode()
     private var planSegments: [SKSpriteNode] = []
+    /// Stand der Sprung-Leiste vor einem Minispiel: Sie bleibt so stehen und wächst erst danach sichtbar.
+    private var planSnapshot: (plan: Int, progress: Double, score: Int)?
+    /// Die Leiste füllt sich gerade Segment für Segment.
+    private var planBarAnimating = false
 
     private var sprites: [Gem: GemArt.Sprite] = [:]
     private var glowTexture = SKTexture()
@@ -896,6 +900,8 @@ final class GameScene: SKScene {
             busy = false
         }
         refreshStatus()
+        // Nach einem Minispiel wächst die Sprung-Leiste jetzt sichtbar
+        if planSnapshot != nil, arcade == nil, !arcadeIntro { revealPlanGain() }
     }
 
     // MARK: Effekte
@@ -1086,12 +1092,79 @@ final class GameScene: SKScene {
         setText(recordLabel, "HOCHPUNKTE " + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
         let plan = game.plan
-        setText(planLabel, "SPRUNG " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
-        let filled = Int((game.planProgress * Double(planSegments.count)).rounded(.down))
-        for (i, seg) in planSegments.enumerated() {
-            seg.color = (i < filled ? Palette.amber : RGBA(hex: 0x221E2A)).skColor
-        }
         shownPlan = plan
+        // Während eines Minispiels steht die Leiste still; danach füllt revealPlanGain sie sichtbar auf
+        guard !planBarAnimating else { return }
+        let shown = planSnapshot.map { ($0.plan, $0.progress) } ?? (plan, game.planProgress)
+        drawPlanBar(plan: shown.0, filled: Int((shown.1 * Double(planSegments.count)).rounded(.down)))
+    }
+
+    /// Sprung-Leiste zeichnen; `edge`: das zuletzt gefüllte Segment leuchtet hell (beim Auffüllen).
+    private func drawPlanBar(plan: Int, filled: Int, edge: Bool = false) {
+        setText(planLabel, "SPRUNG " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
+        for (i, seg) in planSegments.enumerated() {
+            let color = i < filled ? (edge && i == filled - 1 ? Palette.cream : Palette.amber) : RGBA(hex: 0x221E2A)
+            seg.color = color.skColor
+        }
+    }
+
+    /// Stand der Leiste vor einem Minispiel merken (bleibt bis revealPlanGain stehen).
+    private func freezePlanBar() {
+        guard planSnapshot == nil else { return }
+        planSnapshot = (game.plan, game.planProgress, game.score)
+    }
+
+    /// Nach einem Minispiel: die Leiste wächst Segment für Segment vom alten auf den neuen Stand, mit leuchtender
+    /// Spitze, leisen Ticks und „+Punkte“; über einen geschafften Sprung hinweg läuft sie voll, blitzt und beginnt neu.
+    private func revealPlanGain() {
+        guard let snap = planSnapshot else { return }
+        planSnapshot = nil
+        let gained = game.score - snap.score
+        let count = planSegments.count
+        let startFilled = Int((snap.progress * Double(count)).rounded(.down))
+        let endFilled = Int((game.planProgress * Double(count)).rounded(.down))
+        var steps: [(plan: Int, filled: Int)] = []
+        var plan = snap.plan, filled = startFilled
+        while plan < game.plan || filled < endFilled {
+            if plan < game.plan && filled >= count {
+                plan += 1
+                filled = 0
+                steps.append((plan, 0))
+                continue
+            }
+            filled += 1
+            steps.append((plan, filled))
+        }
+        guard gained > 0, !steps.isEmpty else {
+            updateHUD()
+            return
+        }
+        planBarAnimating = true
+        let barMid = design(CGFloat(Layout.boardX + Layout.boardSize / 2), CGFloat(Layout.planY) - 6)
+        fx.popup("+\(gained)", at: barMid, color: Palette.amber, scale: 2)
+        var actions: [SKAction] = []
+        for (i, step) in steps.enumerated() {
+            actions.append(.run { [weak self] in
+                guard let self else { return }
+                self.drawPlanBar(plan: step.plan, filled: step.filled, edge: true)
+                if step.filled == 0 {
+                    // Sprung geschafft: kurz alles hell
+                    for seg in self.planSegments { seg.color = Palette.cream.skColor }
+                    self.audio.play(.plan, volume: 0.35)
+                } else if i % 3 == 0 {
+                    self.audio.play(.select, volume: 0.22, semitones: Double((i / 3) % 12))
+                }
+            })
+            actions.append(.wait(forDuration: step.filled == 0 ? 0.18 : 0.025))
+        }
+        actions.append(.run { [weak self] in
+            guard let self else { return }
+            self.planBarAnimating = false
+            self.updateHUD()
+            let bar = self.planBar
+            self.fx.flash(at: CGPoint(x: bar.position.x + bar.size.width / 2, y: bar.position.y - 3), color: Palette.amber.skColor)
+        })
+        run(.sequence(actions), withKey: "planReveal")
     }
 
     private func showGameOver() {
@@ -2035,6 +2108,7 @@ final class GameScene: SKScene {
     private func startArcade(_ kind: PowerUp, free: Bool = false) {
         guard !busy, free || game.startArcade(kind) else { return }
         spentSpecials = []
+        freezePlanBar()
         busy = true
         setSelected(nil)
         updateSlots()
@@ -2185,6 +2259,9 @@ final class GameScene: SKScene {
     /// Abbruch ohne Auswertung, z. B. bei Absturz oder neuem Spiel.
     private func abortArcade() {
         spentSpecials = []
+        removeAction(forKey: "planReveal")
+        planBarAnimating = false
+        planSnapshot = nil
         pendingStarRun = false
         restoreStarBoard(from: nil)
         arcade?.teardown()
@@ -2422,6 +2499,7 @@ final class GameScene: SKScene {
     private func startStarRun() {
         guard !busy, !minigameActive else { return }
         lastStarRun = clock
+        freezePlanBar()
         busy = true
         spentSpecials = []
         setSelected(nil)

@@ -89,6 +89,10 @@ alle 5 Münzen Kombo-Ruf („STARK x5“, „BRAVO x10“ …) und ein Schwert-L
 (Funken, Serie reißt ab, 20 % der gesammelten Münzen springen davon, mindestens eine), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
 seltenes Power-up. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
 
+Sprung-Leiste und Minispiele: Zu Beginn eines Minispiels (Invasion, Abrissbirne, Sternenbahn) bleibt die Leiste auf
+ihrem Stand stehen. Danach füllt sie sich sichtbar Segment für Segment (leuchtende Spitze, leise Ticks, „+Punkte“);
+über einen geschafften Sprung hinweg läuft sie voll, blitzt auf und beginnt neu (`freezePlanBar`, `revealPlanGain`).
+
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 
 ### Spezialsteine
