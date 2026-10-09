@@ -1,6 +1,9 @@
 import AVFoundation
 import Combine
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// Gemeinsamer Zugang zu Effekten, Musik und Dateizuordnung, damit Spiel und Sound-Labor
 /// dieselben Instanzen nutzen und Änderungen sofort im laufenden Spiel ankommen.
@@ -35,6 +38,32 @@ final class AudioCenter {
             self?.music.isEnabled = value
         }.store(in: &subscriptions)
         settings.$musicVolume.sink { [weak self] value in self?.music.volume = Float(value) }.store(in: &subscriptions)
+
+        effects.onStartFailure = { [weak self] in self?.resumeAfterInterruption() }
+
+        #if os(iOS)
+        // Hat eine andere App den Ton übernommen (z. B. Spracheingabe, Anruf), stoppt iOS unsere Engines. Danach die
+        // Audio-Sitzung neu aktivieren und die Effekte sicher neu starten – sonst bleibt nur die Musik hörbar.
+        NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+                self?.resumeAfterInterruption()
+            }
+            .store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.resumeAfterInterruption() }
+            .store(in: &subscriptions)
+        #endif
+    }
+
+    /// Audio-Sitzung wieder aktivieren (im Hintergrund), danach die Effekt-Engine neu starten.
+    private func resumeAfterInterruption() {
+        Self.configureSession(musicOn: GameSettings.shared.musicEnabled) { [weak self] in
+            self?.effects.resume()
+        }
     }
 
     /// iPhone: Mit Spielmusik spielt nur das Spiel. Ohne Spielmusik mischen sich die Effekte mit Musik oder
@@ -44,7 +73,8 @@ final class AudioCenter {
 
     /// `wait`: die Kategorie sofort setzen (beim Start, bevor eine Engine läuft). Das Aktivieren läuft immer im
     /// Hintergrund, denn `setActive` im Haupt-Thread kann die Oberfläche blockieren (Warnung von iOS).
-    private static func configureSession(musicOn: Bool, wait: Bool = false) {
+    /// `then`: läuft danach im Haupt-Thread (z. B. Engine neu starten, sobald die Sitzung aktiv ist).
+    private static func configureSession(musicOn: Bool, wait: Bool = false, then completion: (() -> Void)? = nil) {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         let setCategory = {
@@ -58,7 +88,10 @@ final class AudioCenter {
         sessionQueue.async {
             if !wait { setCategory() }
             try? session.setActive(true)
+            if let completion { DispatchQueue.main.async(execute: completion) }
         }
+        #else
+        completion?()
         #endif
     }
 

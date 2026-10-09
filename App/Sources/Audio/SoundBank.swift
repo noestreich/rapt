@@ -82,8 +82,7 @@ final class SoundBank {
             return
         }
         guard let buffer = custom[.danger] ?? synth[.danger] else { return }
-        if !engine.isRunning { try? engine.start() }
-        guard engine.isRunning else { return }
+        guard ensureRunning() else { return }
         // Nach einem Wechsel der Audio-Sitzung hält die Engine die Player an: dann neu starten
         if dangerActive && !dangerPlayer.isPlaying { dangerActive = false }
         if !dangerActive {
@@ -95,6 +94,38 @@ final class SoundBank {
     }
 
     /// Lädt eigene Dateien neu, z. B. nachdem im Sound-Labor etwas zugewiesen wurde.
+    /// Wird gerufen, wenn die Engine nicht starten kann (Audio-Sitzung nach einer Unterbrechung inaktiv,
+    /// Fehler 561015905); höchstens alle 2 Sekunden.
+    var onStartFailure: (() -> Void)?
+    private var lastStartFailure = Date.distantPast
+
+    /// Engine bei Bedarf starten; scheitert das, die Audio-Sitzung neu aktivieren lassen.
+    private func ensureRunning() -> Bool {
+        if engine.isRunning { return true }
+        // Gerade erst gescheitert: nicht bei jedem Bild erneut versuchen (das Log liefe voll)
+        if Date().timeIntervalSince(lastStartFailure) < 0.5 { return false }
+        do {
+            try engine.start()
+            return true
+        } catch {
+            if Date().timeIntervalSince(lastStartFailure) > 2 {
+                lastStartFailure = Date()
+                onStartFailure?()
+            }
+            return false
+        }
+    }
+
+    /// Nach einer Unterbrechung (andere App spielt Ton, Anruf) oder der Rückkehr in den Vordergrund: Engine sicher
+    /// neu starten. `isRunning` meldet danach teils noch „läuft“, obwohl kein Ton mehr herauskommt.
+    func resume() {
+        engine.stop()
+        do { try engine.start() } catch { return }
+        voices.forEach { $0.player.play() }
+        voicePlayer.play()
+        dangerActive = false
+    }
+
     func reload() {
         if dangerActive {
             dangerPlayer.stop()
@@ -137,8 +168,7 @@ final class SoundBank {
             let babble = RadioVoice.babble(spec, sampleRate: Self.sampleRate, seed: UInt64.random(in: 0...UInt64.max))
             buffer = makeBuffer(RadioVoice.radio(babble, sampleRate: Self.sampleRate))
         }
-        if !engine.isRunning { try? engine.start() }
-        guard engine.isRunning else { return }
+        guard ensureRunning() else { return }
         voicePlayer.volume = gain
         voicePlayer.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
         if !voicePlayer.isPlaying { voicePlayer.play() }
@@ -186,8 +216,7 @@ final class SoundBank {
 
     private func schedule(_ buffer: AVAudioPCMBuffer, volume: Float, semitones: Double) {
         guard isEnabled else { return }
-        if !engine.isRunning { try? engine.start() }
-        guard engine.isRunning else { return }
+        guard ensureRunning() else { return }
         let voice = voices[nextVoice]
         nextVoice = (nextVoice + 1) % voices.count
         voice.player.volume = volume
