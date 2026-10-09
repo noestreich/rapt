@@ -137,6 +137,8 @@ final class GameScene: SKScene {
     private var armed: Armed?
     private var armedSlot = 0
     private var fresser: FresserState?
+    /// Spezialsteine, die im laufenden Minispiel oder beim Fresser schon ausgelöst haben.
+    private var spentSpecials: Set<Pos> = []
     /// Laufendes Minispiel (Invasion, Abrissbirne); `arcadeIntro` während des Manga-Auftakts davor.
     private var arcade: ArcadeRound?
     /// Minispiel, dessen Fluggerät schon während des Auftakts einfliegt.
@@ -1820,6 +1822,7 @@ final class GameScene: SKScene {
         chomper.addChild(light)
         fx.pixelLayer.addChild(chomper)
 
+        spentSpecials = []
         fresser = FresserState(round: round, node: chomper, pos: round.start)
         eat(at: round.start)
         countdownLabel.isHidden = false
@@ -1835,16 +1838,32 @@ final class GameScene: SKScene {
         return !round.stones.contains(gem)
     }
 
-    private func eat(at p: Pos) {
-        guard let f = fresser, !f.eaten.contains(p), let node = gems[p], !node.isPetrified else { return }
+    /// Frisst den Stein bei `p`. `blast`: von einem ausgelösten Spezialstein getroffen statt gefressen.
+    /// Versteinerte Farben bleiben in jedem Fall stehen.
+    private func eat(at p: Pos, blast: Bool = false) {
+        guard let f = fresser, !f.eaten.contains(p), let node = gems[p], !node.isPetrified,
+              !f.round.stones.contains(node.gem) else { return }
         fresser?.eaten.insert(p)
         gems.removeValue(forKey: p)
         let c = center(of: p)
         fx.flash(at: c, color: GemArt.glowColor(node.gem))
-        fx.shrapnel(at: c, colors: sprites[node.gem]!.ramp.suffix(3).map(\.skColor), count: 5, power: 0.7)
+        fx.shrapnel(at: c, colors: sprites[node.gem]!.ramp.suffix(3).map(\.skColor), count: blast ? 8 : 5, power: blast ? 0.9 : 0.7)
         node.removeWithGlow()
-        audio.chomp(count: f.eaten.count)
-        if f.eaten.count % 3 == 0 { haptics.select() }
+        if !blast {
+            audio.chomp(count: f.eaten.count)
+            if f.eaten.count % 3 == 0 { haptics.select() }
+        }
+        // Spezialstein gefressen: löst sofort aus, was er trifft, gilt als gefressen (auch Ketten)
+        for q in detonateNow(at: p, gone: fresser?.eaten ?? []) { eat(at: q, blast: true) }
+    }
+
+    /// Spezialstein bei `p` löst sofort aus (Minispiele, Fresser): Strahl, Explosion oder Blitze, als verbraucht
+    /// gemerkt. Gibt die Felder zurück, die er trifft; `gone` sind schon abgeräumte Felder.
+    private func detonateNow(at p: Pos, gone: Set<Pos>) -> [Pos] {
+        guard !spentSpecials.contains(p), let d = game.detonation(at: p, excluding: gone) else { return [] }
+        spentSpecials.insert(p)
+        playDetonations([d])
+        return d.cells.filter { $0 != p }
     }
 
     private func orient(_ node: SKSpriteNode, _ d: Direction) {
@@ -1897,7 +1916,7 @@ final class GameScene: SKScene {
         }
         audio.play(.cascade, volume: 0.6)
         refreshStatus()
-        let result = game.finishFresser(f.round, eaten: f.eaten)
+        let result = game.finishFresser(f.round, eaten: f.eaten, detonated: spentSpecials)
         run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in self?.play(result, index: 0) }]))
     }
 
@@ -1906,6 +1925,7 @@ final class GameScene: SKScene {
     /// `free`: Test aus den Einstellungen, ohne Power-up aus dem Lager (in beiden Modi).
     private func startArcade(_ kind: PowerUp, free: Bool = false) {
         guard !busy, free || game.startArcade(kind) else { return }
+        spentSpecials = []
         busy = true
         setSelected(nil)
         updateSlots()
@@ -1982,6 +2002,7 @@ final class GameScene: SKScene {
             occupied: { [unowned self] p in self.gems[p].map { !$0.isDying } ?? false },
             gemColor: { [unowned self] p in self.gems[p].flatMap { self.sprites[$0.gem]?.ramp.last } },
             smash: { [unowned self] p, heavy in self.arcadeSmash(p, heavy: heavy) },
+            detonate: { [unowned self] p, gone in self.detonateNow(at: p, gone: gone) },
             march: { [unowned self] dx in
                 for node in self.gems.values where !node.isDying { node.body.position.x = dx }
             },
@@ -2001,8 +2022,9 @@ final class GameScene: SKScene {
         let colors = sprites[node.gem]!.ramp.suffix(3).map(\.skColor) + [.white]
         fx.flash(at: c, color: GemArt.glowColor(node.gem))
         fx.shrapnel(at: c, colors: colors, count: heavy ? 16 : 9, power: heavy ? 1.1 : 0.8)
-        if heavy || node.special != nil {
-            fx.explosion(at: c, scale: node.special != nil ? 1.5 : 1)
+        // Spezialsteine zeigen ihre eigene Wirkung über detonateNow
+        if heavy {
+            fx.explosion(at: c, scale: 1)
             shake(strength: 2)
         }
         node.removeWithGlow()
@@ -2042,12 +2064,13 @@ final class GameScene: SKScene {
         haptics.explosion()
         fx.popup("\(cleared.count) TREFFER", at: c, color: Palette.amber, scale: 2)
         refreshStatus()
-        let result = game.finishArcade(cleared: cleared)
+        let result = game.finishArcade(cleared: cleared, detonated: spentSpecials)
         run(.sequence([.wait(forDuration: 0.45), .run { [weak self] in self?.play(result, index: 0) }]))
     }
 
     /// Abbruch ohne Auswertung, z. B. bei Absturz oder neuem Spiel.
     private func abortArcade() {
+        spentSpecials = []
         arcade?.teardown()
         arcade = nil
         pendingRound?.teardown()

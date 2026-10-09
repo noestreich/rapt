@@ -26,6 +26,9 @@ struct ArcadeHost {
     let gemColor: (Pos) -> RGBA?
     /// Zerschlägt einen Stein mit Splittern und Glow; `heavy` mit Explosion. `false`, wenn dort keiner mehr ist.
     let smash: (Pos, Bool) -> Bool
+    /// Stand dort ein Spezialstein, löst er sofort aus (mit Effekt); gibt die Felder zurück, die er trifft.
+    /// Zweiter Wert: in dieser Runde schon abgeräumte Felder.
+    let detonate: (Pos, Set<Pos>) -> [Pos]
     /// Verschiebt alle Steine waagerecht (Marschtakt der Invasion).
     let march: (CGFloat) -> Void
     let shake: (Int) -> Void
@@ -253,6 +256,8 @@ class ArcadeBase {
         cleared.insert(p)
         hits += 1
         if hits % 3 == 0 { host.tick() }
+        // Spezialstein getroffen: löst sofort aus; was er trifft, zählt mit (auch Ketten über weitere Spezialsteine)
+        for q in host.detonate(p, cleared) { hit(q) }
         return true
     }
 

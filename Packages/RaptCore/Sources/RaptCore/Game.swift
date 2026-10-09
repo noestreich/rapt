@@ -228,13 +228,14 @@ public struct Game: Sendable {
     }
 
     /// Beendet die Fresser-Runde. Versteinerte Steine in `eaten` werden ignoriert.
-    public mutating func finishFresser(_ round: FresserRound, eaten: Set<Pos>) -> SwapResult {
+    /// `detonated`: Spezialsteine, die schon während der Runde ausgelöst haben (gehen nicht noch einmal los).
+    public mutating func finishFresser(_ round: FresserRound, eaten: Set<Pos>, detonated: Set<Pos> = []) -> SwapResult {
         let cells = eaten.filter { p in board.contains(p) && board[p].map { !round.stones.contains($0) } ?? false }
         guard !cells.isEmpty else {
             updateOver()
             return SwapResult(isValid: true, steps: [], rewards: [], isGameOver: isOver)
         }
-        return finish(resolve(initial: cells))
+        return finish(resolve(initial: cells, spent: detonated.intersection(cells)))
     }
 
     /// Startet ein Minispiel (Invasion, Abrissbirne): nimmt das Power-up aus dem Lager.
@@ -245,13 +246,22 @@ public struct Game: Sendable {
     }
 
     /// Beendet ein Minispiel: Die getroffenen Felder verschwinden, danach laufen Kaskaden wie gewohnt.
-    public mutating func finishArcade(cleared: Set<Pos>) -> SwapResult {
+    /// `detonated`: Spezialsteine, die schon während der Runde ausgelöst haben (gehen nicht noch einmal los).
+    public mutating func finishArcade(cleared: Set<Pos>, detonated: Set<Pos> = []) -> SwapResult {
         let cells = cleared.filter { board.contains($0) && board[$0] != nil }
         guard !cells.isEmpty else {
             updateOver()
             return SwapResult(isValid: true, steps: [], rewards: [], isGameOver: isOver)
         }
-        return finish(resolve(initial: cells))
+        return finish(resolve(initial: cells, spent: detonated.intersection(cells)))
+    }
+
+    /// Wirkung eines Spezialsteins, der sofort auslöst (in Minispielen und beim Fresser), ohne das Brett zu
+    /// verändern. `gone`: schon abgeräumte Felder; sie werden nicht getroffen und zählen beim Hyperstein nicht mit.
+    public func detonation(at p: Pos, excluding gone: Set<Pos>) -> Detonation? {
+        guard let tile = board[tile: p], let special = tile.special else { return nil }
+        let (cells, gem) = blast(special, at: p, gem: tile.gem, excluding: gone)
+        return Detonation(pos: p, special: special, gem: gem, cells: cells.subtracting(gone).sorted(by: Self.reading))
     }
 
     private mutating func take(_ kind: PowerUp) {
@@ -270,7 +280,10 @@ public struct Game: Sendable {
     ///   - initial: Felder, die vorab verschwinden (Power-ups, Hyperstein).
     ///   - preferred: Bevorzugte Felder für neue Spezialsteine (die beiden getauschten Felder).
     ///   - seed: Auslösung, die schon feststeht (Hyperstein-Tausch), für die Effekte.
-    private mutating func resolve(initial: Set<Pos>?, preferred: [Pos] = [], seed: [Detonation] = []) -> [CascadeStep] {
+    ///   - spent: Spezialsteine in `initial`, die schon ausgelöst haben (Minispiele): zählen als Auslösung,
+    ///     gehen aber nicht noch einmal los.
+    private mutating func resolve(initial: Set<Pos>?, preferred: [Pos] = [], seed: [Detonation] = [],
+                                  spent: Set<Pos> = []) -> [CascadeStep] {
         var steps: [CascadeStep] = []
         var combo = 0
         var forced = initial
@@ -285,7 +298,7 @@ public struct Game: Sendable {
                 forced = nil
                 combo += 1
                 cleared = cells
-                points = cells.count * Self.pointsPerGem
+                points = cells.count * Self.pointsPerGem + spent.count * Self.pointsPerDetonation
             } else {
                 let found = board.runs()
                 if found.isEmpty { break }
@@ -302,7 +315,7 @@ public struct Game: Sendable {
             let createdCells = Set(created.map(\.pos))
             var detonations = seeded
             seeded = []
-            var done = Set(detonations.map(\.pos))
+            var done = Set(detonations.map(\.pos)).union(spent)
             var queue = cleared.filter { board[tile: $0]?.special != nil && !done.contains($0) }
             while let p = queue.popFirst() {
                 guard !done.contains(p), let tile = board[tile: p], let special = tile.special else { continue }
@@ -336,7 +349,7 @@ public struct Game: Sendable {
     }
 
     /// Wirkung eines Spezialsteins: getroffene Felder und (beim Hyperstein) die gelöschte Farbe.
-    private func blast(_ special: Special, at p: Pos, gem: Gem) -> (Set<Pos>, Gem) {
+    private func blast(_ special: Special, at p: Pos, gem: Gem, excluding gone: Set<Pos> = []) -> (Set<Pos>, Gem) {
         switch special {
         case .line(let horizontal):
             let cells = horizontal
@@ -348,9 +361,10 @@ public struct Game: Sendable {
         case .hyper:
             // Ausgelöst ohne Tausch: löscht die häufigste Farbe
             var counts: [Gem: Int] = [:]
-            for q in board.positions { if let c = board.color(at: q) { counts[c, default: 0] += 1 } }
+            let present = board.positions.filter { !gone.contains($0) }
+            for q in present { if let c = board.color(at: q) { counts[c, default: 0] += 1 } }
             let target = counts.max { a, b in a.value != b.value ? a.value < b.value : a.key.rawValue > b.key.rawValue }?.key ?? gem
-            return (Set(board.positions.filter { board.color(at: $0) == target }), target)
+            return (Set(present.filter { board.color(at: $0) == target }), target)
         }
     }
 

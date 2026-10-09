@@ -113,6 +113,34 @@ final class SpecialTests: XCTestCase {
         XCTAssertEqual(first.cleared.count, 4 + 4)
     }
 
+    func testSpecialsDetonateImmediatelyInMinigamesAndOnlyOnce() throws {
+        var board = Board([
+            "KSUNRK",
+            "ZNKSUS",
+            "SUOKNZ",
+            "OKZOSU",
+            "NRSUKN",
+        ])
+        board[tile: Pos(1, 1)] = Tile(.niete, .line(horizontal: true))
+        var game = Game(board: board, seed: 2)
+        // Sofort-Auslösung trifft die restliche Zeile, ohne das Brett zu verändern
+        let blast = try XCTUnwrap(game.detonation(at: Pos(1, 1), excluding: [Pos(1, 1)]))
+        XCTAssertEqual(blast.special, .line(horizontal: true))
+        XCTAssertEqual(blast.cells, [Pos(0, 1), Pos(2, 1), Pos(3, 1), Pos(4, 1), Pos(5, 1)])
+        XCTAssertNil(game.detonation(at: Pos(0, 0), excluding: []), "Normaler Stein löst nichts aus")
+        XCTAssertNotNil(game.board[tile: Pos(1, 1)]?.special, "Brett bleibt unverändert")
+
+        // Abrechnung: die Zeile verschwindet, der Linienstein geht nicht noch einmal los, zählt aber als Auslösung
+        game.grant(.invasion)
+        XCTAssertTrue(game.startArcade(.invasion))
+        let row = Set((0..<6).map { Pos($0, 1) })
+        let result = game.finishArcade(cleared: row, detonated: [Pos(1, 1)])
+        let first = try XCTUnwrap(result.steps.first)
+        XCTAssertTrue(first.detonations.isEmpty)
+        XCTAssertEqual(Set(first.cleared), row)
+        XCTAssertEqual(first.points, 6 * Game.pointsPerGem + Game.pointsPerDetonation)
+    }
+
     func testSpecialsFallWithTheirTile() throws {
         var game = Game(board: Board([
             "KSUNR",

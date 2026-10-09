@@ -66,7 +66,10 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
 Zwei Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
 Schwarz-Weiß-Flackern (normal und invertiert), Konzentrationslinien, Zoom aufs Brett und der Titel mit Farbsaum.
 Sprung-Leiste und Lager blenden aus; das Fluggerät steigt hinter den Häusern auf und fliegt frei über dem Nachthimmel unter dem Brett, der Läufer springt vom Dach in die Kabine und am Ende wieder zurück, das leere Gerät sinkt hinter die Häuser. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
-nach Ablauf der Zeit fallen neue Steine nach, Spezialsteine unter den Treffern zünden, Kaskaden laufen wie gewohnt.
+wird ein Spezialstein getroffen (Laser, Abrissbirne, Fresser), löst er sofort aus: Strahl über Zeile oder Spalte,
+3 × 3-Explosion oder Blitze in die häufigste Farbe; alles, was er trifft, zählt als Treffer, auch in Ketten. In der
+Abrechnung danach gehen diese Spezialsteine nicht noch einmal los (`Game.detonation(at:excluding:)`, `detonated:`).
+Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 
 | Power-up | Vorbild | Ablauf |
 |---|---|---|
@@ -128,7 +131,7 @@ Im Lager antippen, dann:
 | Farbtilger | Stein antippen: alle Steine dieser Farbe verschwinden |
 | Strudel | Startet sofort: alle Steine wirbeln an neue Plätze, danach ist garantiert ein Zug möglich |
 | Atombombe | Feld antippen: sprengt 5 × 5 Steine |
-| Fresser | Startet sofort: zwei Farben versteinern, 10 Sekunden lang lenkst du den Fressautomaten per Wischen und frisst alle anderen Steine |
+| Fresser | Startet sofort: zwei Farben versteinern, 10 Sekunden lang lenkst du den Fressautomaten per Wischen und frisst alle anderen Steine; gefressene Spezialsteine lösen sofort aus (versteinerte Steine bleiben stehen) |
 
 ## Sound-Labor (Mac)
 
