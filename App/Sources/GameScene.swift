@@ -2321,8 +2321,8 @@ final class GameScene: SKScene {
 
     // MARK: Sternenbahn
 
-    /// Ein Kristall verwandelt sich ins Raumschiff: die anderen Steine blenden aus, der Kristall gleitet in die
-    /// untere Brettmitte, Blitz, das Schiff steht da; der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“.
+    /// Sternenbahn: Funkspruch mit Schiff, dann verwandelt sich ein Kristall ins Raumschiff; der Läufer springt
+    /// hinein, Manga-Auftakt „STERNENBAHN!“.
     private func startStarRun() {
         guard !busy, !minigameActive else { return }
         busy = true
@@ -2347,6 +2347,33 @@ final class GameScene: SKScene {
         let chosen = pool.min { distance($0.value) < distance($1.value) }
         starCrystal = chosen?.key
         starGlows = [:]
+
+        // Funkspruch: Greta oder Yanko reichen das Schiff herüber, es fliegt zum Kristall, dann die Verwandlung.
+        // Ohne Funksprüche (Einstellung) beginnt die Verwandlung sofort.
+        var started = false
+        let begin: () -> Void = { [weak self] in
+            guard let self, !started, self.arcadeIntro else { return }
+            started = true
+            self.morphIntoShip(chosen, host: host, shipCenter: shipCenter, canBoard: canBoard)
+        }
+        let shipIcon = ArcadeArt.starShip()
+        var delivery = SplashPresenter.Delivery(contact: Contact.random(holding: "sternenbahn", fallback: .zora), item: shipIcon)
+        delivery.onHandover = { [weak self] start in
+            guard let self else { return }
+            let target = chosen?.value.position ?? shipCenter
+            self.flyItem(shipIcon, from: start, to: { target }) { begin() }
+        }
+        if splash.present(delivery, at: clock, force: true) {
+            // Sicherheitsnetz, falls die Übergabe ausbleibt
+            run(.sequence([.wait(forDuration: 8), .run(begin)]), withKey: "starMorph")
+        } else {
+            begin()
+        }
+    }
+
+    /// Verwandlung: die anderen Steine blenden aus, der Kristall gleitet in die untere Brettmitte und wird im Blitz
+    /// zum Schiff; der Läufer springt hinein, Manga-Auftakt.
+    private func morphIntoShip(_ chosen: (key: Pos, value: GemNode)?, host: ArcadeHost, shipCenter: CGPoint, canBoard: Bool) {
         for (p, node) in gems where p != chosen?.key {
             starGlows[p] = node.glow.alpha
             node.run(.fadeOut(withDuration: 0.3), withKey: "star")
@@ -2714,7 +2741,7 @@ final class GameScene: SKScene {
             jumped = true
             self.jumpFigure(to: building) { [weak self] in
                 if reward.reachedTop { self?.heroFireworks() }
-                // Jeder 10. Sprung: Sternenbahn (ohne Funkspruch)
+                // Jeder 10. Sprung: Sternenbahn
                 if Game.isStarRunJump(plan: reward.plan) { self?.pendingStarRun = true }
             }
         }

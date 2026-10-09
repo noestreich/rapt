@@ -76,7 +76,8 @@ Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 | **Invasion** (9 s) | Space Invaders | Der Läufer sitzt in einem dunklen Neon-Gleiter (ziehen; gleitet mit Trägheit, Seitendüsen zeigen den Schub) und schießt automatisch aus der Kanone nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
 | **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen, folgt dem Finger direkt); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
 
-**Sternenbahn** (12 s, jeder 10. Sprung im Dächerlauf, ohne Funkspruch, zusätzlich zum Power-up): Alle Steine blenden
+**Sternenbahn** (12 s, jeder 10. Sprung im Dächerlauf, zusätzlich zum Power-up): Per Funk reichen GRETA oder YANKO
+(Ordner `Sternenbahn/`) das Raumschiff herüber, es fliegt zu einem Kristall. Alle Steine blenden
 aus, ein Kristall gleitet in die untere Brettmitte und wird im Blitz zum grauen Raumschiff (Kristallform in Nietengrau,
 Rostflecken, Cockpitfenster, zwei Heckdüsen); der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“. Von oben schiebt
 sich während des Auftakts eine Rennbahn mit rot-schwarzen Banden ins Brett; sie wird schmaler und mit der Zeit und jeder
@@ -122,7 +123,7 @@ Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins 
   Kontakt zufällig, mit eigenem Namen und eigener Stimme. Stimmen: `mann`, `mann-tief`, `frau`, `maedchen`, `junge`,
   `alt`, `hund`, `katze`, `roboter`. Ebenfalls mit `tools/import_portraits.py` einspielen.
 - **Wer hält was:** Liegen die Bilder in Ordnern je Teil (`Atombombe/`, `Bombe/`, `Bombenstein/`, `Farbtilger/`,
-  `Fresser/`, `Hyperstein/`, `Linienstein/`, `Strudel/`), schreibt das Skript `App/Resources/portraits.json`.
+  `Fresser/`, `Hyperstein/`, `Linienstein/`, `Strudel/`, `Sternenbahn/`), schreibt das Skript `App/Resources/portraits.json`.
   Ein Funkspruch zeigt dann nur Porträts, die genau das übergebene Teil in der Hand haben.
   Fehlt ein Ordner für einen Spezialstein, leiht er sich eine Gruppe: Hyperstein → Farbtilger,
   Bombenstein → Bombe, Linienstein → Invasion.
@@ -236,4 +237,5 @@ Während die Einstellungen offen sind, steht die Stadt still.
   `python3 tools/import_portraits.py docs/assets/originale/portraits` (schreibt `App/Resources/portrait_*.png`
   und `portraits.json`)
 - `docs/assets/originale/keyart/startbildschirm.jpg`: Key-Art des Startbildschirms im Original (920 × 2000)
+- `docs/assets/originale/sternenbahn/raumschiff.png`: Raumschiff der Sternenbahn als Vorlage (nicht im Spiel verwendet)
 - `docs/assets/web/funk/`: Funksprüche als MP3 (`funk_<teil>_<name>_<1-3>.mp3`, erzeugt mit `tools/render_radio.py`)
