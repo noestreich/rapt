@@ -27,7 +27,12 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         let x: CGFloat
     }
 
-    private static let length = 1300
+    /// Höchsttempo der Bahn (Pixel pro Sekunde).
+    private static let maxSpeed: CGFloat = 165
+    /// Lang genug, dass auch bei Höchsttempo bis zum Ende Bahn im Bild ist (12 s × 165 px/s plus Brett und Reserve).
+    private static let length = 2400
+    /// Auf dieser Strecke wird die Bahn von 80 auf 52 Pixel schmaler, danach bleibt sie so.
+    private static let narrowing = 1400.0
     private static let halfShip: CGFloat = 10
     private static let gold = RGBA(hex: 0xFFC247)
     /// Schwert-Laute wie im Samurai-Manga: Klingenklirren, Schnitt, Stich, Kiai.
@@ -50,7 +55,7 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         let b = host.board
         let width = Double(b.width)
         let length = Self.length
-        let halfWidths = (0..<length).map { 40 - 14 * Double($0) / Double(length) }
+        let halfWidths = (0..<length).map { 40 - 14 * min(1, Double($0) / Self.narrowing) }
         // Knickpunkte der Bahn: erst gerade, dann eckig hin und her wie im Entwurf
         var bends: [(s: Double, x: Double)] = [(0, width / 2), (90, width / 2)]
         var s = 90.0, x = width / 2
@@ -163,8 +168,9 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         bumpCooldown -= dt
         finishSlide()
         // Die Bahn wird mit der Zeit und mit jeder gesammelten Münze schneller
-        let speed = min(165, 74 + 1.5 * CGFloat(elapsed) + 2.2 * CGFloat(collected))
-        scroll += speed * CGFloat(dt)
+        let speed = min(Self.maxSpeed, 74 + 1.5 * CGFloat(elapsed) + 2.2 * CGFloat(collected))
+        // Nie über das Bahnende hinaus: Banden und Abdunklung bleiben bis zum Schluss im Bild
+        scroll = min(scroll + speed * CGFloat(dt), CGFloat(Self.length) - host.board.height - 1)
         moveCraft(dt, maxSpeed: 260, stiffness: 18, response: 22)
         layout()
 
