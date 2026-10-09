@@ -232,19 +232,23 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         loseCoins(away: p.x < shipCenter.x ? 1 : -1)
     }
 
-    /// Bandenkontakt kostet ein, zwei Münzen: Sie springen aus dem Schiff davon und zählen als verpasst.
+    /// Anteil der gesammelten Münzen, den ein Bandenkontakt kostet (10 → 2, 20 → 4; mindestens eine).
+    private static let bumpLoss = 0.2
+
+    /// Bandenkontakt kostet Münzen im Verhältnis zur Ausbeute: Sie springen aus dem Schiff davon und zählen als verpasst.
     private func loseCoins(away direction: CGFloat) {
-        let lost = min(collected, Int.random(in: 1...2))
-        guard lost > 0 else { return }
+        guard collected > 0 else { return }
+        let lost = min(collected, max(1, Int((Double(collected) * Self.bumpLoss).rounded())))
         collected -= lost
         missed += lost
         let start = shipCenter
-        for i in 0..<lost {
+        // Höchstens acht fliegende Münzen, sonst wird es unübersichtlich
+        for i in 0..<min(lost, 8) {
             let coin = SKSpriteNode(texture: ArcadeArt.coin(), size: CGSize(width: 11, height: 11))
             coin.position = start
             coin.zPosition = 3
             node.addChild(coin)
-            let dx = direction * CGFloat.random(in: 18...34) + CGFloat(i) * direction * 8
+            let dx = direction * CGFloat.random(in: 18...34) + CGFloat(i) * direction * 5
             let arc = SKAction.customAction(withDuration: 0.5) { node, t in
                 let k = t / 0.5
                 node.position = CGPoint(x: (start.x + dx * k).rounded(), y: (start.y + sin(.pi * k) * 22 - 10 * k).rounded())

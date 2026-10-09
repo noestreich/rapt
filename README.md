@@ -83,7 +83,7 @@ sich während des Auftakts eine Rennbahn mit rot-schwarzen Banden ins Brett; sie
 gesammelten Münze schneller. Ziehen lenkt; goldene Münzen (Donuts in halber Größe) einsammeln: alle zusammen bringen einen halben Sprung des
 aktuellen Plans (anteilig nach Münzen, `Game.starRunPoints`), also nie mehr als einen Sprung;
 alle 5 Münzen Kombo-Ruf („STARK x5“, „BRAVO x10“ …) und ein Schwert-Laut in Katakana. Banden schubsen nur zurück
-(Funken, Serie reißt ab, ein, zwei Münzen springen davon), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
+(Funken, Serie reißt ab, 20 % der gesammelten Münzen springen davon, mindestens eine), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
 seltenes Power-up. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
 
 Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
