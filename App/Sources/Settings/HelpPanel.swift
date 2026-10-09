@@ -116,7 +116,9 @@ final class HelpPanel {
         // Seite 1: Power-ups (antippbar)
         section("POWER-UPS IM DÄCHERLAUF - ANTIPPEN!")
         powerUps.forEach(entry)
-        parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
+        if !footnote.isEmpty {
+            parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
+        }
 
         // Seite 2: Spezialsteine (antippbar)
         parent = pages[1]

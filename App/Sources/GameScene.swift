@@ -1574,7 +1574,7 @@ final class GameScene: SKScene {
             ], highlight: true),
         ]
         return HelpPanel(designHeight: Layout.height, powerUps: powerUps, specials: specials,
-                         footnote: "JEDER 6. SPRUNG: EIN SELTENES POWER-UP.", info: info)
+                         footnote: "", info: info)
     }
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
