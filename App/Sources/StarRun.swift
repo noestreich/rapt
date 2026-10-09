@@ -28,9 +28,9 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
     }
 
     /// Höchsttempo der Bahn (Pixel pro Sekunde).
-    private static let maxSpeed: CGFloat = 165
-    /// Lang genug, dass auch bei Höchsttempo bis zum Ende Bahn im Bild ist (12 s × 165 px/s plus Brett und Reserve).
-    private static let length = 2400
+    private static let maxSpeed: CGFloat = 196
+    /// Lang genug, dass auch bei Höchsttempo bis zum Ende Bahn im Bild ist (12 s × 196 px/s plus Brett und Reserve).
+    private static let length = 2800
     /// Auf dieser Strecke wird die Bahn von 80 auf 52 Pixel schmaler, danach bleibt sie so.
     private static let narrowing = 1400.0
     private static let halfShip: CGFloat = 10
@@ -168,7 +168,7 @@ final class StarRunRound: ArcadeBase, ArcadeRound {
         bumpCooldown -= dt
         finishSlide()
         // Die Bahn wird mit der Zeit und mit jeder gesammelten Münze schneller
-        let speed = min(Self.maxSpeed, 74 + 1.5 * CGFloat(elapsed) + 2.2 * CGFloat(collected))
+        let speed = min(Self.maxSpeed, 88 + 1.8 * CGFloat(elapsed) + 2.6 * CGFloat(collected))
         // Nie über das Bahnende hinaus: Banden und Abdunklung bleiben bis zum Schluss im Bild
         scroll = min(scroll + speed * CGFloat(dt), CGFloat(Self.length) - host.board.height - 1)
         moveCraft(dt, maxSpeed: 260, stiffness: 18, response: 22)
