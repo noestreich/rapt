@@ -76,7 +76,9 @@ Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 | **Invasion** (9 s) | Space Invaders | Der Läufer sitzt in einem dunklen Neon-Gleiter (ziehen; gleitet mit Trägheit, Seitendüsen zeigen den Schub) und schießt automatisch aus der Kanone nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
 | **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen, folgt dem Finger direkt); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
 
-**Sternenbahn** (12 s, jeder 10. Sprung im Dächerlauf, zusätzlich zum Power-up): Per Funk reichen GRETA oder YANKO
+**Sternenbahn** (12 s, in beiden Modi): Auslöser ist eine Reihe aus mindestens vier Kristallen (auch in Kaskaden) oder
+im Dächerlauf jeder 10. Sprung (zusätzlich zum Power-up) – die erste im Spiel sofort, danach höchstens alle 5 Minuten
+eine. Im Endlos-Modus gibt es nur Punkte (kein Lager). Per Funk reichen GRETA oder YANKO
 (Ordner `Sternenbahn/`) das Raumschiff herüber, es fliegt zu einem Kristall. Alle Steine blenden
 aus, ein Kristall gleitet in die untere Brettmitte und wird im Blitz zum grauen Raumschiff (Kristallform in Nietengrau,
 Rostflecken, Cockpitfenster, zwei Heckdüsen); der Läufer springt hinein, Manga-Auftakt „STERNENBAHN!“. Von oben schiebt

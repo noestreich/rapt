@@ -141,6 +141,10 @@ final class GameScene: SKScene {
     private var spentSpecials: Set<Pos> = []
     /// Sternenbahn startet, sobald nach dem 10., 20., … Sprung alles ruhig ist.
     private var pendingStarRun = false
+    /// Spielzeit (`clock`) der letzten Sternenbahn in diesem Spiel; höchstens alle 5 Minuten eine.
+    private var lastStarRun: TimeInterval?
+    private static let starRunCooldown: TimeInterval = 300
+    private var starRunReady: Bool { lastStarRun.map { clock - $0 >= Self.starRunCooldown } ?? true }
     /// Während der Sternenbahn: der Kristall, der zum Schiff wurde, und die Glow-Stärken der ausgeblendeten Steine.
     private var starCrystal: Pos?
     private var starGlows: [Pos: CGFloat] = [:]
@@ -683,6 +687,8 @@ final class GameScene: SKScene {
         figureJumping = false
         figureFalling = false
         wasInDanger = false
+        lastStarRun = nil
+        pendingStarRun = false
         shownBuilding = game.city.figureIndex
         startFigureIdle()
         let rooftop = newMode == .rooftop
@@ -858,6 +864,8 @@ final class GameScene: SKScene {
     }
 
     private func finish(_ result: SwapResult) {
+        // Kristall-Viererreihe: Sternenbahn (beim ersten Mal im Spiel sofort, danach höchstens alle 5 Minuten)
+        if Game.hasStarRunTrigger(result), starRunReady, !game.isOver { pendingStarRun = true }
         if game.score > highscore {
             highscore = game.score
             Highscore.save(highscore, for: mode)
@@ -2325,6 +2333,7 @@ final class GameScene: SKScene {
     /// hinein, Manga-Auftakt „STERNENBAHN!“.
     private func startStarRun() {
         guard !busy, !minigameActive else { return }
+        lastStarRun = clock
         busy = true
         spentSpecials = []
         setSelected(nil)
@@ -2742,7 +2751,7 @@ final class GameScene: SKScene {
             self.jumpFigure(to: building) { [weak self] in
                 if reward.reachedTop { self?.heroFireworks() }
                 // Jeder 10. Sprung: Sternenbahn
-                if Game.isStarRunJump(plan: reward.plan) { self?.pendingStarRun = true }
+                if Game.isStarRunJump(plan: reward.plan), self?.starRunReady == true { self?.pendingStarRun = true }
             }
         }
         let slotLabel = design(Layout.slotX(1), Layout.slotY - 6)
@@ -3030,7 +3039,7 @@ final class GameScene: SKScene {
 
         updateFresser(dt)
         updateArcade(dt)
-        if pendingStarRun, mode == .rooftop, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
+        if pendingStarRun, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
            !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible {
             pendingStarRun = false
             startStarRun()

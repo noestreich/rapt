@@ -560,19 +560,24 @@ public struct Game: Sendable {
         return Int((step * Self.starRunPlanShare * share / 10).rounded()) * 10
     }
 
+    /// Löst dieser Zug die Sternenbahn aus? Eine Reihe aus mindestens vier Kristallen (auch in Kaskaden).
+    public static func hasStarRunTrigger(_ result: SwapResult) -> Bool {
+        result.steps.contains { step in step.runs.contains { $0.gem == .kristall && $0.length >= 4 } }
+    }
+
     /// Ist der Sprung, der zu `plan` führt, ein Sternenbahn-Sprung (10., 20., 30. …)?
     public static func isStarRunJump(plan: Int) -> Bool {
         let jump = plan - 1
         return jump > 0 && jump % starRunEvery == 0
     }
 
-    /// Beendet die Sternenbahn: Münzpunkte gutschreiben (`starRunPoints`); ab 80 % der Münzen ein seltenes
-    /// Power-up (bei vollem Lager stattdessen Bonuspunkte). Das Brett bleibt unverändert.
+    /// Beendet die Sternenbahn: Münzpunkte gutschreiben (`starRunPoints`); im Dächerlauf ab 80 % der Münzen ein
+    /// seltenes Power-up (bei vollem Lager stattdessen Bonuspunkte; Endlos hat kein Lager). Das Brett bleibt unverändert.
     public mutating func finishStarRun(collected: Int, total: Int) -> (result: SwapResult, powerUp: PowerUp?, points: Int) {
         let points = starRunPoints(collected: collected, total: total)
         score += points
         var granted: PowerUp?
-        if total > 0, Double(collected) >= Double(total) * Self.starRunRareShare {
+        if mode == .rooftop, total > 0, Double(collected) >= Double(total) * Self.starRunRareShare {
             let kind = pickReward(from: Self.topRewards, uniform: true)
             if powerUps.count < Self.maxPowerUps {
                 powerUps.append(kind)

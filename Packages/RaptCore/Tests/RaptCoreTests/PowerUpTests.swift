@@ -181,6 +181,13 @@ final class PowerUpTests: XCTestCase {
         XCTAssertNil(none.powerUp, "Ohne Münzen kein Bonus")
         XCTAssertEqual(none.points, 0)
 
+        // Endlos hat kein Lager: nur Punkte, kein seltenes Power-up
+        var endless = Game(seed: 5, mode: .endless)
+        let calm = endless.finishStarRun(collected: 10, total: 10)
+        XCTAssertNil(calm.powerUp)
+        XCTAssertTrue(endless.powerUps.isEmpty)
+        XCTAssertEqual(calm.points, 750)
+
         // Eine volle Fahrt bringt nie mehr als einen Sprung
         var late = Game(seed: 6)
         _ = late.award(points: Game.planThreshold(11))
@@ -188,6 +195,21 @@ final class PowerUpTests: XCTestCase {
         let full = late.finishStarRun(collected: 30, total: 30)
         XCTAssertLessThanOrEqual(full.result.rewards.count, 1)
         XCTAssertLessThanOrEqual(late.plan, plan + 1)
+    }
+
+    func testStarRunTriggersOnFourCrystalsInARow() {
+        func result(_ runs: [Run]) -> SwapResult {
+            let step = CascadeStep(runs: runs, cleared: runs.flatMap(\.cells), falls: [], spawns: [], combo: 1, points: 0,
+                                   created: [], detonations: [])
+            return SwapResult(isValid: true, steps: [step], rewards: [], isGameOver: false)
+        }
+        let four = Run(gem: .kristall, cells: (0..<4).map { Pos($0, 2) }, isHorizontal: true)
+        let three = Run(gem: .kristall, cells: (0..<3).map { Pos($0, 2) }, isHorizontal: true)
+        let otherFour = Run(gem: .orden, cells: (0..<4).map { Pos(1, $0) }, isHorizontal: false)
+        XCTAssertTrue(Game.hasStarRunTrigger(result([four])))
+        XCTAssertFalse(Game.hasStarRunTrigger(result([three])), "Drei Kristalle reichen nicht")
+        XCTAssertFalse(Game.hasStarRunTrigger(result([otherFour])), "Nur Kristalle")
+        XCTAssertFalse(Game.hasStarRunTrigger(.invalid))
     }
 
     func testGameIsOnlyOverWithoutMovesAndPowerUps() {
