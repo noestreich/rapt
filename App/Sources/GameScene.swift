@@ -1305,6 +1305,9 @@ final class GameScene: SKScene {
             } else {
                 figureOnLedge = spot.onLedge
                 figure.position = CGPoint(x: spot.point.x, y: spot.point.y + figureBob)
+                // Auf der Kante lehnt er sich gegen den Wind von links (Drehung um die Füße)
+                if !spot.onLedge && figure.action(forKey: "lean") == nil { figure.zRotation = 0 }
+                if spot.onLedge && figure.action(forKey: "lean") == nil { figure.zRotation = Self.ledgeLean }
             }
         }
     }
@@ -1334,6 +1337,8 @@ final class GameScene: SKScene {
     private func dropFromLedge() {
         figureJumping = true
         stopFigureIdle()
+        figure.removeAction(forKey: "lean")
+        figure.zRotation = 0
         figure.texture = figureJump
         let from = figure.position
         fx.popup("ハッ!", at: CGPoint(x: from.x - 8, y: from.y + 16), color: Palette.cream)
@@ -1359,15 +1364,22 @@ final class GameScene: SKScene {
         }]), withKey: "ledgeDrop")
     }
 
-    /// Auf der Kante: die „unsichtbare Kraft“ drängt ihn nach rechts – Staub an den Füßen, Windlinien von links.
+    /// Neigung gegen den Wind auf der Kante (Bogenmaß, nach links).
+    private static let ledgeLean: CGFloat = 0.14
+
+    /// Auf der Kante: die „unsichtbare Kraft“ drängt ihn nach rechts – Windlinien von links, bei jeder Böe lehnt
+    /// er sich kurz stärker dagegen.
     private func updateLedge(_ dt: TimeInterval) {
         guard figureOnLedge, !figureJumping, !figureAway, !figure.isHidden else { return }
         ledgeDustTimer -= dt
         guard ledgeDustTimer <= 0 else { return }
-        ledgeDustTimer = Double.random(in: 0.5...0.9)
+        ledgeDustTimer = Double.random(in: 0.6...1.1)
         let feet = figure.position
-        fx.shrapnel(at: CGPoint(x: feet.x - 3, y: feet.y + 1), colors: [RGBA(hex: 0x9A9CAB).skColor, RGBA(hex: 0x585A67).skColor],
-                    count: 3, power: 0.25, bounces: false)
+        let gust = SKAction.sequence([
+            .rotate(toAngle: Self.ledgeLean + 0.1, duration: 0.12),
+            .rotate(toAngle: Self.ledgeLean, duration: 0.35),
+        ])
+        figure.run(gust, withKey: "lean")
         let line = SKSpriteNode(color: SKColor(white: 1, alpha: 0.5), size: CGSize(width: CGFloat(Int.random(in: 4...8)), height: 1))
         line.position = CGPoint(x: feet.x - 22, y: feet.y + CGFloat(Int.random(in: 2...9)))
         line.zPosition = 6
@@ -2866,13 +2878,16 @@ final class GameScene: SKScene {
         }
         // Ein laufender Abstieg von der Kante wird vom neuen Sprung abgelöst
         figure.removeAction(forKey: "ledgeDrop")
+        figure.removeAction(forKey: "lean")
+        figure.zRotation = 0
         figureJumping = true
         audio.play(.jump, volume: 0.6)
         stopFigureIdle()
         figure.texture = figureJump
         let from = figure.position
-        fx.steam(at: CGPoint(x: from.x, y: from.y + 3))
         let target = standPoint(for: building)
+        // Dampf nur auf den Dächern, nicht auf der Kante (dort wäre es zu unruhig)
+        if !figureOnLedge { fx.steam(at: CGPoint(x: from.x, y: from.y + 3)) }
         // Von einem Dach hinauf auf die Kante: extra hoher, langer Sprung mit Pfeifton
         let upToLedge = target.onLedge && !figureOnLedge
         let alongLedge = target.onLedge && figureOnLedge
@@ -2899,7 +2914,7 @@ final class GameScene: SKScene {
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
-            self.fx.steam(at: self.figure.position)
+            if !self.figureOnLedge { self.fx.steam(at: self.figure.position) }
             self.refreshStatus()
             completion()
         }]))
@@ -2987,7 +3002,7 @@ final class GameScene: SKScene {
         figure.texture = figureJump
         audio.play(.jump, volume: 0.6)
         let base = roofPoint()
-        fx.steam(at: base)
+        if !figureOnLedge { fx.steam(at: base) }
         let duration: CGFloat = 0.6
         let arc = SKAction.customAction(withDuration: TimeInterval(duration)) { node, elapsed in
             let t = min(1, elapsed / duration)
@@ -2999,8 +3014,10 @@ final class GameScene: SKScene {
             self.updateCity()
             self.startFigureIdle()
             self.audio.play(.land, volume: 0.5)
-            self.fx.steam(at: self.figure.position)
-            self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
+            if !self.figureOnLedge {
+                self.fx.steam(at: self.figure.position)
+                self.fx.shrapnel(at: self.figure.position, colors: [RGBA(hex: 0x3FD8FF).skColor, .white], count: 8, power: 0.4, bounces: false)
+            }
         }]))
     }
 

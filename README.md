@@ -212,7 +212,7 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
   mit Notstrom rot weiter; danach springt der Strom flackernd wieder an. Abschalten: `PowerCut.enabled = false`.
 - Läufer außer Sicht: Springt er auf ein Dach rechts außerhalb des Bildes, landet er stattdessen mit einem hohen
   Sprung auf der Oberkante des Spielfeldrahmens (beim ersten Mal „HOCH HINAUS!“). Je weiter sein Dach entfernt ist,
-  desto weiter links steht er; die Stadt drängt ihn langsam nach rechts (Staub, Windlinien), und sobald sein Dach im
+  desto weiter links steht er; die Stadt drängt ihn langsam nach rechts (Windlinien, er lehnt sich dagegen), und sobald sein Dach im
   Bild ist, springt er hinunter („ハッ!“). Rein optisch, die Spiellogik rechnet mit dem echten Haus (`standPoint`).
 - Easteregg: das rot blinkende Licht auf dem Fernsehturm 5 Sekunden gedrückt halten (einmal pro Spiel).
 
