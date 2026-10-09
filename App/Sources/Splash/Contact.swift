@@ -102,6 +102,15 @@ struct Contact: Equatable {
         return allWithVariants.filter { ids.contains($0.id) }.randomElement() ?? fallback
     }
 
+    /// Alle Porträts, die dieses Teil in der Hand halten, in der Reihenfolge aus `portraits.json`
+    /// (für die Hilfe, die sie nacheinander zeigt); ohne Zuordnung nur der zuständige Kontakt.
+    static func everyone(holding key: String, fallback: Contact) -> [Contact] {
+        guard let ids = holders[key] else { return [fallback] }
+        let pool = allWithVariants
+        let list = ids.compactMap { id in pool.first { $0.id == id } }
+        return list.isEmpty ? [fallback] : list
+    }
+
     static func random(delivering special: Special) -> Contact {
         random(holding: itemKey(special), fallback: contact(for: special))
     }

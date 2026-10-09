@@ -1508,7 +1508,20 @@ final class GameScene: SKScene {
                 self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
             }
         }
-        func radioFor(_ kind: PowerUp) -> () -> Void { radio({ Contact.random(delivering: kind) }, iconTextures[kind]) }
+        // In der Hilfe nicht zufällig: jedes Antippen zeigt den nächsten Funker dieses Teils, dann von vorn
+        func cycle(_ list: [Contact]) -> () -> Contact {
+            var next = 0
+            return {
+                defer { next += 1 }
+                return list[next % list.count]
+            }
+        }
+        func radioFor(_ kind: PowerUp) -> () -> Void {
+            radio(cycle(Contact.everyone(holding: kind.rawValue, fallback: Contact.contact(for: kind))), iconTextures[kind])
+        }
+        func radioForSpecial(_ special: Special) -> () -> Void {
+            radio(cycle(Contact.everyone(holding: Contact.itemKey(special), fallback: Contact.contact(for: special))), nil)
+        }
         let shipIcon = ArcadeArt.starShip()
         let powerUps: [HelpPanel.Entry] = [
             .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
@@ -1528,7 +1541,7 @@ final class GameScene: SKScene {
             // Sternenbahn: kein Lager-Power-up, nur eine Andeutung, wie man sie auslöst
             .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: "STERNENBAHN", badge: "BONUS",
                   lines: ["VIER KRISTALLE IN EINER REIHE ...", "12 SEK. LENKEN: MÜNZEN SAMMELN."],
-                  onTap: radio({ Contact.random(holding: "sternenbahn", fallback: .zora) }, shipIcon)),
+                  onTap: radio(cycle(Contact.everyone(holding: "sternenbahn", fallback: .zora)), shipIcon)),
         ]
 
         let lineStone = SKNode()
@@ -1543,11 +1556,11 @@ final class GameScene: SKScene {
         let specials: [HelpPanel.Entry] = [
             .init(icon: lineStone, title: "LINIEN-STEIN", badge: "",
                   lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."],
-                  onTap: radio({ Contact.random(delivering: .line(horizontal: true)) }, nil)),
+                  onTap: radioForSpecial(.line(horizontal: true))),
             .init(icon: bombStone, title: "BOMBEN-STEIN", badge: "",
-                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radio({ Contact.random(delivering: .bomb) }, nil)),
+                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radioForSpecial(.bomb)),
             .init(icon: hyper, title: "HYPERSTEIN", badge: "",
-                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radio({ Contact.random(delivering: .hyper) }, nil)),
+                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radioForSpecial(.hyper)),
         ]
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.1"
         let info: [HelpPanel.Block] = [
