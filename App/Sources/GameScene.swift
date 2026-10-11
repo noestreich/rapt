@@ -1534,10 +1534,16 @@ final class GameScene: SKScene {
                   lines: ["FELD ANTIPPEN: SPRENGT 5X5."], onTap: radioFor(.atom)),
             .init(icon: icon(.fresser), title: "FRESSER", badge: percent(.fresser),
                   lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."], onTap: radioFor(.fresser)),
+        ]
+        let minigames: [HelpPanel.Entry] = [
             .init(icon: icon(.invasion), title: "INVASION", badge: percent(.invasion),
                   lines: ["9 SEK. ZIEHEN: DER LÄUFER ZIELT", "UND SCHIESST VON UNTEN. UFO!"], onTap: radioFor(.invasion)),
             .init(icon: icon(.abriss), title: "ABRISSBIRNE", badge: percent(.abriss),
                   lines: ["12 SEK. ZIEHEN: DER LÄUFER", "STEMMT DIE STANGE, DIE BIRNE", "PRALLT IN DIE STEINE."], onTap: radioFor(.abriss)),
+            .init(icon: icon(.flak), title: "FLAK", badge: percent(.flak),
+                  lines: ["10 SEK. ANTIPPEN: SIEBEN RAKETEN", "SPRENGEN STEINE IM UMKREIS."], onTap: radioFor(.flak)),
+            .init(icon: icon(.katana), title: "KATANA", badge: percent(.katana),
+                  lines: ["8 SEK. WISCHEN: SECHS HIEBE", "ZERSCHNEIDEN DIE STEINE."], onTap: radioFor(.katana)),
             // Sternenbahn: kein Lager-Power-up, nur eine Andeutung, wie man sie auslöst
             .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: "STERNENBAHN", badge: "BONUS",
                   lines: ["VIER KRISTALLE IN EINER REIHE ...", "12 SEK. LENKEN: MÜNZEN SAMMELN."],
@@ -1586,7 +1592,7 @@ final class GameScene: SKScene {
                 "RAPT " + version,
             ], highlight: true),
         ]
-        return HelpPanel(designHeight: Layout.height, powerUps: powerUps, specials: specials,
+        return HelpPanel(designHeight: Layout.height, powerUps: powerUps, minigames: minigames, specials: specials,
                          footnote: "", info: info)
     }
 
@@ -1721,6 +1727,8 @@ final class GameScene: SKScene {
         case .atom: return "ATOMBOMBE"
         case .invasion: return "INVASION"
         case .abriss: return "ABRISSBIRNE"
+        case .flak: return "FLAK"
+        case .katana: return "KATANA"
         }
     }
 
@@ -1881,7 +1889,7 @@ final class GameScene: SKScene {
         case .fresser:
             setArmed(nil)
             startFresser()
-        case .invasion, .abriss:
+        case .invasion, .abriss, .flak, .katana:
             setArmed(nil)
             startArcade(kind)
         }
@@ -2144,15 +2152,28 @@ final class GameScene: SKScene {
         updateSlots()
         arcadeIntro = true
         refreshStatus()
-        let title = kind == .invasion ? "INVASION!" : "ABRISSBIRNE!"
-        let color = kind == .invasion ? RGBA(hex: 0xFF4FA8) : RGBA(hex: 0xFFB347)
         // Das Fluggerät fliegt schon während des Auftakts ein; der Läufer springt vom Dach hinein
         let canBoard = !figure.isHidden && !figureFalling
         let host = arcadeHost(entrance: !canBoard)
+        let title: String
+        let color: RGBA
         let round: ArcadeRound
-        if kind == .invasion {
+        switch kind {
+        case .invasion:
+            title = "INVASION!"
+            color = RGBA(hex: 0xFF4FA8)
             round = InvasionRound(host: host)
-        } else {
+        case .flak:
+            title = "FLAK!"
+            color = RGBA(hex: 0xFF8A3D)
+            round = FlakRound(host: host)
+        case .katana:
+            title = "KATANA!"
+            color = RGBA(hex: 0xD8FAFF)
+            round = KatanaRound(host: host)
+        default:
+            title = "ABRISSBIRNE!"
+            color = RGBA(hex: 0xFFB347)
             round = AbrissRound(host: host)
         }
         // Erst hinter den Häusern aufsteigen, dann vor alles
@@ -3094,6 +3115,7 @@ final class GameScene: SKScene {
         }
         if let round = arcade {
             round.pointer(point.x)
+            round.touchDown(point)
             return
         }
         if arcadeIntro { return }
@@ -3147,6 +3169,7 @@ final class GameScene: SKScene {
         }
         if let round = arcade {
             round.pointer(point.x)
+            round.touchMoved(point)
             return
         }
         guard let start = pointerStart, !busy else { return }
@@ -3165,6 +3188,7 @@ final class GameScene: SKScene {
     private func pointerUp(_ point: CGPoint) {
         swipeStart = nil
         arcade?.release()
+        arcade?.touchUp(point)
         if towerHoldStart != nil {
             cancelTowerHold()
             return

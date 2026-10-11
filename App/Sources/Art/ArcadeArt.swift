@@ -133,6 +133,66 @@ enum ArcadeArt {
         return c.texture()
     }
 
+    // MARK: Flak
+
+    /// Flakstellung (25 × 14): kastiger Panzer in Nietengrau mit Rost wie der Glider, offene Luke für den Läufer,
+    /// Warnlichter, Kettenräder. Das Geschützrohr ist ein eigenes Bild (`flakBarrel`), damit es zielen kann.
+    static func flakTurret() -> SKTexture {
+        let rows = [
+            ".........................",
+            "........KHHHHHHHK........",
+            ".......KHHHHHHHHHK.......",
+            "......KHH.......HHK......",
+            ".....KHHH.......HHHK.....",
+            "....KHHHH.......HHHHK....",
+            "...KHHHHH.......HHHHHK...",
+            "..KDDDDDDDDDDDDDDDDDDDK..",
+            ".KHrKrKHHHHHHHHHHHrKrKHK.",
+            "KHHHHHHHHHHHHHHHHHHHHHHHK",
+            "KDDDDDDDDDDDDDDDDDDDDDDDK",
+            ".KKEEKKKKKKKKKKKKKKKEEKK.",
+            "...EE...............EE...",
+            ".........................",
+        ]
+        let palette: [Character: UInt32] = ["H": 0x7E8494, "D": 0x4A4B56, "K": 0x22232B, "E": 0x14141A, "r": 0xE0452B]
+        let rust: [UInt32] = [0x5A2E1E, 0x8A4A2A, 0xB8642E]
+        var c = PixelCanvas(width: 25, height: rows.count)
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() {
+                guard var hex = palette[ch] else { continue }
+                if ch == "H", Noise.hash(x / 2, y / 2, 11) * 0.6 + Noise.hash(x, y, 13) * 0.4 < 0.24 {
+                    hex = rust[min(2, Int(Noise.hash(x, y, 17) * 3))]
+                }
+                c.set(x, y, RGBA(hex: hex))
+            }
+        }
+        return c.texture()
+    }
+
+    /// Geschützrohr (3 × 10), zeigt nach oben; Mündung hell.
+    static func flakBarrel() -> SKTexture {
+        sprite(["WOW", "KHK", "KHK", "KHK", "KHK", "KHK", "KHK", "KDK", "KDK", "KDK"],
+               ["W": 0xFFE2B0, "O": 0xFF8A3D, "K": 0x22232B, "H": 0xB8BCC8, "D": 0x4A4B56]).texture()
+    }
+
+    /// Flugabwehrrakete (1 × 4): heller Kopf, glühendes Heck.
+    static func flakRocket() -> SKTexture {
+        sprite(["W", "W", "O", "R"], ["W": 0xFFFFFF, "O": 0xFFB347, "R": 0xE0452B]).texture()
+    }
+
+    // MARK: Katana
+
+    /// Schwebebrett (21 × 5) für den Schwertkampf: der Läufer steht obendrauf.
+    static func hoverBoard() -> SKTexture {
+        sprite([
+            ".KWWWWWWWWWWWWWWWWWK.",
+            "KHHHHHHHHHHHHHHHHHHHK",
+            "KrKrKHHHHHHHHHHHrKrKK",
+            ".KDDDDDDDDDDDDDDDDDK.",
+            "...EE...........EE...",
+        ], ["W": 0xB8BCC8, "H": 0x7E8494, "D": 0x4A4B56, "K": 0x22232B, "E": 0x14141A, "r": 0x3FD8FF]).texture()
+    }
+
     // MARK: Sternenbahn
 
     /// Raumschiff (22 × 21) aus dem Kristall: Kristallform in Nietengrau mit Rostflecken wie beim Glider,

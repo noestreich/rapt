@@ -138,6 +138,8 @@ struct Contact: Equatable {
         case .fresser: return k9
         case .invasion: return kira
         case .abriss: return boris
+        case .flak: return robo
+        case .katana: return juki
         }
     }
 

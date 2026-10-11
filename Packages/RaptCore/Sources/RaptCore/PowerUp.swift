@@ -22,15 +22,21 @@ public enum PowerUp: String, CaseIterable, Sendable {
     case invasion
     /// Minispiel nach Arkanoid: Ein Raumschiff schlägt eine Abrissbirne in die Steine.
     case abriss
+    /// Minispiel nach Missile Command: Ziel antippen, eine Flugabwehrrakete sprengt die Steine im Umkreis.
+    case flak
+    /// Minispiel mit dem Schwert: Wischen zerschneidet die Steine entlang der Klinge.
+    case katana
 
     /// Startet ein eigenes Minispiel mit Steuerung statt eines Sofort-Effekts.
-    public var isArcade: Bool { self == .invasion || self == .abriss }
+    public var isArcade: Bool { [.invasion, .abriss, .flak, .katana].contains(self) }
 
     /// Dauer des Minispiels in Sekunden.
     public var arcadeDuration: Double {
         switch self {
         case .invasion: return 9
         case .abriss: return 12
+        case .flak: return 10
+        case .katana: return 8
         default: return 0
         }
     }

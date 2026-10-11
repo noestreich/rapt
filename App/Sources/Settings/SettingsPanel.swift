@@ -127,14 +127,21 @@ final class SettingsPanel {
             specs.append(({ "+" + String(Int((settings.debugCityAcceleration * 100).rounded())) + "%/M" },
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
-            // Minispiele sofort starten; Spielbrett 5 s grau; Stromausfall
-            specs.append((fixed("TEST"), .actions(options: ["INV", "ABR", "BAHN", "GRAU", "AUS", "+3"], perform: { [weak self] i in
+            // Minispiele sofort starten
+            specs.append((fixed("SPIEL"), .actions(options: ["INV", "ABR", "FLAK", "KAT", "BAHN"], perform: { [weak self] i in
                 switch i {
                 case 0: self?.onTestArcade(.invasion)
                 case 1: self?.onTestArcade(.abriss)
-                case 2: self?.onTestStarRun()
-                case 3: self?.onTestMono()
-                case 4: self?.onTestBlackout()
+                case 2: self?.onTestArcade(.flak)
+                case 3: self?.onTestArcade(.katana)
+                default: self?.onTestStarRun()
+                }
+            })))
+            // Spielbrett 5 s grau; Stromausfall; drei Sprünge weiter
+            specs.append((fixed("TEST"), .actions(options: ["GRAU", "AUS", "+3"], perform: { [weak self] i in
+                switch i {
+                case 0: self?.onTestMono()
+                case 1: self?.onTestBlackout()
                 default: self?.onTestJumps()
                 }
             })))

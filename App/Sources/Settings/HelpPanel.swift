@@ -1,8 +1,8 @@
 import RaptCore
 import SpriteKit
 
-/// Zweites Fenster über den Einstellungen: welche Power-ups es gibt, wie oft sie kommen und was sie tun,
-/// dazu die Spezialsteine. Gleicher Pixel-Stil wie die Einstellungen.
+/// Zweites Fenster über den Einstellungen: welche Power-ups und Minispiele es gibt, wie oft sie kommen und
+/// was sie tun, dazu die Spezialsteine. Gleicher Pixel-Stil wie die Einstellungen.
 final class HelpPanel {
     struct Entry {
         let icon: SKNode
@@ -14,7 +14,7 @@ final class HelpPanel {
         var onTap: (() -> Void)?
     }
 
-    /// Freier Textblock für Seite 2: Überschrift und Zeilen.
+    /// Freier Textblock für die letzte Seite: Überschrift und Zeilen.
     struct Block {
         let title: String
         let lines: [String]
@@ -35,14 +35,14 @@ final class HelpPanel {
     private var closeRect = CGRect.zero
     private var pageRect = CGRect.zero
     private var tapTargets: [(page: Int, rect: CGRect, action: () -> Void)] = []
-    private let pages = [SKNode(), SKNode(), SKNode()]
+    private let pages = [SKNode(), SKNode(), SKNode(), SKNode()]
     private var page = 0
     private let pageLabel = SKSpriteNode()
 
-    init(designHeight: CGFloat, powerUps: [Entry], specials: [Entry], footnote: String, info: [Block]) {
+    init(designHeight: CGFloat, powerUps: [Entry], minigames: [Entry], specials: [Entry], footnote: String, info: [Block]) {
         self.designHeight = designHeight
         node.isHidden = true
-        build(powerUps: powerUps, specials: specials, footnote: footnote, info: info)
+        build(powerUps: powerUps, minigames: minigames, specials: specials, footnote: footnote, info: info)
     }
 
     private func world(_ x: Int, _ y: Int) -> CGPoint {
@@ -71,7 +71,7 @@ final class HelpPanel {
         return c
     }
 
-    private func build(powerUps: [Entry], specials: [Entry], footnote: String, info: [Block]) {
+    private func build(powerUps: [Entry], minigames: [Entry], specials: [Entry], footnote: String, info: [Block]) {
         var back = PixelCanvas(width: width, height: height, fill: RGBA(hex: 0x0B0A11, alpha: 248))
         for y in stride(from: 1, to: height, by: 2) { back.fillRect(1, y, width - 2, 1, RGBA(hex: 0x14121C, alpha: 248)) }
         for (x, y, w, h) in [(0, 0, width, 1), (0, height - 1, width, 1), (0, 0, 1, height), (width - 1, 0, 1, height)] {
@@ -120,16 +120,23 @@ final class HelpPanel {
             parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
         }
 
-        // Seite 2: Spezialsteine (antippbar)
+        // Seite 2: Minispiele (antippbar)
         parent = pages[1]
         pageIndex = 1
+        y = y0 + 22
+        section("MINISPIELE - ANTIPPEN!")
+        minigames.forEach(entry)
+
+        // Seite 3: Spezialsteine (antippbar)
+        parent = pages[2]
+        pageIndex = 2
         y = y0 + 22
         section("SPEZIALSTEINE IN BEIDEN MODI - ANTIPPEN!")
         specials.forEach(entry)
 
-        // Seite 3: Dächerlauf, Punkte, Macher
-        parent = pages[2]
-        pageIndex = 2
+        // Seite 4: Dächerlauf, Punkte, Macher
+        parent = pages[3]
+        pageIndex = 3
         y = y0 + 22
         for block in info {
             section(block.title)
@@ -156,7 +163,7 @@ final class HelpPanel {
     private func showPage(_ index: Int) {
         page = index
         for (i, p) in pages.enumerated() { p.isHidden = i != index }
-        let next = ["STEINE", "MEHR", "POWER-UPS"]
+        let next = ["SPIELE", "STEINE", "MEHR", "POWER-UPS"]
         let canvas = button(next[index], width: 82)
         pageLabel.texture = canvas.texture()
         pageLabel.size = canvas.size

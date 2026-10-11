@@ -113,7 +113,53 @@ enum PowerUpArt {
         case .atom: return atomIcon().texture()
         case .invasion: return invaderIcon().texture()
         case .abriss: return wreckingBallIcon().texture()
+        case .flak: return flakIcon().texture()
+        case .katana: return katanaIcon().texture()
         }
+    }
+
+    /// Fadenkreuz mit einschlagender Rakete (Flak).
+    private static func flakIcon() -> PixelCanvas {
+        sprite([
+            "......RRRR......",
+            "....RR....RR....",
+            "...R...WW...R...",
+            "..R....WW....R..",
+            ".R.....WW.....R.",
+            ".R.....WW.....R.",
+            "R......OO......R",
+            "RWWWWOO..OOWWWWR",
+            "RWWWWOO..OOWWWWR",
+            "R......OO......R",
+            ".R.....WW.....R.",
+            ".R.....WW....YR.",
+            "..R....WW...YOR.",
+            "...R...WW..YOR..",
+            "....RR....RRR...",
+            "......RRRR......",
+        ], ["R": 0xE0452B, "W": 0xFFF3D6, "O": 0xFF8A3D, "Y": 0xFFE2B0])
+    }
+
+    /// Katana schräg: helle Klinge mit Glanzkante, goldenes Stichblatt, dunkler Griff.
+    private static func katanaIcon() -> PixelCanvas {
+        sprite([
+            "..............WC",
+            ".............WCS",
+            "............WCS.",
+            "...........WCS..",
+            "..........WCS...",
+            ".........WCS....",
+            "........WCS.....",
+            ".......WCS......",
+            "......WCS.......",
+            "...G.WCS........",
+            "....GGS.........",
+            "...GGG..........",
+            "..KRG...........",
+            ".KRK............",
+            "KRK.............",
+            "KK..............",
+        ], ["W": 0xFFFFFF, "C": 0xD8FAFF, "S": 0x7E8494, "G": 0xE8B23A, "K": 0x15121C, "R": 0xB8321F])
     }
 
     /// Außerirdisches Wesen: schwebende Kuppel mit einem großen Schlitzauge und drei welligen Tentakeln.

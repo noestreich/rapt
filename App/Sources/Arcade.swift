@@ -3,7 +3,7 @@ import RaptCore
 import SpriteKit
 
 // Minispiele, die ein Power-up auslöst: Invasion (nach Space Invaders) und Abrissbirne (nach Arkanoid,
-// mit einem rostigen Glider als Schläger). In beiden sitzt der Läufer von den Dächern in einem Fluggerät. Die Runden kennen die Szene nur über `ArcadeHost`;
+// mit einem rostigen Glider als Schläger); Flak und Katana stehen in MoreArcades.swift. In beiden sitzt der Läufer von den Dächern in einem Fluggerät. Die Runden kennen die Szene nur über `ArcadeHost`;
 // am Ende gibt die Szene `cleared` an die Spiellogik (`Game.finishArcade`).
 
 /// Was ein Minispiel von der Szene braucht. Koordinaten sind Weltkoordinaten der Effekt-Ebene (y nach oben).
@@ -56,6 +56,16 @@ protocol ArcadeRound: AnyObject {
     var seat: CGPoint { get }
     /// Läufer ist in die Kabine gesprungen.
     func board()
+    /// Volle Fingerposition (Welt), für Minispiele, die zielen oder wischen.
+    func touchDown(_ p: CGPoint)
+    func touchMoved(_ p: CGPoint)
+    func touchUp(_ p: CGPoint)
+}
+
+extension ArcadeRound {
+    func touchDown(_ p: CGPoint) {}
+    func touchMoved(_ p: CGPoint) {}
+    func touchUp(_ p: CGPoint) {}
 }
 
 /// Fluggerät mit Kabine für den Läufer: gleitet mit Trägheit, Seitendüsen zeigen die Schubrichtung,

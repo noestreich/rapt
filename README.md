@@ -53,8 +53,8 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
 - Punkte: 50 pro Stein, +100 für jeden Stein über drei, multipliziert mit der Kaskadenstufe.
 - Sprung-Leiste unter dem Brett: Sprung n braucht 1500 × n Punkte (Sprung 1: 1500, Sprung 2: +3000 …).
 - Dächerlauf: Power-ups landen im Lager (drei Plätze unter der Plan-Leiste), gewichtet zufällig und nie zweimal
-  dasselbe hintereinander (Bombe 30, Farbtilger 21, Strudel 16, Atombombe 12, Fresser 9, Invasion 6, Abrissbirne 6). Jeder sechste Sprung
-  bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion oder Abrissbirne, je 25 %), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
+  dasselbe hintereinander (Bombe 30, Farbtilger 21, Strudel 16, Atombombe 12, Fresser 9, Invasion 6, Abrissbirne 6, Flak 6, Katana 6). Jeder sechste Sprung
+  bringt garantiert ein seltenes Power-up (Fresser, Atombombe, Invasion, Abrissbirne, Flak oder Katana, gleich verteilt), dazu Feuerwerk „HELD DER ARBEIT!“. Ist das Lager voll, gibt es 500 Bonuspunkte.
 - Kurz vor dem Absturz leuchtet der ganze Bildschirmrand pulsierend rot, die Figur glüht, ein leises Netzbrummen
   setzt ein, dazu ein dezentes Tick–Tack wie ein Parksensor, das schneller wird (Sound-Labor-Plätze `danger` und
   `dangerTick`); die Musik wird nur ganz leicht zurückgenommen.
@@ -63,7 +63,7 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
 
 ### Minispiele
 
-Zwei Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
+Vier Power-ups starten ein kurzes Arcade-Minispiel. Davor knallt ein Manga-Auftakt ins Bild: weißer Blitz,
 Schwarz-Weiß-Flackern (normal und invertiert), Konzentrationslinien, Zoom aufs Brett und der Titel mit Farbsaum.
 Sprung-Leiste und Lager blenden aus; das Fluggerät steigt hinter den Häusern auf und fliegt frei über dem Nachthimmel unter dem Brett, der Läufer springt vom Dach in die Kabine und am Ende wieder zurück, das leere Gerät sinkt hinter die Häuser. Getroffene Steine zerplatzen sofort mit Konfetti und Glow;
 wird ein Spezialstein getroffen (Laser, Abrissbirne, Fresser), löst er sofort aus: Strahl über Zeile oder Spalte,
@@ -75,6 +75,8 @@ Nach Ablauf der Zeit fallen neue Steine nach, Kaskaden laufen wie gewohnt.
 |---|---|---|
 | **Invasion** (9 s) | Space Invaders | Der Läufer sitzt in einem dunklen Neon-Gleiter (ziehen; gleitet mit Trägheit, Seitendüsen zeigen den Schub) und schießt automatisch aus der Kanone nach oben; jeder Schuss trifft den untersten Stein seiner Spalte. Die Steine marschieren im Takt, der schneller wird, und werfen Zickzack-Geschosse (Treffer lähmen kurz). Zweimal fliegt ein UFO vorbei: Abschuss → Blitze in sechs Steine. |
 | **Abrissbirne** (12 s) | Arkanoid, Raptor | Der Läufer steuert einen kastigen, rostigen Glider (ziehen, folgt dem Finger direkt); vom flachen Dach prallt eine glühende Abrissbirne in die Steine, die mit jedem Treffer schneller wird. Bei jedem Aufprall taucht der Glider kurz ab und feuert zwei Leuchtspur-Salven. Manga-Lautmalerei bei Treffer-Serien. Fällt die Birne herunter, liegt kurz danach eine neue auf dem Dach. |
+| **Flak** (10 s) | Missile Command | Der Läufer bemannt eine rostige Flakstellung mittig unter dem Brett (offene Luke, Warnlichter). Antippen feuert eine Rakete mit Rauchspur zum Ziel, das Rohr dreht sich zum Finger; die Explosion zerlegt alle Steine im Umkreis von 1,5 Feldern (etwa 3 × 3). Sieben Raketen, als kleine Raketen neben der Stellung angezeigt; „DANEBEN“ bei einem Fehlschuss, „BUMM!“ ab sieben Treffern. |
+| **Katana** (8 s) | Fruit Ninja | Der Läufer steht auf einem Schwebebrett mit Neonlichtern, das dem Finger folgt. Wischen übers Brett zerschneidet die Steine (weiße Klingenspur), höchstens sieben pro Hieb, sechs Hiebe; ein bloßes Antippen kostet keinen. Ab drei Schnitten ein Katakana-Ruf („キリ!“, „サッ!“, „カタナ!“). |
 
 **Sternenbahn** (12 s, in beiden Modi): Auslöser ist eine Reihe aus mindestens vier Kristallen (auch in Kaskaden) oder
 im Dächerlauf jeder 10. Sprung (zusätzlich zum Power-up) – die erste im Spiel sofort, danach höchstens alle 5 Minuten
@@ -87,14 +89,14 @@ gesammelten Münze schneller. Ziehen lenkt; goldene Münzen (Donuts in halber Gr
 aktuellen Plans (anteilig nach Münzen, `Game.starRunPoints`), also nie mehr als einen Sprung;
 alle 5 Münzen Kombo-Ruf („STARK x5“, „BRAVO x10“ …) und ein Schwert-Laut in Katakana. Banden schubsen nur zurück
 (Funken, Serie reißt ab, 20 % der gesammelten Münzen springen davon, mindestens eine), kein Absturz. Am Ende wird das Schiff wieder zum Kristall und gleitet an seinen Platz; ab 80 % der Münzen gibt es ein
-seltenes Power-up. In der Hilfe steht sie unter den Power-ups mit Schiff-Symbol und der Andeutung „VIER KRISTALLE IN
+seltenes Power-up. In der Hilfe steht sie unter den Minispielen mit Schiff-Symbol und der Andeutung „VIER KRISTALLE IN
 EINER REIHE ...“; antippen spielt den Funkspruch von Greta oder Yanko. Code: `App/Sources/StarRun.swift`, `Game.finishStarRun`.
 
-Sprung-Leiste und Minispiele: Zu Beginn eines Minispiels (Invasion, Abrissbirne, Sternenbahn) bleibt die Leiste auf
+Sprung-Leiste und Minispiele: Zu Beginn eines Minispiels (Invasion, Abrissbirne, Flak, Katana, Sternenbahn) bleibt die Leiste auf
 ihrem Stand stehen. Danach füllt sie sich sichtbar Segment für Segment (leuchtende Spitze, leise Ticks, „+Punkte“);
 über einen geschafften Sprung hinweg läuft sie voll, blitzt auf und beginnt neu (`freezePlanBar`, `revealPlanGain`).
 
-Code: `App/Sources/Arcade.swift` (Runden, Manga-Filter), Grafik: `App/Sources/Art/ArcadeArt.swift`.
+Code: `App/Sources/Arcade.swift` (Invasion, Abrissbirne, Manga-Filter), `App/Sources/MoreArcades.swift` (Flak, Katana), Grafik: `App/Sources/Art/ArcadeArt.swift`.
 
 ### Spezialsteine
 
@@ -232,10 +234,10 @@ Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit un
 Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
-**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute) und **TEST** mit den Knöpfen **INV** und
-**ABR** (Minispiel sofort starten), **BAHN** (Sternenbahn sofort), **+3** (drei Sprünge auf einmal), **GRAU** (Spielbrett 5 Sekunden grau) und **AUS** (Stromausfall sofort) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
-Die **Hilfe** hat drei Seiten: Power-ups, Spezialsteine (antippen spielt den Funkspruch des Kontakts) sowie
-Dächerlauf, Punkte und Credits.
+**Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), **SPIEL** mit den Knöpfen **INV**, **ABR**,
+**FLAK**, **KAT** (Minispiel sofort starten) und **BAHN** (Sternenbahn sofort) sowie **TEST** mit **GRAU** (Spielbrett 5 Sekunden grau), **AUS** (Stromausfall sofort) und **+3** (drei Sprünge auf einmal) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+Die **Hilfe** hat vier Seiten: Power-ups, Minispiele (mit Sternenbahn), Spezialsteine (antippen spielt den Funkspruch
+des Kontakts) sowie Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
 
 ### Abzüge und Webseiten-Export
