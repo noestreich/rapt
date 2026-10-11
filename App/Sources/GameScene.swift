@@ -72,6 +72,10 @@ final class GameScene: SKScene {
     private let recordLabel = SKSpriteNode()
     /// Uhrzeit rechts neben dem Logo, gleiche Schrift und Farbe wie „HOCHPUNKTE“.
     private let clockLabel = SKSpriteNode()
+    /// Auftrag unter der Punktzahl: Text links, Fortschritt rechts.
+    private let orderLabel = SKSpriteNode()
+    private let orderCount = SKSpriteNode()
+    private var orderFlashing = false
     private var shownClock = ""
     /// Logo „RAPT“ und Uhrzeit daneben (Design-Koordinaten, großzügige Trefferfläche): antippen blendet die Uhr ein/aus.
     private let logoRect = CGRect(x: 16, y: 9, width: 68, height: 20)
@@ -399,6 +403,8 @@ final class GameScene: SKScene {
             (recordLabel, CGPoint(x: 1, y: 1), design(177, 17)),
             (clockLabel, CGPoint(x: 0, y: 1), design(56, 17)),
             (planLabel, CGPoint(x: 0, y: 1), design(Layout.boardX, planY)),
+            (orderLabel, CGPoint(x: 0, y: 1), design(24, 47)),
+            (orderCount, CGPoint(x: 1, y: 1), design(176, 47)),
         ]
         for (label, anchor, position) in labels {
             label.anchorPoint = anchor
@@ -763,6 +769,8 @@ final class GameScene: SKScene {
         selected = nil
         place(cursor, at: nil)
         place(hintCursor, at: nil)
+        removeAction(forKey: "orderDone")
+        orderFlashing = false
         displayedScore = 0
         shownScore = -1
         lastCombo = 1
@@ -924,6 +932,7 @@ final class GameScene: SKScene {
                 Highscore.save(highscore, for: mode)
             }
         }
+        if let done = result.completedOrder { celebrateOrder(done) }
         updateHUD()
         pendingDeliveries += result.rewards.filter { $0.powerUp != nil }.count
         updateSlots()
@@ -1128,12 +1137,78 @@ final class GameScene: SKScene {
     private func updateHUD() {
         setText(recordLabel, (dailyDay == nil ? "HOCHPUNKTE " : "TAGESBEST ") + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
+        updateOrder()
         let plan = game.plan
         shownPlan = plan
         // Während eines Minispiels steht die Leiste still; danach füllt revealPlanGain sie sichtbar auf
         guard !planBarAnimating else { return }
         let shown = planSnapshot.map { ($0.plan, $0.progress) } ?? (plan, game.planProgress)
         drawPlanBar(plan: shown.0, filled: Int((shown.1 * Double(planSegments.count)).rounded(.down)))
+    }
+
+    // MARK: Aufträge
+
+    private static func gemPlural(_ gem: Gem) -> String {
+        switch gem {
+        case .orden: return "ORDEN"
+        case .zahnrad: return "ZAHNRÄDER"
+        case .signal: return "SIGNALE"
+        case .uranglas: return "URANGLÄSER"
+        case .kristall: return "KRISTALLE"
+        case .roehre: return "RÖHREN"
+        case .niete: return "NIETEN"
+        }
+    }
+
+    private static func orderText(_ order: Order) -> String {
+        switch order.kind {
+        case .clear(let gem): return "RÄUME \(order.target) \(gemPlural(gem)) AB"
+        case .build: return "BAUE \(order.target) SPEZIALSTEINE"
+        case .ignite: return "ZÜNDE \(order.target) SPEZIALSTEINE"
+        case .cascade: return "KASKADE STUFE \(order.target)"
+        }
+    }
+
+    /// Auftragszeile: „AUFTRAG:“ in Bernstein, der Rest grau; rechts der Fortschritt.
+    private func updateOrder() {
+        guard !orderFlashing else { return }
+        guard let order = game.order, !game.isOver else {
+            orderLabel.isHidden = true
+            orderCount.isHidden = true
+            return
+        }
+        orderLabel.isHidden = false
+        orderCount.isHidden = false
+        let prefix = "AUFTRAG: "
+        let text = Self.orderText(order)
+        var canvas = PixelCanvas(width: PixelFont.width(prefix + text), height: PixelFont.lineHeight)
+        PixelFont.draw(prefix, into: &canvas, x: 0, y: 0, color: Palette.amber)
+        PixelFont.draw(text, into: &canvas, x: PixelFont.width(prefix) + 1, y: 0, color: Palette.label)
+        orderLabel.texture = canvas.texture()
+        orderLabel.size = canvas.size
+        let count = order.kind == .cascade ? "" : "\(order.progress)/\(order.target)"
+        setText(orderCount, count, color: Palette.label)
+        orderCount.isHidden = count.isEmpty
+    }
+
+    /// Auftrag erfüllt: Zeile blinkt mit dem Bonus, danach ist bis zum nächsten Sprung Ruhe.
+    private func celebrateOrder(_ order: Order) {
+        orderFlashing = true
+        orderLabel.isHidden = false
+        orderCount.isHidden = false
+        setText(orderLabel, "AUFTRAG ERFÜLLT", color: Palette.amber)
+        setText(orderCount, "+\(order.bonus)", color: Palette.amber)
+        audio.play(.plan, volume: 0.45)
+        haptics.select()
+        let blink = SKAction.repeat(.sequence([.fadeAlpha(to: 0.25, duration: 0.12), .fadeAlpha(to: 1, duration: 0.12)]), count: 4)
+        for node in [orderLabel, orderCount] {
+            node.removeAction(forKey: "orderBlink")
+            node.run(blink, withKey: "orderBlink")
+        }
+        run(.sequence([.wait(forDuration: 2.6), .run { [weak self] in
+            self?.orderFlashing = false
+            self?.updateOrder()
+        }]), withKey: "orderDone")
     }
 
     /// Sprung-Leiste zeichnen; `edge`: das zuletzt gefüllte Segment leuchtet hell (beim Auffüllen).
@@ -1675,6 +1750,11 @@ final class GameScene: SKScene {
                 "SPEZIALSTEIN AUSGELÖST: +200 JE STUFE",
                 "SPRUNG 1 BRAUCHT 1500 PUNKTE. JEDER",
                 "WEITERE SPRUNG 1500 MEHR ALS DER LETZTE.",
+            ]),
+            .init(title: "AUFTRÄGE", lines: [
+                "JEDER SPRUNG BRINGT EINEN AUFTRAG UNTER",
+                "DER PUNKTZAHL. ERFÜLLT GIBT ES EIN",
+                "VIERTEL DES SPRUNGS ALS BONUS.",
             ]),
             .init(title: "MACHER", lines: [
                 "SPIEL: NICOLAS OESTREICH",

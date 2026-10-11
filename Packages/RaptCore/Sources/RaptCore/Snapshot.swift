@@ -16,6 +16,14 @@ public struct GameSnapshot: Codable, Equatable, Sendable {
         public let rng: UInt64
     }
 
+    public struct OrderState: Codable, Equatable, Sendable {
+        /// "clear-<Kürzel>", "build", "ignite" oder "cascade".
+        public let kind: String
+        public let target: Int
+        public let progress: Int
+        public let plan: Int
+    }
+
     public static let version = 1
 
     public var version = GameSnapshot.version
@@ -29,6 +37,35 @@ public struct GameSnapshot: Codable, Equatable, Sendable {
     public let rewardedPlan: Int
     public let rng: UInt64
     public let city: CityState
+    /// Offener Auftrag; fehlt in älteren Ständen.
+    public var order: OrderState? = nil
+    public var orderSeed: UInt64? = nil
+}
+
+extension Order {
+    var state: GameSnapshot.OrderState {
+        let key: String
+        switch kind {
+        case .clear(let gem): key = "clear-\(gem.symbol)"
+        case .build: key = "build"
+        case .ignite: key = "ignite"
+        case .cascade: key = "cascade"
+        }
+        return GameSnapshot.OrderState(kind: key, target: target, progress: progress, plan: plan)
+    }
+
+    init?(state s: GameSnapshot.OrderState) {
+        let kind: Kind
+        switch s.kind {
+        case "build": kind = .build
+        case "ignite": kind = .ignite
+        case "cascade": kind = .cascade
+        default:
+            guard s.kind.hasPrefix("clear-"), let symbol = s.kind.last, let gem = Gem(symbol: symbol) else { return nil }
+            kind = .clear(gem)
+        }
+        self.init(kind: kind, target: s.target, plan: s.plan, progress: min(s.progress, s.target))
+    }
 }
 
 extension Special {
@@ -73,7 +110,8 @@ extension Game {
         }
         return GameSnapshot(mode: mode.rawValue, lines: board.lines, specials: specials, score: score,
                             powerUps: powerUps.map(\.rawValue), roof: roof, lastReward: lastRewardKind?.rawValue,
-                            rewardedPlan: rewardedPlanStep, rng: rngState, city: city.snapshot)
+                            rewardedPlan: rewardedPlanStep, rng: rngState, city: city.snapshot,
+                            order: order?.state, orderSeed: orderSeedValue)
     }
 
     /// Stellt einen gespeicherten Stand wieder her. `nil`, wenn er unbrauchbar oder das Spiel schon vorbei ist.
@@ -89,7 +127,8 @@ extension Game {
         }
         self.init(board: Board(s.lines, specials: specials), seed: s.rng, mode: mode)
         restore(score: s.score, powerUps: s.powerUps.compactMap(PowerUp.init(rawValue:)), roof: s.roof,
-                lastReward: s.lastReward.flatMap(PowerUp.init(rawValue:)), rewardedPlan: s.rewardedPlan, city: city)
+                lastReward: s.lastReward.flatMap(PowerUp.init(rawValue:)), rewardedPlan: s.rewardedPlan, city: city,
+                order: s.order.flatMap(Order.init(state:)), orderSeed: s.orderSeed ?? s.rng ^ 0x0DE5_0DE5_0DE5_0DE5)
         if isOver { return nil }
     }
 }

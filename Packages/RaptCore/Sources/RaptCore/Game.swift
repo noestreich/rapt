@@ -48,6 +48,8 @@ public struct SwapResult: Equatable, Sendable {
     public let steps: [CascadeStep]
     public let rewards: [PlanReward]
     public let isGameOver: Bool
+    /// Mit diesem Zug erfüllter Auftrag (Bonus ist schon in den Punkten des Spiels).
+    public var completedOrder: Order?
 
     public static let invalid = SwapResult(isValid: false, steps: [], rewards: [], isGameOver: false)
 
@@ -87,15 +89,21 @@ public struct Game: Sendable {
     public var citySpeed = City.baseSpeed
     /// Zusätzliche Beschleunigung der Stadt pro Spielminute (0,1 = +10 % je Minute).
     public var cityAcceleration = City.defaultAccelerationPerMinute
+    /// Aktueller Auftrag; `nil`, wenn er in diesem Plan schon erfüllt ist.
+    public private(set) var order: Order?
     private var lastReward: PowerUp?
     private var rewardedPlan = 1
     private var rng: SplitMix64
+    /// Grundlage der Aufträge (`Order.make`).
+    private var orderSeed: UInt64
 
     public init(seed: UInt64, mode: GameMode = .rooftop, cols: Int = 8, rows: Int = 8) {
         self.mode = mode
         rng = SplitMix64(seed: seed)
         city = City(seed: seed)
+        orderSeed = seed ^ 0x0DE5_0DE5_0DE5_0DE5
         board = Board.random(cols: cols, rows: rows, using: &rng)
+        order = Order.make(plan: 1, seed: orderSeed)
     }
 
     public init(board: Board, seed: UInt64, mode: GameMode = .rooftop) {
@@ -103,6 +111,8 @@ public struct Game: Sendable {
         self.board = board
         rng = SplitMix64(seed: seed)
         city = City(seed: seed)
+        orderSeed = seed ^ 0x0DE5_0DE5_0DE5_0DE5
+        order = Order.make(plan: 1, seed: orderSeed)
         updateOver()
     }
 
@@ -110,8 +120,12 @@ public struct Game: Sendable {
     var lastRewardKind: PowerUp? { lastReward }
     var rewardedPlanStep: Int { rewardedPlan }
     var rngState: UInt64 { rng.state }
+    var orderSeedValue: UInt64 { orderSeed }
 
-    mutating func restore(score: Int, powerUps: [PowerUp], roof: Int, lastReward: PowerUp?, rewardedPlan: Int, city: City) {
+    mutating func restore(score: Int, powerUps: [PowerUp], roof: Int, lastReward: PowerUp?, rewardedPlan: Int, city: City,
+                          order: Order?, orderSeed: UInt64) {
+        self.order = order
+        self.orderSeed = orderSeed
         self.score = score
         self.powerUps = Array(powerUps.prefix(Self.maxPowerUps))
         self.roof = roof
@@ -346,6 +360,12 @@ public struct Game: Sendable {
             }
             points += detonations.count * Self.pointsPerDetonation * combo
 
+            if order != nil {
+                var colors: [Gem: Int] = [:]
+                for p in cleared { if let gem = board[p] { colors[gem, default: 0] += 1 } }
+                order?.record(cleared: colors, created: created.count, detonated: detonations.count + (combo == 1 ? spent.count : 0),
+                              combo: combo)
+            }
             for p in cleared { board[p] = nil }
             for c in created { board[tile: c.pos] = Tile(c.gem, c.special) }
             let (falls, spawns) = collapse()
@@ -431,9 +451,18 @@ public struct Game: Sendable {
     }
 
     private mutating func finish(_ steps: [CascadeStep]) -> SwapResult {
+        let done = settleOrder()
         let rewards = collectRewards()
         updateOver()
-        return SwapResult(isValid: true, steps: steps, rewards: rewards, isGameOver: isOver)
+        return SwapResult(isValid: true, steps: steps, rewards: rewards, isGameOver: isOver, completedOrder: done)
+    }
+
+    /// Erfüllter Auftrag: Bonus gutschreiben, bis zum nächsten Sprung kein neuer.
+    private mutating func settleOrder() -> Order? {
+        guard let current = order, current.isDone else { return nil }
+        score += current.bonus
+        order = nil
+        return current
     }
 
     private mutating func updateOver() {
@@ -502,10 +531,12 @@ public struct Game: Sendable {
         while plan > rewardedPlan {
             rewardedPlan += 1
             guard mode == .rooftop else {
+                order = Order.make(plan: rewardedPlan, seed: orderSeed)
                 rewards.append(PlanReward(plan: rewardedPlan, roof: 0, building: nil, powerUp: nil, bonusPoints: 0, reachedTop: false))
                 continue
             }
             roof += 1
+            order = Order.make(plan: rewardedPlan, seed: orderSeed)
             let top = roof >= Self.roofCount - 1
             let kind = top ? pickReward(from: Self.topRewards, uniform: true) : pickReward(from: PowerUp.allCases)
             var granted: PowerUp?

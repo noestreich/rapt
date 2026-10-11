@@ -60,6 +60,11 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
   `dangerTick`); die Musik wird nur ganz leicht zurückgenommen.
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
+- **Aufträge** (beide Modi): Jeder Sprung bringt einen kleinen Auftrag, angezeigt unter der Punktzahl („AUFTRAG: RÄUME
+  15 KRISTALLE AB 7/15“, „BAUE 2 SPEZIALSTEINE“, „ZÜNDE 3 SPEZIALSTEINE“, „KASKADE STUFE 3“). Plan 1 ist immer eine
+  Farbe. Es zählt alles, auch Spezialsteine, Power-ups und Minispiele. Erfüllt: Zeile blinkt „AUFTRAG ERFÜLLT +375“,
+  Bonus ein Viertel des aktuellen Sprungs; bis zum nächsten Sprung kommt kein neuer, ein unerfüllter verfällt beim
+  Sprung. Fest aus Seed und Plan (`Order.make`), darum im Tageslauf für alle gleich. Code: `RaptCore/Order.swift`.
 - **Tageslauf** (dritter Knopf in der Moduswahl): ein Dächerlauf mit festem Seed pro Kalendertag (`DailyRun.seed`,
   FNV-1a über das Datum) – Brett, Stadt und Belohnungen sind an diesem Tag für alle gleich. Eigener Tagesbestwert
   („TAGESBEST“ statt „HOCHPUNKTE“, `rapt.daily.best.<tag>`) und eine **Serie**: jeder Tag, an dem ein Tageslauf
