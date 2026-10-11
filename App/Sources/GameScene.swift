@@ -60,6 +60,11 @@ final class GameScene: SKScene {
     private let overlayLayer = SKNode()
     private let cursor = SKNode()
     private let hintCursor = SKNode()
+    /// Tastatur (Mac): Feld unter dem Tastatur-Rahmen; gehaltene Lenkrichtung in Minispielen.
+    private let keyBracket = SKNode()
+    private var keyCursor: Pos?
+    private var keySteer: CGFloat = 0
+    private var keyArcadeX: CGFloat?
 
     private let nebula = SKSpriteNode()
     private let skyline = SKSpriteNode()
@@ -334,7 +339,7 @@ final class GameScene: SKScene {
         world.addChild(shaker)
         let layers: [(SKNode, CGFloat)] = [
             (backLayer, 0), (hudLayer, 10), (boardFX, 20), (glowLayer, 25),
-            (fx.pixelLayer, 30), (fx.lightLayer, 40), (hintCursor, 44), (cursor, 45), (overlayLayer, 50),
+            (fx.pixelLayer, 30), (fx.lightLayer, 40), (hintCursor, 44), (keyBracket, 44.5), (cursor, 45), (overlayLayer, 50),
         ]
         for (layer, z) in layers {
             layer.zPosition = z
@@ -479,6 +484,7 @@ final class GameScene: SKScene {
         overlayLayer.addChild(countdownLabel)
 
         buildBracket(cursor, color: RGBA(hex: 0xFFD27A).skColor)
+        buildBracket(keyBracket, color: RGBA(hex: 0x7AF0FF).skColor)
         buildBracket(hintCursor, color: RGBA(hex: 0x9FB4FF).skColor)
         splash = SplashPresenter(topLeft: design(8, 10), width: 184, height: 68)
         splash.onSpeak = { [weak self] contact in
@@ -1430,10 +1436,14 @@ final class GameScene: SKScene {
             return
         }
         guard let button = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
+        chooseMenu(button.choice)
+    }
+
+    private func chooseMenu(_ choice: MenuChoice) {
         menuVisible = false
         menuButtons = []
         audio.play(.select, volume: 0.6)
-        switch button.choice {
+        switch choice {
         case .resume:
             if let saved = SavedGame.load() {
                 startNewGame(mode: saved.game.mode, animated: true, restoring: saved.game, daily: saved.daily)
@@ -1784,8 +1794,16 @@ final class GameScene: SKScene {
                 "RAPT " + version,
             ], highlight: true),
         ]
+        #if os(macOS)
+        let keys: [HelpPanel.Block] = [.init(title: "TASTATUR", lines: [
+            "PFEILE/WASD: RAHMEN - LEERTASTE: WÄHLEN",
+            "UMSCHALT+PFEIL: TAUSCHEN - 1-3: LAGER",
+        ])]
+        #else
+        let keys: [HelpPanel.Block] = []
+        #endif
         return HelpPanel(designHeight: Layout.height, powerUps: powerUps, minigames: minigames, specials: specials,
-                         footnote: "", info: info)
+                         footnote: "", info: Array(info.dropLast()) + keys + Array(info.suffix(1)))
     }
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.
@@ -3273,6 +3291,11 @@ final class GameScene: SKScene {
 
     private func pointerDown(_ point: CGPoint) {
         idleTime = 0
+        // Maus oder Finger: Tastatur-Rahmen ausblenden
+        if keyCursor != nil {
+            keyCursor = nil
+            place(keyBracket, at: nil)
+        }
         place(hintCursor, at: nil)
         let d = CGPoint(x: point.x, y: Layout.height - point.y)
         if !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !albumPanel.isVisible, !towerEggUsed, !game.isOver, isNearTowerLight(point) {
@@ -3475,6 +3498,7 @@ final class GameScene: SKScene {
         updateFresser(dt)
         updateArcade(dt)
         updateLedge(dt)
+        updateKeySteer(dt)
         if pendingStarRun, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
            !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !albumPanel.isVisible {
             pendingStarRun = false
@@ -3551,3 +3575,140 @@ final class GameScene: SKScene {
         }
     }
 }
+
+// MARK: - Tastatur
+
+extension GameScene {
+    /// Tastenbelegung (Mac): Pfeile/WASD bewegen den Rahmen, Leertaste/Eingabe wählt bzw. tauscht, Umschalt+Pfeil
+    /// tauscht sofort, 1–3 Power-ups, Esc bricht ab bzw. öffnet die Einstellungen. Im Menü wählen 1–4 und Eingabe.
+    /// In Minispielen lenken links/rechts, die Leertaste wirft die Abrissbirne ab; der Fresser folgt den Pfeilen.
+    /// Gibt `true` zurück, wenn die Taste verbraucht wurde.
+    func handleKey(code: UInt16, characters: String, shift: Bool, down: Bool) -> Bool {
+        let key = characters.lowercased()
+        var direction: Direction?
+        switch code {
+        case 123: direction = Direction(dc: -1, dr: 0)
+        case 124: direction = Direction(dc: 1, dr: 0)
+        case 125: direction = Direction(dc: 0, dr: 1)
+        case 126: direction = Direction(dc: 0, dr: -1)
+        default:
+            switch key {
+            case "a": direction = Direction(dc: -1, dr: 0)
+            case "d": direction = Direction(dc: 1, dr: 0)
+            case "s": direction = Direction(dc: 0, dr: 1)
+            case "w": direction = Direction(dc: 0, dr: -1)
+            default: break
+            }
+        }
+        let confirm = code == 49 || code == 36 || code == 76
+        let escape = code == 53
+
+        // Lenken in Minispielen: gehaltene Richtung, beim Loslassen stehen bleiben
+        if let dir = direction, dir.dr == 0, arcade != nil || arcadeIntro {
+            keySteer = down ? CGFloat(dir.dc) : (keySteer == CGFloat(dir.dc) ? 0 : keySteer)
+            return true
+        }
+        guard down else { return direction != nil || confirm }
+        idleTime = 0
+
+        if helpPanel.isVisible || albumPanel.isVisible || settingsPanel.isVisible {
+            guard escape else { return false }
+            if albumPanel.isVisible {
+                albumPanel.onClose()
+            } else if helpPanel.isVisible {
+                helpPanel.onClose()
+            } else {
+                settingsPanel.onClose()
+            }
+            return true
+        }
+        if menuVisible {
+            if let n = Int(key), n >= 1, n <= menuButtons.count {
+                chooseMenu(menuButtons[n - 1].choice)
+                return true
+            }
+            if confirm, let first = menuButtons.first {
+                chooseMenu(first.choice)
+                return true
+            }
+            return false
+        }
+        if let round = arcade {
+            if confirm {
+                round.release()
+                return true
+            }
+            return false
+        }
+        if fresser != nil, let dir = direction {
+            fresser?.queued = dir
+            return true
+        }
+        if escape {
+            if armed != nil || selected != nil {
+                setArmed(nil)
+                setSelected(nil)
+            } else if !minigameActive {
+                audio.play(.select, volume: 0.5)
+                settingsPanel.show()
+            }
+            return true
+        }
+        if let n = Int(key), n >= 1, n <= Game.maxPowerUps {
+            if mode == .rooftop { handleSlot(n - 1) }
+            return true
+        }
+        if let dir = direction {
+            let from = keyCursor ?? selected ?? Pos(Layout.count / 2, Layout.count / 2)
+            let to = Pos(from.col + dir.dc, from.row + dir.dr)
+            guard game.board.contains(to) else { return true }
+            if shift, keyCursor != nil, !busy, armed == nil {
+                // Umschalt+Pfeil: sofort tauschen
+                setSelected(nil)
+                attemptSwap(from, to)
+            }
+            keyCursor = to
+            place(keyBracket, at: to)
+            return true
+        }
+        if confirm {
+            guard let p = keyCursor else {
+                keyCursor = selected ?? Pos(Layout.count / 2, Layout.count / 2)
+                place(keyBracket, at: keyCursor)
+                return true
+            }
+            guard !busy, !game.isOver else { return true }
+            if let mode = armed {
+                fire(mode, at: p)
+            } else if let current = selected {
+                if current == p {
+                    setSelected(nil)
+                } else if current.isAdjacent(to: p) {
+                    setSelected(nil)
+                    attemptSwap(current, p)
+                } else {
+                    setSelected(p)
+                }
+            } else {
+                setSelected(p)
+            }
+            return true
+        }
+        return false
+    }
+
+    /// Gehaltene Pfeiltaste lenkt das Minispiel wie ein Finger, der langsam wandert.
+    private func updateKeySteer(_ dt: Double) {
+        guard let round = arcade else {
+            keyArcadeX = nil
+            keySteer = 0
+            return
+        }
+        guard keySteer != 0 else { return }
+        let lo = CGFloat(Layout.boardX), hi = CGFloat(Layout.boardX + Layout.boardSize)
+        let x = (keyArcadeX ?? round.seat.x) + keySteer * 150 * CGFloat(dt)
+        keyArcadeX = min(hi, max(lo, x))
+        round.pointer(keyArcadeX ?? x)
+    }
+}
+

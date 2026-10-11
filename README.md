@@ -176,6 +176,22 @@ Im Lager antippen, dann:
 | Atombombe | Feld antippen: sprengt 5 × 5 Steine |
 | Fresser | Startet sofort: zwei Farben versteinern, 10 Sekunden lang lenkst du den Fressautomaten per Wischen und frisst alle anderen Steine; gefressene Spezialsteine lösen sofort aus (versteinerte Steine bleiben stehen) |
 
+### Tastatur (Mac)
+
+| Taste | Wirkung |
+|---|---|
+| Pfeile / WASD | Tastatur-Rahmen (Cyan) übers Brett bewegen; im Fresser lenken |
+| Leertaste / Eingabe | Stein wählen, mit dem Nachbarn tauschen; mit scharfer Bombe/Atombombe/Farbtilger: zünden |
+| Umschalt + Pfeil | Stein unter dem Rahmen sofort in diese Richtung tauschen |
+| 1–3 | Power-up aus dem Lager |
+| Esc | Auswahl abbrechen, sonst Einstellungen; schließt Einstellungen, Hilfe und Album |
+| Menü: 1–4 / Eingabe | Knopf wählen (Eingabe: oberster) |
+| Minispiele: ← → | lenken (halten); Leertaste wirft die Abrissbirne ab |
+
+Ein lokaler Tasten-Monitor in `GameView` reicht die Tasten an `GameScene.handleKey` weiter; Kürzel mit ⌘ und
+Texteingaben (Sound-Labor) bleiben unberührt. Ein Mausklick blendet den Rahmen aus. Die Hilfe zeigt auf dem Mac einen
+Absatz „TASTATUR“.
+
 ## Sound-Labor (Mac)
 
 Im Debug-Build auf dem Mac: Menü **Entwickler → Sound-Labor öffnen** (⇧⌘L).
