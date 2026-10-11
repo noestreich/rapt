@@ -42,6 +42,8 @@ targets:
         # `INFOPLIST_KEY_UILaunchScreen_Generation: YES` ersetzen und `xcodegen generate` ausführen.
         INFOPLIST_FILE: App/Info.plist
         INFOPLIST_KEY_UIStatusBarHidden: YES
+        # Ergebniskarte aus dem Teilen-Menü in Fotos sichern (sonst Absturz bei „Bild sichern“)
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Rapt sichert deine Ergebniskarte in Fotos."
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
         INFOPLIST_KEY_UIRequiresFullScreen: YES

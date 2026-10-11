@@ -69,6 +69,10 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
   FNV-1a über das Datum) – Brett, Stadt und Belohnungen sind an diesem Tag für alle gleich. Eigener Tagesbestwert
   („TAGESBEST“ statt „HOCHPUNKTE“, `rapt.daily.best.<tag>`) und eine **Serie**: jeder Tag, an dem ein Tageslauf
   gestartet wird, zählt; eine Lücke setzt sie auf 1 zurück. Menü und Spielende zeigen Bestwert und Serie.
+- **Ergebnis teilen:** Nach Spielende steht links unten im Menü „TEILEN“: eine Pixel-Karte (160 × 100, sechsfach
+  vergrößert) mit Logo, Punkten, Modus, Sprung, „NEUER REKORD!“, einer Reihe Steine und der Skyline mit Fernsehturm,
+  dazu ein kurzer Text, über das System-Teilen-Menü (iPhone: Teilen-Blatt, Mac: Teilen-Auswahl). Für „Bild sichern“
+  steht `NSPhotoLibraryAddUsageDescription` in `project.yml`. Code: `App/Sources/ShareCard.swift`.
 - **Weiterspielen:** Nach jedem Zug und beim Wechsel in den Hintergrund (Mac: auch beim Beenden) wird das laufende Spiel
   gesichert (`GameSnapshot` in RaptCore: Brett mit Spezialsteinen, Punkte, Lager, Stadt und Zufallsgeneratoren, als
   JSON in den UserDefaults, `SavedGame`). Gesichert wird nur ein ruhiger Stand – läuft gerade ein Zug, ein Minispiel oder

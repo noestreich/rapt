@@ -242,6 +242,9 @@ final class GameScene: SKScene {
         case daily
     }
     private var menuSettingsRect = CGRect.zero
+    private var menuShareRect = CGRect.zero
+    /// Rekord zu Beginn des Spiels, um beim Teilen einen neuen Rekord zu erkennen.
+    private var recordAtStart = 0
     private var menuVisible = false
     private var slotFrames: [SKSpriteNode] = []
     /// Power-ups, die schon im Lager sind, aber noch per Übergabe einfliegen.
@@ -747,6 +750,7 @@ final class GameScene: SKScene {
         UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
         dailyDay = daily
         highscore = daily.map(DailyRun.best) ?? Highscore.load(newMode)
+        recordAtStart = saved == nil ? highscore : 0
         let seed = daily.map(DailyRun.seed(for:)) ?? UInt64.random(in: 0...UInt64.max)
         game = saved ?? Game(seed: seed, mode: newMode)
         game.citySpeed = GameSettings.shared.citySpeed
@@ -1411,12 +1415,47 @@ final class GameScene: SKScene {
         var link = PixelCanvas(width: linkWidth, height: 7)
         link.draw(Self.gearCanvas(Palette.cream), at: 0, 0)
         PixelFont.draw(label, into: &link, x: 11, y: 1, color: Palette.cream)
-        let linkX = Layout.boardX + (Layout.boardSize - linkWidth) / 2
+        // Nach Spielende links daneben: Ergebnis teilen
+        let linkX = gameOver ? Layout.boardX + Layout.boardSize - 8 - linkWidth : Layout.boardX + (Layout.boardSize - linkWidth) / 2
         let linkY = Layout.boardY + buttonY + options.count * spacing + 4
+        menuShareRect = .zero
+        if gameOver && game.score > 0 {
+            let shareLabel = "TEILEN"
+            var share = PixelCanvas(width: 7 + 4 + PixelFont.width(shareLabel), height: 7)
+            share.draw(Self.shareCanvas(Palette.amber), at: 0, 0)
+            PixelFont.draw(shareLabel, into: &share, x: 11, y: 1, color: Palette.amber)
+            let shareX = Layout.boardX + 8
+            let shareNode = pixelSprite(share, topLeft: design(shareX, linkY))
+            shareNode.zPosition = 1
+            overlayLayer.addChild(shareNode)
+            menuShareRect = CGRect(x: shareX, y: linkY, width: share.width, height: 7).insetBy(dx: -8, dy: -6)
+        }
         let linkNode = pixelSprite(link, topLeft: design(linkX, linkY))
         linkNode.zPosition = 1
         overlayLayer.addChild(linkNode)
         menuSettingsRect = CGRect(x: linkX, y: linkY, width: linkWidth, height: 7).insetBy(dx: -8, dy: -6)
+    }
+
+    /// Teilen-Symbol: Kasten mit Pfeil nach oben.
+    private static func shareCanvas(_ color: RGBA) -> PixelCanvas {
+        let rows = ["...X...", "..XXX..", ".X.X.X.", "...X...", "X..X..X", "X.....X", "XXXXXXX"]
+        var c = PixelCanvas(width: 7, height: 7)
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "X" { c.set(x, y, color) }
+        }
+        return c
+    }
+
+    private func shareResult() {
+        let modeName: String
+        if let day = dailyDay {
+            modeName = "TAGESLAUF \(day)"
+        } else {
+            modeName = mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
+        }
+        let info = ShareCard.Info(score: game.score, mode: modeName, plan: game.plan,
+                                  isRecord: game.score > recordAtStart && recordAtStart > 0)
+        ShareCard.present(info, from: view)
     }
 
     private static func gearCanvas(_ color: RGBA) -> PixelCanvas {
@@ -1433,6 +1472,11 @@ final class GameScene: SKScene {
         if menuSettingsRect.contains(p) {
             audio.play(.select, volume: 0.5)
             settingsPanel.show()
+            return
+        }
+        if menuShareRect.contains(p) {
+            audio.play(.select, volume: 0.5)
+            shareResult()
             return
         }
         guard let button = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
