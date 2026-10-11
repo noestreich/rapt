@@ -375,7 +375,7 @@ class ArcadeBase {
 final class InvasionRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.invasion
     let title = "INVASION"
-    var hint: String { "ZIEHEN ZUM ZIELEN" }
+    var hint: String { tr("ZIEHEN ZUM ZIELEN", "DRAG TO AIM") }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 
     private let boltTexture = ArcadeArt.bolt()
@@ -472,7 +472,7 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
                 host.fx.shrapnel(at: hitPoint, colors: [.white, RGBA(hex: 0x3FD8FF).skColor, RGBA(hex: 0xFF4FA8).skColor], count: 10, power: 0.6, bounces: false)
                 host.sound(.invalid, 0.5, 0)
                 host.shake(1)
-                onomatopoeia("AUA!", at: CGPoint(x: x, y: craft.top + 12), color: RGBA(hex: 0xE0452B))
+                onomatopoeia(tr("AUA!", "OUCH!"), at: CGPoint(x: x, y: craft.top + 12), color: RGBA(hex: 0xE0452B))
                 d.sprite.removeFromParent()
                 continue
             }
@@ -551,8 +551,8 @@ final class InvasionRound: ArcadeBase, ArcadeRound {
 /// Abrissbirne in die Steine. Jeder Abpraller feuert zwei Leuchtspur-Salven aus den Endkappen (Raptor-Gruß).
 final class AbrissRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.abriss
-    let title = "ABRISSBIRNE"
-    var hint: String { "ZIEHEN ZUM STEUERN" }
+    var title: String { tr("ABRISSBIRNE", "WRECKER") }
+    var hint: String { tr("ZIEHEN ZUM STEUERN", "DRAG TO STEER") }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 }
 
     private let ball: SKSpriteNode
@@ -570,7 +570,9 @@ final class AbrissRound: ArcadeBase, ArcadeRound {
     private var paddleTop: CGFloat { craft.top }
     private var speed: CGFloat { min(230, 125 + CGFloat(hits) * 3) }
 
-    private static let words = ["KRACH!", "ZACK!", "BUMM!", "WUMMS!", "PENG!"]
+    private static var words: [String] {
+        GameSettings.shared.isGerman ? ["KRACH!", "ZACK!", "BUMM!", "WUMMS!", "PENG!"] : ["CRASH!", "WHAM!", "BOOM!", "WHUMP!", "BANG!"]
+    }
 
     init(host: ArcadeHost) {
         let orb = SKSpriteNode(texture: ArcadeArt.ball(), size: CGSize(width: 5, height: 5))

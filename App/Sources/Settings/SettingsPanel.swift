@@ -9,6 +9,8 @@ final class SettingsPanel {
     var onNewGame: () -> Void = {}
     var onHelp: () -> Void = {}
     var onAlbum: () -> Void = {}
+    /// Sprache umgeschaltet: Szene erneuert Hilfe, Menü und Anzeigen.
+    var onLanguage: () -> Void = {}
     /// Debug: startet ein Minispiel sofort, ohne Power-up im Lager.
     var onTestArcade: (PowerUp) -> Void = { _ in }
     /// Debug: Spielbrett 5 Sekunden grau.
@@ -48,6 +50,7 @@ final class SettingsPanel {
 
     private let designHeight: CGFloat
     private let x0 = 8, y0 = 10, width = 184, height = 354
+    private let titleSprite = SKSpriteNode()
     private let rowWidth = 168
     private let trackX = 62, trackWidth = 104
     private var rows: [Row] = []
@@ -83,35 +86,46 @@ final class SettingsPanel {
             }
         }
         node.addChild(sprite(back, at: x0, y0))
-        let title = PixelFont.render("EINSTELLUNGEN", color: Self.amber, shadow: RGBA(hex: 0x050409))
-        node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
+        titleSprite.anchorPoint = CGPoint(x: 0, y: 1)
+        node.addChild(titleSprite)
 
         buildRows()
     }
 
     /// Zeilen neu aufbauen, z. B. wenn die Debug-Regler ein- oder ausgeblendet werden.
     private func buildRows() {
+        // Überschrift in der aktuellen Sprache
+        let title = PixelFont.render(tr("EINSTELLUNGEN", "SETTINGS"), color: Self.amber, shadow: RGBA(hex: 0x050409))
+        titleSprite.texture = title.texture()
+        titleSprite.size = CGSize(width: title.width * 2, height: title.height * 2)
+        titleSprite.position = world(x0 + (width - title.width * 2) / 2, y0 + 6)
         rows.forEach { $0.sprite.removeFromParent() }
         rows = []
         let settings = GameSettings.shared
         func fixed(_ text: String) -> () -> String { { text } }
         var specs: [(() -> String, Kind)] = [
-            (fixed("TON"), .section),
-            (fixed("EFFEKTE"), .toggle(get: { settings.soundEnabled }, set: { settings.soundEnabled = $0 })),
-            (fixed("LAUTST."), .slider(get: { settings.soundVolume }, set: { settings.soundVolume = $0 })),
-            (fixed("MUSIK"), .toggle(get: { settings.musicEnabled }, set: { settings.musicEnabled = $0 })),
-            (fixed("LAUTST."), .slider(get: { settings.musicVolume }, set: { settings.musicVolume = $0 })),
-            (fixed("SPIEL"), .section),
-            (fixed("FUNKSPRÜCHE"), .toggle(get: { settings.splashesEnabled }, set: { settings.splashesEnabled = $0 })),
-            (fixed("HINWEISE"), .toggle(get: { settings.hintsEnabled }, set: { settings.hintsEnabled = $0 })),
+            (fixed(tr("TON", "SOUND")), .section),
+            (fixed(tr("EFFEKTE", "EFFECTS")), .toggle(get: { settings.soundEnabled }, set: { settings.soundEnabled = $0 })),
+            (fixed(tr("LAUTST.", "VOLUME")), .slider(get: { settings.soundVolume }, set: { settings.soundVolume = $0 })),
+            (fixed(tr("MUSIK", "MUSIC")), .toggle(get: { settings.musicEnabled }, set: { settings.musicEnabled = $0 })),
+            (fixed(tr("LAUTST.", "VOLUME")), .slider(get: { settings.musicVolume }, set: { settings.musicVolume = $0 })),
+            (fixed(tr("SPIEL", "GAME")), .section),
+            (fixed(tr("FUNKSPRÜCHE", "RADIO CALLS")), .toggle(get: { settings.splashesEnabled }, set: { settings.splashesEnabled = $0 })),
+            (fixed(tr("HINWEISE", "HINTS")), .toggle(get: { settings.hintsEnabled }, set: { settings.hintsEnabled = $0 })),
         ]
         if FireWall.enabled {
-            specs.append((fixed("FEUER"), .toggle(get: { settings.fireEnabled }, set: { settings.fireEnabled = $0 })))
+            specs.append((fixed(tr("FEUER", "FIRE")), .toggle(get: { settings.fireEnabled }, set: { settings.fireEnabled = $0 })))
         }
         #if os(iOS)
-        specs.append((fixed("HAPTIK"), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
+        specs.append((fixed(tr("HAPTIK", "HAPTICS")), .toggle(get: { settings.hapticsEnabled }, set: { settings.hapticsEnabled = $0 })))
         #endif
         specs.append((fixed("APP-ICON"), .choice(options: ["1", "2", "3"], get: { settings.appIcon }, set: { settings.appIcon = $0 })))
+        specs.append((fixed(tr("SPRACHE", "LANGUAGE")), .choice(options: ["DE", "EN"], get: { settings.language }, set: { [weak self] value in
+            guard settings.language != value else { return }
+            settings.language = value
+            self?.buildRows()
+            self?.onLanguage()
+        })))
         // Versteckt: erscheint erst nach 5 Sekunden Drücken auf die Überschrift
         if settings.debugUnlocked {
             specs.append((fixed("DEBUG-REGLER"), .toggle(get: { settings.debugVisible }, set: { [weak self] visible in
@@ -152,15 +166,17 @@ final class SettingsPanel {
                 }
             })))
         }
-        specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
-        specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))
-        specs.append((fixed("FUNKER-ALBUM"), .button(action: { [weak self] in self?.onAlbum() })))
-        specs.append((fixed("ZURÜCK"), .button(action: { [weak self] in self?.onClose() })))
+        specs.append((fixed(tr("NEUES SPIEL", "NEW GAME")), .button(action: { [weak self] in self?.onNewGame() })))
+        specs.append((fixed(tr("HILFE", "HELP")), .button(action: { [weak self] in self?.onHelp() })))
+        specs.append((fixed(tr("FUNKER-ALBUM", "RADIO ALBUM")), .button(action: { [weak self] in self?.onAlbum() })))
+        specs.append((fixed(tr("ZURÜCK", "BACK")), .button(action: { [weak self] in self?.onClose() })))
 
         var y = y0 + 34
+        // Mit Debug-Zeilen wird es eng: Knöpfe ohne Abstand
+        let tight = settings.debugVisible
         for (label, kind) in specs {
             if case .section = kind, y > y0 + 40 { y += 4 }
-            if case .button = kind, !rows.contains(where: { if case .button = $0.kind { return true }; return false }) { y += 3 }
+            if case .button = kind, !tight, !rows.contains(where: { if case .button = $0.kind { return true }; return false }) { y += 3 }
             let s = SKSpriteNode()
             s.anchorPoint = CGPoint(x: 0, y: 1)
             s.position = world(x0 + 8, y)
@@ -168,7 +184,7 @@ final class SettingsPanel {
             rows.append(Row(label: label, kind: kind, y: y, sprite: s))
             switch kind {
             case .section: y += 9
-            case .button: y += 19
+            case .button: y += tight ? 18 : 19
             default: y += 14
             }
         }
@@ -190,7 +206,7 @@ final class SettingsPanel {
                 PixelFont.draw(row.label(), into: &c, x: 0, y: 3, color: Self.cream)
                 let on = get()
                 let bx = rowWidth - 38
-                for (i, text) in ["AN", "AUS"].enumerated() {
+                for (i, text) in [tr("AN", "ON"), tr("AUS", "OFF")].enumerated() {
                     let active = (i == 0) == on
                     let x = bx + i * 19
                     c.fillRect(x, 0, 18, 11, active ? Self.amber : RGBA(hex: 0x1B1A24))

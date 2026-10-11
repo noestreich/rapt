@@ -78,7 +78,7 @@ final class HelpPanel {
             back.fillRect(x, y, w, h, Self.amber)
         }
         node.addChild(sprite(back, at: x0, y0))
-        let title = PixelFont.render("HILFE", color: Self.amber, shadow: RGBA(hex: 0x050409))
+        let title = PixelFont.render(tr("HILFE", "HELP"), color: Self.amber, shadow: RGBA(hex: 0x050409))
         node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
 
         pages.forEach { node.addChild($0) }
@@ -114,7 +114,7 @@ final class HelpPanel {
         }
 
         // Seite 1: Power-ups (antippbar)
-        section("POWER-UPS IM DÄCHERLAUF - ANTIPPEN!")
+        section(tr("POWER-UPS IM DÄCHERLAUF - ANTIPPEN!", "ROOFTOP RUN POWER-UPS - TAP!"))
         powerUps.forEach(entry)
         if !footnote.isEmpty {
             parent.addChild(sprite(PixelFont.render(footnote, color: Self.dim), at: x0 + 8, y - 2))
@@ -124,14 +124,14 @@ final class HelpPanel {
         parent = pages[1]
         pageIndex = 1
         y = y0 + 22
-        section("MINISPIELE - ANTIPPEN!")
+        section(tr("MINISPIELE - ANTIPPEN!", "MINIGAMES - TAP!"))
         minigames.forEach(entry)
 
         // Seite 3: Spezialsteine (antippbar)
         parent = pages[2]
         pageIndex = 2
         y = y0 + 22
-        section("SPEZIALSTEINE IN BEIDEN MODI - ANTIPPEN!")
+        section(tr("SPEZIALSTEINE IN BEIDEN MODI - ANTIPPEN!", "SPECIAL STONES IN BOTH MODES - TAP!"))
         specials.forEach(entry)
 
         // Seite 4: Dächerlauf, Punkte, Macher
@@ -154,7 +154,7 @@ final class HelpPanel {
         pageLabel.anchorPoint = CGPoint(x: 0, y: 1)
         pageLabel.position = world(px, by)
         node.addChild(pageLabel)
-        node.addChild(sprite(button("ZURÜCK", width: w), at: cx, by))
+        node.addChild(sprite(button(tr("ZURÜCK", "BACK"), width: w), at: cx, by))
         pageRect = CGRect(x: px, y: by, width: w, height: 18)
         closeRect = CGRect(x: cx, y: by, width: w, height: 18)
         showPage(0)
@@ -163,7 +163,7 @@ final class HelpPanel {
     private func showPage(_ index: Int) {
         page = index
         for (i, p) in pages.enumerated() { p.isHidden = i != index }
-        let next = ["SPIELE", "STEINE", "MEHR", "POWER-UPS"]
+        let next = GameSettings.shared.isGerman ? ["SPIELE", "STEINE", "MEHR", "POWER-UPS"] : ["GAMES", "STONES", "MORE", "POWER-UPS"]
         let canvas = button(next[index], width: 82)
         pageLabel.texture = canvas.texture()
         pageLabel.size = canvas.size

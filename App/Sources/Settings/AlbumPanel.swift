@@ -65,6 +65,7 @@ final class AlbumPanel {
     private let countLabel = SKSpriteNode()
     private let content = SKNode()
     private var portraits: [String: SKTexture] = [:]
+    private var builtLanguage = -1
 
     init(designHeight: CGFloat) {
         self.designHeight = designHeight
@@ -105,7 +106,7 @@ final class AlbumPanel {
             back.fillRect(x, y, w, h, Self.amber)
         }
         node.addChild(sprite(back, at: x0, y0))
-        let title = PixelFont.render("FUNKER-ALBUM", color: Self.amber, shadow: RGBA(hex: 0x050409))
+        let title = PixelFont.render(tr("FUNKER-ALBUM", "RADIO ALBUM"), color: Self.amber, shadow: RGBA(hex: 0x050409))
         node.addChild(sprite(title, at: x0 + (width - title.width * 2) / 2, y0 + 6, scale: 2))
         countLabel.anchorPoint = CGPoint(x: 0, y: 1)
         node.addChild(countLabel)
@@ -117,7 +118,7 @@ final class AlbumPanel {
         pageLabel.anchorPoint = CGPoint(x: 0, y: 1)
         pageLabel.position = world(px, by)
         node.addChild(pageLabel)
-        node.addChild(sprite(button("ZURÜCK", width: w), at: cx, by))
+        node.addChild(sprite(button(tr("ZURÜCK", "BACK"), width: w), at: cx, by))
         pageRect = CGRect(x: px, y: by, width: w, height: 18)
         closeRect = CGRect(x: cx, y: by, width: w, height: 18)
     }
@@ -139,7 +140,7 @@ final class AlbumPanel {
                 c.set(x, y, RGBA(r: v, g: v, b: v + 8, a: 255))
             }
         }
-        for (i, word) in ["KEIN", "SIGNAL"].enumerated() {
+        for (i, word) in [tr("KEIN", "NO"), "SIGNAL"].enumerated() {
             PixelFont.draw(word, into: &c, x: (cellWidth - PixelFont.width(word)) / 2, y: 11 + i * 8, color: Self.dim)
         }
         return c
@@ -152,7 +153,7 @@ final class AlbumPanel {
         let seen = ContactAlbum.seen
         let all = ContactAlbum.everyone
         let met = all.filter { seen.contains($0.id) }.count
-        let count = PixelFont.render("\(met) VON \(all.count) GETROFFEN - ANTIPPEN!", color: Self.gray)
+        let count = PixelFont.render(tr("\(met) VON \(all.count) GETROFFEN - ANTIPPEN!", "\(met) OF \(all.count) MET - TAP!"), color: Self.gray)
         countLabel.texture = count.texture()
         countLabel.size = count.size
         countLabel.position = world(x0 + (width - count.width) / 2, y0 + 22)
@@ -205,12 +206,20 @@ final class AlbumPanel {
     private func showPage(_ index: Int) {
         page = min(index, pages.count - 1)
         for (i, p) in pages.enumerated() { p.isHidden = i != page }
-        let canvas = button("SEITE \(page + 1)/\(pages.count)", width: 82)
+        let canvas = button(tr("SEITE", "PAGE") + " \(page + 1)/\(pages.count)", width: 82)
         pageLabel.texture = canvas.texture()
         pageLabel.size = canvas.size
     }
 
     func show() {
+        // Rahmen neu, wenn sich die Sprache geändert hat
+        if builtLanguage != GameSettings.shared.language {
+            node.removeAllChildren()
+            content.removeAllChildren()
+            countLabel.removeFromParent()
+            pageLabel.removeFromParent()
+            builtLanguage = GameSettings.shared.language
+        }
         if node.children.isEmpty { buildFrame() }
         buildGrid()
         showPage(0)

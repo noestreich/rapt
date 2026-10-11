@@ -507,7 +507,7 @@ final class GameScene: SKScene {
             guard let self, ContactAlbum.markSeen(contact) else { return }
             let all = ContactAlbum.everyone.map(\.id)
             GameCenter.report(.album, percent: Double(ContactAlbum.seen.intersection(all).count) / Double(max(1, all.count)) * 100)
-            self.fx.popup("NEU IM FUNKER-ALBUM", at: self.design(100, 88), color: Palette.amber)
+            self.fx.popup(tr("NEU IM FUNKER-ALBUM", "NEW IN THE RADIO ALBUM"), at: self.design(100, 88), color: Palette.amber)
         }
         shaker.addChild(splash.node)
 
@@ -529,11 +529,16 @@ final class GameScene: SKScene {
             if !GameSettings.shared.hintsEnabled { self.place(self.hintCursor, at: nil) }
         }
         shaker.addChild(settingsPanel.node)
-        helpPanel = makeHelpPanel()
-        helpPanel.node.zPosition = 85
-        helpPanel.onClose = { [weak self] in
-            self?.audio.play(.select, volume: 0.5)
-            self?.helpPanel.hide()
+        installHelpPanel()
+        settingsPanel.onLanguage = { [weak self] in
+            guard let self else { return }
+            // Hilfe neu bauen, Menü und Anzeigen in der neuen Sprache
+            self.helpPanel.node.removeFromParent()
+            self.installHelpPanel()
+            self.shaker.addChild(self.helpPanel.node)
+            self.updateHUD()
+            self.refreshStatus()
+            if self.menuVisible { self.showMenu(gameOver: self.menuGameOver) }
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
         albumPanel = AlbumPanel(designHeight: Layout.height)
@@ -1181,7 +1186,7 @@ final class GameScene: SKScene {
     // MARK: Anzeige
 
     private func updateHUD() {
-        setText(recordLabel, (dailyDay == nil ? "HOCHPUNKTE " : "TAGESBEST ") + String(format: "%08d", highscore), color: Palette.label)
+        setText(recordLabel, (dailyDay == nil ? tr("HOCHPUNKTE ", "HIGH SCORE ") : tr("TAGESBEST ", "DAILY BEST ")) + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
         updateOrder()
         let plan = game.plan
@@ -1201,22 +1206,22 @@ final class GameScene: SKScene {
 
     private static func gemPlural(_ gem: Gem) -> String {
         switch gem {
-        case .orden: return "ORDEN"
-        case .zahnrad: return "ZAHNRÄDER"
-        case .signal: return "SIGNALE"
-        case .uranglas: return "URANGLÄSER"
-        case .kristall: return "KRISTALLE"
-        case .roehre: return "RÖHREN"
-        case .niete: return "NIETEN"
+        case .orden: return tr("ORDEN", "MEDALS")
+        case .zahnrad: return tr("ZAHNRÄDER", "GEARS")
+        case .signal: return tr("SIGNALE", "SIGNALS")
+        case .uranglas: return tr("URANGLÄSER", "URANIUM GEMS")
+        case .kristall: return tr("KRISTALLE", "CRYSTALS")
+        case .roehre: return tr("RÖHREN", "TUBES")
+        case .niete: return tr("NIETEN", "RIVETS")
         }
     }
 
     private static func orderText(_ order: Order) -> String {
         switch order.kind {
-        case .clear(let gem): return "RÄUME \(order.target) \(gemPlural(gem)) AB"
-        case .build: return "BAUE \(order.target) SPEZIALSTEINE"
-        case .ignite: return "ZÜNDE \(order.target) SPEZIALSTEINE"
-        case .cascade: return "KASKADE STUFE \(order.target)"
+        case .clear(let gem): return tr("RÄUME \(order.target) \(gemPlural(gem)) AB", "CLEAR \(order.target) \(gemPlural(gem))")
+        case .build: return tr("BAUE \(order.target) SPEZIALSTEINE", "BUILD \(order.target) SPECIAL STONES")
+        case .ignite: return tr("ZÜNDE \(order.target) SPEZIALSTEINE", "FIRE \(order.target) SPECIAL STONES")
+        case .cascade: return tr("KASKADE STUFE \(order.target)", "CASCADE LEVEL \(order.target)")
         }
     }
 
@@ -1230,7 +1235,7 @@ final class GameScene: SKScene {
         }
         orderLabel.isHidden = false
         orderCount.isHidden = false
-        let prefix = "AUFTRAG: "
+        let prefix = tr("AUFTRAG: ", "ORDER: ")
         let text = Self.orderText(order)
         var canvas = PixelCanvas(width: PixelFont.width(prefix + text), height: PixelFont.lineHeight)
         PixelFont.draw(prefix, into: &canvas, x: 0, y: 0, color: Palette.amber)
@@ -1247,7 +1252,7 @@ final class GameScene: SKScene {
         orderFlashing = true
         orderLabel.isHidden = false
         orderCount.isHidden = false
-        setText(orderLabel, "AUFTRAG ERFÜLLT", color: Palette.amber)
+        setText(orderLabel, tr("AUFTRAG ERFÜLLT", "ORDER COMPLETE"), color: Palette.amber)
         setText(orderCount, "+\(order.bonus)", color: Palette.amber)
         audio.play(.plan, volume: 0.45)
         haptics.select()
@@ -1264,7 +1269,7 @@ final class GameScene: SKScene {
 
     /// Sprung-Leiste zeichnen; `edge`: das zuletzt gefüllte Segment leuchtet hell (beim Auffüllen).
     private func drawPlanBar(plan: Int, filled: Int, edge: Bool = false) {
-        setText(planLabel, "SPRUNG " + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
+        setText(planLabel, tr("SPRUNG ", "JUMP ") + String(format: "%02d", min(plan, 99)), color: RGBA(hex: 0xB8B0A2))
         for (i, seg) in planSegments.enumerated() {
             let color = i < filled ? (edge && i == filled - 1 ? Palette.cream : Palette.amber) : RGBA(hex: 0x221E2A)
             seg.color = color.skColor
@@ -1373,13 +1378,13 @@ final class GameScene: SKScene {
         let todayBest = DailyRun.best(today)
         let streak = DailyRun.streak
         var options: [(choice: MenuChoice, title: String, subtitle: String)] = [
-            (.mode(.rooftop), "DÄCHERLAUF", "STADT WANDERT - POWER-UPS"),
-            (.mode(.endless), "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
-            (.daily, "TAGESLAUF", todayBest > 0 ? "HEUTE \(todayBest) - SERIE \(streak)" : "JEDEN TAG EIN NEUES BRETT"),
+            (.mode(.rooftop), tr("DÄCHERLAUF", "ROOFTOP RUN"), tr("STADT WANDERT - POWER-UPS", "THE CITY MOVES - POWER-UPS")),
+            (.mode(.endless), tr("ENDLOS", "ENDLESS"), tr("KLASSISCH - OHNE ZEITDRUCK", "CLASSIC - NO TIME LIMIT")),
+            (.daily, tr("TAGESLAUF", "DAILY RUN"), todayBest > 0 ? tr("HEUTE \(todayBest) - SERIE \(streak)", "TODAY \(todayBest) - STREAK \(streak)") : tr("JEDEN TAG EIN NEUES BRETT", "A NEW BOARD EVERY DAY")),
         ]
         if let saved {
-            let modeName = saved.daily != nil ? "TAGESLAUF" : saved.game.mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
-            options.insert((.resume, "WEITERSPIELEN", "\(modeName) - \(saved.game.score) PUNKTE"), at: 0)
+            let modeName = saved.daily != nil ? tr("TAGESLAUF", "DAILY RUN") : saved.game.mode == .rooftop ? tr("DÄCHERLAUF", "ROOFTOP RUN") : tr("ENDLOS", "ENDLESS")
+            options.insert((.resume, tr("WEITERSPIELEN", "CONTINUE"), tr("\(modeName) - \(saved.game.score) PUNKTE", "\(modeName) - \(saved.game.score) POINTS")), at: 0)
         }
         // Vier Knöpfe: etwas flacher und ohne Rekordzeile, damit alles aufs Brett passt
         let compact = options.count > 3
@@ -1387,17 +1392,17 @@ final class GameScene: SKScene {
         let h = compact ? 26 : 28
         let spacing = compact ? 30 : 32
         if gameOver {
-            text(game.hasFallen ? "ABGESTÜRZT" : "KEINE ZÜGE", color: Palette.amber, scale: 2, y: 18)
-            text("PUNKTE " + String(game.score), color: Palette.cream, scale: 1, y: 36)
+            text(game.hasFallen ? tr("ABGESTÜRZT", "YOU FELL") : tr("KEINE ZÜGE", "NO MOVES"), color: Palette.amber, scale: 2, y: 18)
+            text(tr("PUNKTE ", "SCORE ") + String(game.score), color: Palette.cream, scale: 1, y: 36)
             if let day = dailyDay {
-                text("TAGESBEST \(DailyRun.best(day)) - SERIE \(streak)", color: Palette.label, scale: 1, y: 44)
+                text(tr("TAGESBEST \(DailyRun.best(day)) - SERIE \(streak)", "DAILY BEST \(DailyRun.best(day)) - STREAK \(streak)"), color: Palette.label, scale: 1, y: 44)
             }
             buttonY = 64
-            text("NOCHMAL:", color: Palette.label, scale: 1, y: buttonY - 10)
+            text(tr("NOCHMAL:", "AGAIN:"), color: Palette.label, scale: 1, y: buttonY - 10)
         } else {
-            text("SPIELMODUS", color: Palette.amber, scale: 2, y: 22)
+            text(tr("SPIELMODUS", "GAME MODE"), color: Palette.amber, scale: 2, y: 22)
             if !compact {
-                text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
+                text(tr("HOCHPUNKTE ", "HIGH SCORE ") + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
                      color: Palette.label, scale: 1, y: 40)
             }
         }
@@ -1431,7 +1436,7 @@ final class GameScene: SKScene {
             menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.choice))
         }
         // Direkter Weg in die Einstellungen
-        let label = "EINSTELLUNGEN"
+        let label = tr("EINSTELLUNGEN", "SETTINGS")
         let linkWidth = 7 + 4 + PixelFont.width(label)
         var link = PixelCanvas(width: linkWidth, height: 7)
         link.draw(Self.gearCanvas(Palette.cream), at: 0, 0)
@@ -1443,7 +1448,7 @@ final class GameScene: SKScene {
         menuShareRect = .zero
         menuBoardsRect = .zero
         if !gameOver && GameCenter.isAuthenticated {
-            let boardsLabel = "BESTENLISTE"
+            let boardsLabel = tr("BESTENLISTE", "LEADERBOARD")
             var boards = PixelCanvas(width: 7 + 4 + PixelFont.width(boardsLabel), height: 7)
             boards.draw(Self.cupCanvas(Palette.amber), at: 0, 0)
             PixelFont.draw(boardsLabel, into: &boards, x: 11, y: 1, color: Palette.amber)
@@ -1454,7 +1459,7 @@ final class GameScene: SKScene {
             menuBoardsRect = CGRect(x: boardsX, y: linkY, width: boards.width, height: 7).insetBy(dx: -8, dy: -6)
         }
         if gameOver && game.score > 0 {
-            let shareLabel = "TEILEN"
+            let shareLabel = tr("TEILEN", "SHARE")
             var share = PixelCanvas(width: 7 + 4 + PixelFont.width(shareLabel), height: 7)
             share.draw(Self.shareCanvas(Palette.amber), at: 0, 0)
             PixelFont.draw(shareLabel, into: &share, x: 11, y: 1, color: Palette.amber)
@@ -1493,9 +1498,9 @@ final class GameScene: SKScene {
     private func shareResult() {
         let modeName: String
         if let day = dailyDay {
-            modeName = "TAGESLAUF \(day)"
+            modeName = tr("TAGESLAUF \(day)", "DAILY RUN \(day)")
         } else {
-            modeName = mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
+            modeName = mode == .rooftop ? tr("DÄCHERLAUF", "ROOFTOP RUN") : tr("ENDLOS", "ENDLESS")
         }
         let info = ShareCard.Info(score: game.score, mode: modeName, plan: game.plan,
                                   isRecord: game.score > recordAtStart && recordAtStart > 0)
@@ -1745,7 +1750,7 @@ final class GameScene: SKScene {
         let icon = iconTextures[.atom] ?? SKTexture()
         if mode == .rooftop {
             guard game.grant(.atom) else {
-                fx.popup("LAGER VOLL", at: CGPoint(x: light.x - 20, y: light.y + 14), color: Palette.cream)
+                fx.popup(tr("LAGER VOLL", "STORAGE FULL"), at: CGPoint(x: light.x - 20, y: light.y + 14), color: Palette.cream)
                 return
             }
             pendingDeliveries += 1
@@ -1757,7 +1762,7 @@ final class GameScene: SKScene {
                 self.pendingDeliveries = max(0, self.pendingDeliveries - 1)
                 self.updateSlots()
                 self.flashSlot(index)
-                self.fx.popup("+ ATOMBOMBE", at: self.design(Layout.slotX(1), Layout.slotY - 6), color: Palette.amber)
+                self.fx.popup(tr("+ ATOMBOMBE", "+ ATOM BOMB"), at: self.design(Layout.slotX(1), Layout.slotY - 6), color: Palette.amber)
                 self.refreshStatus()
             }
         } else {
@@ -1780,6 +1785,15 @@ final class GameScene: SKScene {
         guard next != musicDuck else { return }
         musicDuck = next
         AudioCenter.shared.music.duck = next
+    }
+
+    private func installHelpPanel() {
+        helpPanel = makeHelpPanel()
+        helpPanel.node.zPosition = 85
+        helpPanel.onClose = { [weak self] in
+            self?.audio.play(.select, volume: 0.5)
+            self?.helpPanel.hide()
+        }
     }
 
     private func makeHelpPanel() -> HelpPanel {
@@ -1813,31 +1827,31 @@ final class GameScene: SKScene {
         }
         let shipIcon = ArcadeArt.starShip()
         let powerUps: [HelpPanel.Entry] = [
-            .init(icon: icon(.bombe), title: "BOMBE", badge: percent(.bombe),
-                  lines: ["FELD ANTIPPEN: SPRENGT 3X3."], onTap: radioFor(.bombe)),
-            .init(icon: icon(.farbtilger), title: "FARBTILGER", badge: percent(.farbtilger),
-                  lines: ["STEIN ANTIPPEN: ALLE STEINE", "DIESER FARBE VERSCHWINDEN."], onTap: radioFor(.farbtilger)),
-            .init(icon: icon(.strudel), title: "STRUDEL", badge: percent(.strudel),
-                  lines: ["MISCHT DAS BRETT NEU. DANACH", "IST IMMER EIN ZUG MÖGLICH."], onTap: radioFor(.strudel)),
-            .init(icon: icon(.atom), title: "ATOMBOMBE", badge: percent(.atom),
-                  lines: ["FELD ANTIPPEN: SPRENGT 5X5."], onTap: radioFor(.atom)),
-            .init(icon: icon(.fresser), title: "FRESSER", badge: percent(.fresser),
-                  lines: ["ZWEI FARBEN VERSTEINERN. 10 SEK.", "WISCHEN UND ALLES ANDERE FRESSEN."], onTap: radioFor(.fresser)),
+            .init(icon: icon(.bombe), title: tr("BOMBE", "BOMB"), badge: percent(.bombe),
+                  lines: [tr("FELD ANTIPPEN: SPRENGT 3X3.", "TAP A FIELD: BLASTS 3X3.")], onTap: radioFor(.bombe)),
+            .init(icon: icon(.farbtilger), title: tr("FARBTILGER", "COLOR PURGE"), badge: percent(.farbtilger),
+                  lines: [tr("STEIN ANTIPPEN: ALLE STEINE", "TAP A STONE: ALL STONES"), tr("DIESER FARBE VERSCHWINDEN.", "OF THAT COLOR VANISH.")], onTap: radioFor(.farbtilger)),
+            .init(icon: icon(.strudel), title: tr("STRUDEL", "WHIRL"), badge: percent(.strudel),
+                  lines: [tr("MISCHT DAS BRETT NEU. DANACH", "SHUFFLES THE BOARD. AFTER"), tr("IST IMMER EIN ZUG MÖGLICH.", "THAT A MOVE IS ALWAYS LEFT.")], onTap: radioFor(.strudel)),
+            .init(icon: icon(.atom), title: tr("ATOMBOMBE", "ATOM BOMB"), badge: percent(.atom),
+                  lines: [tr("FELD ANTIPPEN: SPRENGT 5X5.", "TAP A FIELD: BLASTS 5X5.")], onTap: radioFor(.atom)),
+            .init(icon: icon(.fresser), title: tr("FRESSER", "CHOMPER"), badge: percent(.fresser),
+                  lines: [tr("ZWEI FARBEN VERSTEINERN. 10 SEK.", "TWO COLORS TURN TO STONE. 10 SEC."), tr("WISCHEN UND ALLES ANDERE FRESSEN.", "SWIPE AND EAT ALL THE REST.")], onTap: radioFor(.fresser)),
         ]
         let minigames: [HelpPanel.Entry] = [
             .init(icon: icon(.invasion), title: "INVASION", badge: percent(.invasion),
-                  lines: ["9 SEK. ZIEHEN: DER LÄUFER ZIELT", "UND SCHIESST VON UNTEN. UFO!"], onTap: radioFor(.invasion)),
-            .init(icon: icon(.abriss), title: "ABRISSBIRNE", badge: percent(.abriss),
-                  lines: ["12 SEK. ZIEHEN: DER LÄUFER", "STEMMT DIE STANGE, DIE BIRNE", "PRALLT IN DIE STEINE."], onTap: radioFor(.abriss)),
+                  lines: [tr("9 SEK. ZIEHEN: DER LÄUFER ZIELT", "9 SEC. DRAG: THE RUNNER AIMS"), tr("UND SCHIESST VON UNTEN. UFO!", "AND SHOOTS FROM BELOW. UFO!")], onTap: radioFor(.invasion)),
+            .init(icon: icon(.abriss), title: tr("ABRISSBIRNE", "WRECKER"), badge: percent(.abriss),
+                  lines: [tr("12 SEK. ZIEHEN: DER LÄUFER", "12 SEC. DRAG: THE RUNNER"), tr("STEMMT DIE STANGE, DIE BIRNE", "LIFTS THE BAR - THE BALL"), tr("PRALLT IN DIE STEINE.", "SMASHES INTO THE STONES.")], onTap: radioFor(.abriss)),
             .init(icon: icon(.flak), title: "FLAK", badge: percent(.flak),
-                  lines: ["10 SEK. ANTIPPEN: SIEBEN RAKETEN", "SPRENGEN STEINE IM UMKREIS."], onTap: radioFor(.flak)),
+                  lines: [tr("10 SEK. ANTIPPEN: SIEBEN RAKETEN", "10 SEC. TAP: SEVEN ROCKETS"), tr("SPRENGEN STEINE IM UMKREIS.", "BLAST THE STONES AROUND.")], onTap: radioFor(.flak)),
             .init(icon: icon(.katana), title: "KATANA", badge: percent(.katana),
-                  lines: ["8 SEK. WISCHEN: SECHS HIEBE", "ZERSCHNEIDEN DIE STEINE."], onTap: radioFor(.katana)),
-            .init(icon: icon(.kurzschluss), title: "KURZSCHLUSS", badge: percent(.kurzschluss),
-                  lines: ["8 SEK. ANTIPPEN: DER BLITZ", "SPRINGT ÜBER GLEICHE FARBEN."], onTap: radioFor(.kurzschluss)),
+                  lines: [tr("8 SEK. WISCHEN: SECHS HIEBE", "8 SEC. SWIPE: SIX SLASHES"), tr("ZERSCHNEIDEN DIE STEINE.", "CUT THROUGH THE STONES.")], onTap: radioFor(.katana)),
+            .init(icon: icon(.kurzschluss), title: tr("KURZSCHLUSS", "OVERLOAD"), badge: percent(.kurzschluss),
+                  lines: [tr("8 SEK. ANTIPPEN: DER BLITZ", "8 SEC. TAP: THE LIGHTNING"), tr("SPRINGT ÜBER GLEICHE FARBEN.", "JUMPS ACROSS LIKE COLORS.")], onTap: radioFor(.kurzschluss)),
             // Sternenbahn: kein Lager-Power-up, nur eine Andeutung, wie man sie auslöst
-            .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: "STERNENBAHN", badge: "BONUS",
-                  lines: ["VIER KRISTALLE IN EINER REIHE ...", "12 SEK. LENKEN: MÜNZEN SAMMELN."],
+            .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: tr("STERNENBAHN", "STAR RUN"), badge: "BONUS",
+                  lines: [tr("VIER KRISTALLE IN EINER REIHE ...", "FOUR CRYSTALS IN A ROW ..."), tr("12 SEK. LENKEN: MÜNZEN SAMMELN.", "12 SEC. STEER: GRAB THE COINS.")],
                   onTap: radio(cycle(Contact.everyone(holding: "sternenbahn", fallback: .zora)), shipIcon)),
         ]
 
@@ -1851,47 +1865,47 @@ final class GameScene: SKScene {
         let hyper = SKSpriteNode(texture: hyperFrames.first, size: CGSize(width: 22, height: 22))
         hyper.run(.repeatForever(.animate(with: hyperFrames, timePerFrame: 0.08)))
         let specials: [HelpPanel.Entry] = [
-            .init(icon: lineStone, title: "LINIEN-STEIN", badge: "",
-                  lines: ["4 IN EINER REIHE. RÄUMT DIE", "GANZE ZEILE ODER SPALTE AB."],
+            .init(icon: lineStone, title: tr("LINIEN-STEIN", "LINE STONE"), badge: "",
+                  lines: [tr("4 IN EINER REIHE. RÄUMT DIE", "4 IN A ROW. CLEARS THE"), tr("GANZE ZEILE ODER SPALTE AB.", "WHOLE ROW OR COLUMN.")],
                   onTap: radioForSpecial(.line(horizontal: true))),
-            .init(icon: bombStone, title: "BOMBEN-STEIN", badge: "",
-                  lines: ["L- ODER T-FORM. SPRENGT 3X3."], onTap: radioForSpecial(.bomb)),
-            .init(icon: hyper, title: "HYPERSTEIN", badge: "",
-                  lines: ["5 IN EINER REIHE. TAUSCHEN", "LÖSCHT EINE GANZE FARBE."], onTap: radioForSpecial(.hyper)),
+            .init(icon: bombStone, title: tr("BOMBEN-STEIN", "BOMB STONE"), badge: "",
+                  lines: [tr("L- ODER T-FORM. SPRENGT 3X3.", "L OR T SHAPE. BLASTS 3X3.")], onTap: radioForSpecial(.bomb)),
+            .init(icon: hyper, title: tr("HYPERSTEIN", "HYPER STONE"), badge: "",
+                  lines: [tr("5 IN EINER REIHE. TAUSCHEN", "5 IN A ROW. SWAP IT TO"), tr("LÖSCHT EINE GANZE FARBE.", "CLEAR A WHOLE COLOR.")], onTap: radioForSpecial(.hyper)),
         ]
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.1"
         let info: [HelpPanel.Block] = [
-            .init(title: "SO GEHT DER DÄCHERLAUF", lines: [
-                "DIE HÄUSER WANDERN LANGSAM NACH LINKS.",
-                "PUNKTE FÜLLEN DEN SPRUNG-BALKEN UNTER",
-                "DEM BRETT. IST ER VOLL SPRINGT DIE",
-                "FIGUR AUFS NÄCHSTE DACH UND BRINGT",
-                "EIN POWER-UP. WIRD SIE LINKS AUS DEM",
-                "BILD GESCHOBEN STÜRZT SIE AB.",
+            .init(title: tr("SO GEHT DER DÄCHERLAUF", "HOW THE ROOFTOP RUN WORKS"), lines: [
+                tr("DIE HÄUSER WANDERN LANGSAM NACH LINKS.", "THE HOUSES SLOWLY MOVE TO THE LEFT."),
+                tr("PUNKTE FÜLLEN DEN SPRUNG-BALKEN UNTER", "POINTS FILL THE JUMP BAR BELOW THE"),
+                tr("DEM BRETT. IST ER VOLL SPRINGT DIE", "BOARD. WHEN IT IS FULL THE RUNNER"),
+                tr("FIGUR AUFS NÄCHSTE DACH UND BRINGT", "JUMPS TO THE NEXT ROOF AND BRINGS"),
+                tr("EIN POWER-UP. WIRD SIE LINKS AUS DEM", "A POWER-UP. PUSHED OUT OF THE PICTURE"),
+                tr("BILD GESCHOBEN STÜRZT SIE AB.", "ON THE LEFT THE RUNNER FALLS."),
             ]),
-            .init(title: "PUNKTE", lines: [
-                "JEDER STEIN IN EINER REIHE: 50",
-                "JEDER STEIN ÜBER 3 IN DER REIHE: +100",
-                "KASKADEN: STUFE 2 DOPPELT - 3 DREIFACH",
-                "SPEZIALSTEIN AUSGELÖST: +200 JE STUFE",
-                "SPRUNG 1 BRAUCHT 1500 PUNKTE. JEDER",
-                "WEITERE SPRUNG 1500 MEHR ALS DER LETZTE.",
+            .init(title: tr("PUNKTE", "POINTS"), lines: [
+                tr("JEDER STEIN IN EINER REIHE: 50", "EACH STONE IN A ROW: 50"),
+                tr("JEDER STEIN ÜBER 3 IN DER REIHE: +100", "EACH STONE BEYOND 3 IN A ROW: +100"),
+                tr("KASKADEN: STUFE 2 DOPPELT - 3 DREIFACH", "CASCADES: LEVEL 2 DOUBLE - 3 TRIPLE"),
+                tr("SPEZIALSTEIN AUSGELÖST: +200 JE STUFE", "SPECIAL STONE FIRED: +200 PER LEVEL"),
+                tr("SPRUNG 1 BRAUCHT 1500 PUNKTE. JEDER", "JUMP 1 NEEDS 1500 POINTS. EACH"),
+                tr("WEITERE SPRUNG 1500 MEHR ALS DER LETZTE.", "FURTHER JUMP 1500 MORE THAN THE LAST."),
             ]),
-            .init(title: "AUFTRÄGE", lines: [
-                "JEDER SPRUNG BRINGT EINEN AUFTRAG UNTER",
-                "DER PUNKTZAHL. ERFÜLLT GIBT ES EIN",
-                "VIERTEL DES SPRUNGS ALS BONUS.",
+            .init(title: tr("AUFTRÄGE", "ORDERS"), lines: [
+                tr("JEDER SPRUNG BRINGT EINEN AUFTRAG UNTER", "EVERY JUMP BRINGS AN ORDER BELOW THE"),
+                tr("DER PUNKTZAHL. ERFÜLLT GIBT ES EIN", "SCORE. COMPLETE IT TO EARN A QUARTER"),
+                tr("VIERTEL DES SPRUNGS ALS BONUS.", "OF THE JUMP AS A BONUS."),
             ]),
-            .init(title: "MACHER", lines: [
-                "SPIEL: NICOLAS OESTREICH",
-                "MUSIK: LUIS ZUNO - ANSIMUZ.COM",
+            .init(title: tr("MACHER", "CREDITS"), lines: [
+                tr("SPIEL: NICOLAS OESTREICH", "GAME: NICOLAS OESTREICH"),
+                tr("MUSIK: LUIS ZUNO - ANSIMUZ.COM", "MUSIC: LUIS ZUNO - ANSIMUZ.COM"),
                 "RAPT " + version,
             ], highlight: true),
         ]
         #if os(macOS)
-        let keys: [HelpPanel.Block] = [.init(title: "TASTATUR", lines: [
-            "PFEILE/WASD: RAHMEN - LEERTASTE: WÄHLEN",
-            "UMSCHALT+PFEIL: TAUSCHEN - 1-3: LAGER",
+        let keys: [HelpPanel.Block] = [.init(title: tr("TASTATUR", "KEYBOARD"), lines: [
+            tr("PFEILE/WASD: RAHMEN - LEERTASTE: WÄHLEN", "ARROWS/WASD: FRAME - SPACE: SELECT"),
+            tr("UMSCHALT+PFEIL: TAUSCHEN - 1-3: LAGER", "SHIFT+ARROW: SWAP - 1-3: STORAGE"),
         ])]
         #else
         let keys: [HelpPanel.Block] = []
@@ -2008,7 +2022,7 @@ final class GameScene: SKScene {
             self.shake(strength: 4)
         }
         figure.run(.sequence([fall, explode]))
-        fx.popup("ABSTURZ!", at: CGPoint(x: max(30, start.x + 20), y: start.y + 16), color: Palette.red, scale: 2)
+        fx.popup(tr("ABSTURZ!", "FALL!"), at: CGPoint(x: max(30, start.x + 20), y: start.y + 16), color: Palette.red, scale: 2)
         fireWall?.burst()   // FireWall
         showGameOver()
     }
@@ -2018,22 +2032,22 @@ final class GameScene: SKScene {
     /// Lob für Kettenreaktionen, steigert sich mit der Stufe.
     /// Kombo-Ruf („STARK“, „BRAVO“ …); auch für Serien in der Sternenbahn.
     static func cheer(for combo: Int) -> String {
-        let words = ["STARK", "BRAVO", "LEISTUNG", "STURM", "HURRA", "HEPP HEPP"]
+        let words = GameSettings.shared.isGerman ? ["STARK", "BRAVO", "LEISTUNG", "STURM", "HURRA", "HEPP HEPP"] : ["NICE", "BRAVO", "GREAT", "STORM", "HOORAY", "YEEHAW"]
         return words[min(max(combo - 2, 0), words.count - 1)]
     }
 
     private static func name(_ kind: PowerUp) -> String {
         switch kind {
-        case .bombe: return "BOMBE"
-        case .farbtilger: return "FARBTILGER"
-        case .fresser: return "FRESSER"
-        case .strudel: return "STRUDEL"
-        case .atom: return "ATOMBOMBE"
+        case .bombe: return tr("BOMBE", "BOMB")
+        case .farbtilger: return tr("FARBTILGER", "COLOR PURGE")
+        case .fresser: return tr("FRESSER", "CHOMPER")
+        case .strudel: return tr("STRUDEL", "WHIRL")
+        case .atom: return tr("ATOMBOMBE", "ATOM BOMB")
         case .invasion: return "INVASION"
-        case .abriss: return "ABRISSBIRNE"
+        case .abriss: return tr("ABRISSBIRNE", "WRECKER")
         case .flak: return "FLAK"
         case .katana: return "KATANA"
-        case .kurzschluss: return "KURZSCHLUSS"
+        case .kurzschluss: return tr("KURZSCHLUSS", "OVERLOAD")
         }
     }
 
@@ -2143,23 +2157,23 @@ final class GameScene: SKScene {
 
     private func refreshStatus() {
         if mode == .rooftop && !game.isOver && game.city.isInDanger {
-            setStatus("ABSTURZGEFAHR!", color: Palette.red, blink: true)
+            setStatus(tr("ABSTURZGEFAHR!", "FALL DANGER!"), color: Palette.red, blink: true)
         } else if fresser != nil {
-            setStatus("WISCHEN ZUM LENKEN", color: Palette.amber)
+            setStatus(tr("WISCHEN ZUM LENKEN", "SWIPE TO STEER"), color: Palette.amber)
         } else if arcadeIntro {
-            setStatus("ACHTUNG!", color: Palette.red, blink: true)
+            setStatus(tr("ACHTUNG!", "WATCH OUT!"), color: Palette.red, blink: true)
         } else if let round = arcade {
             setStatus(round.hint, color: Palette.amber)
         } else if armed == .bomb {
-            setStatus("BOMBE: ZIEL WÄHLEN", color: Palette.amber)
+            setStatus(tr("BOMBE: ZIEL WÄHLEN", "BOMB: PICK A TARGET"), color: Palette.amber)
         } else if armed == .atom {
-            setStatus("ATOMBOMBE: ZIEL WÄHLEN", color: Palette.amber)
+            setStatus(tr("ATOMBOMBE: ZIEL WÄHLEN", "ATOM BOMB: PICK A TARGET"), color: Palette.amber)
         } else if armed == .purge {
-            setStatus("FARBTILGER: FARBE WÄHLEN", color: Palette.amber)
+            setStatus(tr("FARBTILGER: FARBE WÄHLEN", "COLOR PURGE: PICK A COLOR"), color: Palette.amber)
         } else if !game.isOver && !game.hasValidMove {
-            setStatus("KEINE ZÜGE: POWER-UP!", color: Palette.red, blink: true)
+            setStatus(tr("KEINE ZÜGE: POWER-UP!", "NO MOVES: POWER-UP!"), color: Palette.red, blink: true)
         } else if mode == .rooftop && !game.powerUps.isEmpty {
-            setStatus("POWER-UP ANTIPPEN")
+            setStatus(tr("POWER-UP ANTIPPEN", "TAP A POWER-UP"))
         } else {
             setStatus("")
         }
@@ -2419,7 +2433,7 @@ final class GameScene: SKScene {
         let seconds = max(0, Int(ceil(f.timeLeft)))
         if seconds != f.shownSeconds {
             fresser?.shownSeconds = seconds
-            setText(countdownLabel, "FRESSER \(seconds)", color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
+            setText(countdownLabel, tr("FRESSER \(seconds)", "CHOMPER \(seconds)"), color: seconds <= 3 ? Palette.red : Palette.amber, scale: 2)
             if seconds <= 3 && seconds > 0 { audio.play(.select, volume: 0.5) }
         }
         let edible = game.board.positions.filter { passable($0, f.round) }.count
@@ -2479,11 +2493,11 @@ final class GameScene: SKScene {
             color = RGBA(hex: 0xD8FAFF)
             round = KatanaRound(host: host)
         case .kurzschluss:
-            title = "KURZSCHLUSS!"
+            title = tr("KURZSCHLUSS!", "OVERLOAD!")
             color = RGBA(hex: 0x3FD8FF)
             round = KurzschlussRound(host: host)
         default:
-            title = "ABRISSBIRNE!"
+            title = tr("ABRISSBIRNE!", "WRECKER!")
             color = RGBA(hex: 0xFFB347)
             round = AbrissRound(host: host)
         }
@@ -2612,7 +2626,7 @@ final class GameScene: SKScene {
         fx.warpRing(at: c, color: .white, radius: 120)
         shake(strength: 3)
         haptics.explosion()
-        fx.popup("\(cleared.count) TREFFER", at: c, color: Palette.amber, scale: 2)
+        fx.popup(tr("\(cleared.count) TREFFER", "\(cleared.count) HITS"), at: c, color: Palette.amber, scale: 2)
         refreshStatus()
         let result = game.finishArcade(cleared: cleared, detonated: spentSpecials)
         run(.sequence([.wait(forDuration: 0.45), .run { [weak self] in self?.play(result, index: 0) }]))
@@ -2950,7 +2964,7 @@ final class GameScene: SKScene {
                     if let seat = round?.seat { self.fx.steam(at: seat) }
                 }
             }
-            self.mangaIntro("STERNENBAHN!", color: RGBA(hex: 0xFFC247)) { [weak self] in
+            self.mangaIntro(tr("STERNENBAHN!", "STAR RUN!"), color: RGBA(hex: 0xFFC247)) { [weak self] in
                 guard let self, self.arcadeIntro else { return }
                 self.arcadeIntro = false
                 self.pendingRound = nil
@@ -2982,7 +2996,7 @@ final class GameScene: SKScene {
         restoreStarBoard(from: ship)
         // Punkte anteilig nach Münzen, höchstens ein halber Sprung (wächst mit dem Spielfortschritt)
         let (result, rare, points) = game.finishStarRun(collected: round.collected, total: round.total)
-        fx.popup("\(round.collected) MÜNZEN  +\(points)", at: mid, color: Palette.amber, scale: 2)
+        fx.popup(tr("\(round.collected) MÜNZEN  +\(points)", "\(round.collected) COINS  +\(points)"), at: mid, color: Palette.amber, scale: 2)
         refreshStatus()
         run(.sequence([.wait(forDuration: 0.7), .run { [weak self] in
             guard let self else { return }
@@ -2992,7 +3006,7 @@ final class GameScene: SKScene {
                 self.updateSlots()
                 let index = max(0, min(Game.maxPowerUps - 1, self.game.powerUps.count - self.pendingDeliveries))
                 let target = self.design(Layout.slotX(index) + Layout.slotSize / 2, Layout.slotY + Layout.slotSize / 2)
-                self.fx.popup("80 % GESCHAFFT!", at: CGPoint(x: mid.x, y: mid.y - 20), color: Palette.cream)
+                self.fx.popup(tr("80 % GESCHAFFT!", "80 % DONE!"), at: CGPoint(x: mid.x, y: mid.y - 20), color: Palette.cream)
                 self.flyItem(self.iconTextures[rare] ?? SKTexture(), from: mid, to: { target }) { [weak self] in
                     guard let self else { return }
                     self.pendingDeliveries = max(0, self.pendingDeliveries - 1)
@@ -3258,7 +3272,7 @@ final class GameScene: SKScene {
             self.figureJumping = false
             if upToLedge && !self.ledgeHintShown {
                 self.ledgeHintShown = true
-                self.fx.popup("HOCH HINAUS!", at: CGPoint(x: min(self.figure.position.x, Layout.width - 40), y: self.figure.position.y + 18),
+                self.fx.popup(tr("HOCH HINAUS!", "SKY HIGH!"), at: CGPoint(x: min(self.figure.position.x, Layout.width - 40), y: self.figure.position.y + 18),
                               color: Palette.amber)
             }
             self.updateCity()
@@ -3276,7 +3290,7 @@ final class GameScene: SKScene {
         haptics.plan()
         let mid = design(Layout.boardX + Layout.boardSize / 2, Layout.boardY + Layout.boardSize / 2)
         fx.warpRing(at: mid, color: Palette.amber.skColor, radius: 130)
-        fx.popup("SPRUNG \(reward.plan - 1) GESCHAFFT!", at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
+        fx.popup(tr("SPRUNG \(reward.plan - 1) GESCHAFFT!", "JUMP \(reward.plan - 1) DONE!"), at: CGPoint(x: mid.x, y: mid.y + 10), color: Palette.amber, scale: 2)
         for (i, gem) in Gem.allCases.enumerated() {
             let x = CGFloat(Layout.boardX) + CGFloat(i) / 6 * CGFloat(Layout.boardSize)
             fx.shrapnel(at: design(x, CGFloat(Layout.boardY)), colors: sprites[gem]!.ramp.suffix(3).map(\.skColor), count: 14, power: 1.3)
@@ -3307,7 +3321,7 @@ final class GameScene: SKScene {
             run(.sequence([.wait(forDuration: 6), .run(jump)]))
         } else {
             if reward.bonusPoints > 0 {
-                fx.popup("LAGER VOLL +\(reward.bonusPoints)", at: slotLabel, color: Palette.cream)
+                fx.popup(tr("LAGER VOLL +\(reward.bonusPoints)", "STORAGE FULL +\(reward.bonusPoints)"), at: slotLabel, color: Palette.cream)
             }
             jump()
         }
@@ -3372,7 +3386,7 @@ final class GameScene: SKScene {
     /// Ende eines Belohnungszyklus: Feuerwerk über der Stadt.
     private func heroFireworks() {
         let top = figure.position
-        fx.popup("HELD DER ARBEIT!", at: CGPoint(x: min(max(top.x, 50), Layout.width - 50), y: top.y + 22), color: Palette.amber)
+        fx.popup(tr("HELD DER ARBEIT!", "HERO OF LABOR!"), at: CGPoint(x: min(max(top.x, 50), Layout.width - 50), y: top.y + 22), color: Palette.amber)
         let colors = Gem.allCases.map { GemArt.glowColor($0) }
         for i in 0..<6 {
             let p = CGPoint(x: top.x + CGFloat.random(in: -60...40), y: top.y + CGFloat.random(in: 25...70))

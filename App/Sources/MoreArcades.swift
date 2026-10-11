@@ -12,11 +12,13 @@ import SpriteKit
 final class FlakRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.flak
     let title = "FLAK"
-    var hint: String { "TIPPEN: RAKETE ABFEUERN" }
+    var hint: String { tr("TIPPEN: RAKETE ABFEUERN", "TAP: FIRE A ROCKET") }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 || (ammo == 0 && rockets.isEmpty && settle <= 0) }
 
     private static let maxAmmo = 7
-    private static let words = ["BUMM!", "WUMMS!", "KAWUMM!", "KRAWUMM!"]
+    private static var words: [String] {
+        GameSettings.shared.isGerman ? ["BUMM!", "WUMMS!", "KAWUMM!", "KRAWUMM!"] : ["BOOM!", "WHUMP!", "KABOOM!", "KRABOOM!"]
+    }
 
     private struct Rocket {
         let sprite: SKSpriteNode
@@ -167,7 +169,7 @@ final class FlakRound: ArcadeBase, ArcadeRound {
         if count >= 7 {
             onomatopoeia(Self.words.randomElement()!, at: CGPoint(x: p.x, y: p.y + 16), color: RGBA(hex: 0xFFB347))
         } else if count == 0 {
-            onomatopoeia("DANEBEN", at: CGPoint(x: p.x, y: p.y + 12), color: RGBA(hex: 0xB8BCC8))
+            onomatopoeia(tr("DANEBEN", "MISSED"), at: CGPoint(x: p.x, y: p.y + 12), color: RGBA(hex: 0xB8BCC8))
         }
     }
 }
@@ -179,12 +181,12 @@ final class FlakRound: ArcadeBase, ArcadeRound {
 final class KatanaRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.katana
     let title = "KATANA"
-    var hint: String { "WISCHEN: STEINE ZERSCHNEIDEN" }
+    var hint: String { tr("WISCHEN: STEINE ZERSCHNEIDEN", "SWIPE: SLICE THE STONES") }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 || (strokesLeft == 0 && stroke == nil) }
 
     private static let maxStrokes = 6
     private static let cutsPerStroke = 7
-    private static let words = ["キリ!", "サッ!", "ハッ!", "カタナ!", "ZACK!"]
+    private static var words: [String] { ["キリ!", "サッ!", "ハッ!", "カタナ!", tr("ZACK!", "SLASH!")] }
 
     private struct Stroke {
         var last: CGPoint
@@ -313,14 +315,14 @@ final class KatanaRound: ArcadeBase, ArcadeRound {
 /// er springt von Stein zu Stein über alle Nachbarn derselben Farbe (auch schräg). Fünf Ladungen.
 final class KurzschlussRound: ArcadeBase, ArcadeRound {
     let kind = PowerUp.kurzschluss
-    let title = "KURZSCHLUSS"
-    var hint: String { "STEIN ANTIPPEN: BLITZ!" }
+    var title: String { tr("KURZSCHLUSS", "OVERLOAD") }
+    var hint: String { tr("STEIN ANTIPPEN: BLITZ!", "TAP A STONE: ZAP!") }
     var isFinished: Bool { timeLeft <= 0 || remaining == 0 || (charges == 0 && busy <= 0) }
 
     private static let maxCharges = 5
     /// Höchstens so viele Steine pro Blitz.
     private static let maxChain = 18
-    private static let words = ["BZZZT!", "ZAPP!", "KNISTER!", "ZZZAP!"]
+    private static var words: [String] { ["BZZZT!", tr("ZAPP!", "ZAP!"), tr("KNISTER!", "CRACKLE!"), "ZZZAP!"] }
     private static let blue = RGBA(hex: 0x3FD8FF)
 
     private var charges = KurzschlussRound.maxCharges

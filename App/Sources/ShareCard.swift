@@ -68,9 +68,9 @@ enum ShareCard {
 
         big("RAPT", color: RGBA(hex: 0xFF6A3D), shade: RGBA(hex: 0x3A0E08), scale: 3, y: 9)
         big(String(info.score), color: RGBA(hex: 0xFFB347), shade: RGBA(hex: 0x4A2A0A), scale: 2, y: 32)
-        small("PUNKTE", color: RGBA(hex: 0x9A9CAB), y: 45)
-        small("\(info.mode) - SPRUNG \(info.plan)", color: RGBA(hex: 0xFFF3D6), y: 54)
-        if info.isRecord { small("NEUER REKORD!", color: RGBA(hex: 0xFF4FA8), y: 62) }
+        small(tr("PUNKTE", "POINTS"), color: RGBA(hex: 0x9A9CAB), y: 45)
+        small("\(info.mode) - " + tr("SPRUNG", "JUMP") + " \(info.plan)", color: RGBA(hex: 0xFFF3D6), y: 54)
+        if info.isRecord { small(tr("NEUER REKORD!", "NEW RECORD!"), color: RGBA(hex: 0xFF4FA8), y: 62) }
         // Steine als kleine Reihe
         let gems: [Gem] = [.orden, .kristall, .uranglas, .roehre, .signal]
         let size = 9
@@ -93,7 +93,8 @@ enum ShareCard {
     }
 
     static func text(_ info: Info) -> String {
-        "\(info.score) Punkte in RAPT (\(info.mode.capitalized), Sprung \(info.plan))"
+        tr("\(info.score) Punkte in RAPT (\(info.mode.capitalized), Sprung \(info.plan))",
+           "\(info.score) points in RAPT (\(info.mode.capitalized), jump \(info.plan))")
     }
 
     /// Teilen-Menü über der Szene.

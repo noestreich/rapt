@@ -226,6 +226,21 @@ Die Bilder (1024 × 1024, Platzhalter im Spielstil) liegen in `docs/assets/gamec
 `python3 tools/gamecenter_images.py`. Für jeden Erfolg in App Store Connect eine deutsche Lokalisierung mit Name,
 Beschreibung (vor und nach dem Erreichen gleich) und Bild anlegen.
 
+## Sprachen
+
+Deutsch und Englisch. Alle Spieltexte stehen direkt im Code als `tr("DEUTSCH", "ENGLISH")`
+(`App/Sources/Settings/GameSettings.swift`); die Sprache folgt beim ersten Start der Systemsprache (Deutsch, sonst
+Englisch) und lässt sich in den Einstellungen unter **SPRACHE** (DE/EN) sofort umschalten – Einstellungen, Hilfe,
+Album, Menü und Anzeigen bauen sich neu auf. Englische Namen: Dächerlauf → ROOFTOP RUN, Endlos → ENDLESS,
+Tageslauf → DAILY RUN, Abrissbirne → WRECKER, Kurzschluss → OVERLOAD, Sternenbahn → STAR RUN, Fresser → CHOMPER,
+Farbtilger → COLOR PURGE, Strudel → WHIRL, Funker-Album → RADIO ALBUM. Die Pixel-Schrift kennt nur Großbuchstaben,
+Ziffern, Umlaute und `! % + - . / :` (kein Komma, kein Fragezeichen); englische Texte sind höchstens so breit wie
+die verfügbare Fläche. `CFBundleLocalizations` (de, en) steht in `App/Info.plist`, die Fotos-Berechtigung ist in
+`App/Resources/*.lproj/InfoPlist.strings` übersetzt. Debug-Zeilen und Sound-Labor bleiben deutsch.
+In App Store Connect zusätzlich Englisch als Sprache anlegen (Beschreibung, Screenshots) und den Game-Center-Einträgen
+eine englische Lokalisierung geben (z. B. Rooftop Run, Endless, Daily Run; Ten Roofs, Roof King, Chain Reaction,
+Plan Fulfiller, Arcade Hall, Radio Traffic, Seven Nights).
+
 ## Sound-Labor (Mac)
 
 Im Debug-Build auf dem Mac: Menü **Entwickler → Sound-Labor öffnen** (⇧⌘L).

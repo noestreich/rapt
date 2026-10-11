@@ -13,5 +13,11 @@
 		<key>UIImageRespectsSafeAreaInsets</key>
 		<false/>
 	</dict>
+	<!-- Spieltexte auf Deutsch und Englisch (Einstellung SPRACHE, Standard nach Systemsprache) -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>de</string>
+		<string>en</string>
+	</array>
 </dict>
 </plist>

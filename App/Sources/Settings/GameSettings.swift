@@ -31,6 +31,8 @@ final class GameSettings: ObservableObject {
             }
         }
     }
+    /// Sprache der Texte: 0 = Deutsch, 1 = Englisch. Standard nach Systemsprache.
+    @Published var language: Int { didSet { save(language, "language") } }
     /// Uhrzeit neben dem Logo, standardmäßig an (antippen von Uhrzeit oder „RAPT“ schaltet um).
     @Published var showClock: Bool { didSet { save(showClock, "clockVisible") } }
     /// Debug-Zeile in den Einstellungen freigeschaltet (5 s auf die Überschrift). Nur bis zum Beenden der App.
@@ -56,6 +58,7 @@ final class GameSettings: ObservableObject {
             "rapt.debugVisible": false,
             "rapt.appIcon": 0,
             "rapt.clockVisible": true,
+            "rapt.language": (Locale.preferredLanguages.first ?? "de").hasPrefix("de") ? 0 : 1,
         ])
         soundEnabled = defaults.bool(forKey: "rapt.soundEnabled")
         soundVolume = defaults.double(forKey: "rapt.soundVolume")
@@ -71,7 +74,10 @@ final class GameSettings: ObservableObject {
         debugCityAcceleration = defaults.double(forKey: "rapt.debugCityAcceleration")
         appIcon = defaults.integer(forKey: "rapt.appIcon")
         showClock = defaults.bool(forKey: "rapt.clockVisible")
+        language = defaults.integer(forKey: "rapt.language")
     }
+
+    var isGerman: Bool { language == 0 }
 
     /// Grundgeschwindigkeit, mit der das Spiel tatsächlich läuft: im Debug-Build vom Schieber, sonst der Standard.
     var citySpeed: Double { debugVisible ? debugCitySpeed : City.baseSpeed }
@@ -82,4 +88,10 @@ final class GameSettings: ObservableObject {
     private func save(_ value: Any, _ key: String) {
         UserDefaults.standard.set(value, forKey: "rapt." + key)
     }
+}
+
+/// Zweisprachiger Text: Deutsch oder Englisch nach der Einstellung SPRACHE (Standard: Systemsprache).
+/// Die Pixel-Schrift kennt nur Großbuchstaben, Ziffern, Umlaute und ein paar Zeichen.
+func tr(_ german: String, _ english: String) -> String {
+    GameSettings.shared.isGerman ? german : english
 }

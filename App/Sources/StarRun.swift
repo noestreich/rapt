@@ -7,8 +7,8 @@ import SpriteKit
 /// Die Szene blendet dafür die Steine aus und am Ende wieder ein; das Brett selbst bleibt unverändert.
 final class StarRunRound: ArcadeBase, ArcadeRound {
     static let duration = 12.0
-    let title = "STERNENBAHN"
-    var hint: String { "ZIEHEN ZUM STEUERN" }
+    var title: String { tr("STERNENBAHN", "STAR RUN") }
+    var hint: String { tr("ZIEHEN ZUM STEUERN", "DRAG TO STEER") }
     var isFinished: Bool { timeLeft <= 0 }
 
     /// Eingesammelte und verpasste Münzen (nur solche, die schon am Schiff vorbei sind).
