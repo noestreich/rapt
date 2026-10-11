@@ -113,9 +113,14 @@ enum GameCenter {
     private static let dismisser = Dismisser()
 
     private static func present(_ controller: NSViewController) {
-        let dialog = GKDialogController.shared()
-        dialog.parentWindow = NSApp.keyWindow ?? NSApp.windows.first
-        dialog.present(controller)
+        let window = NSApp.keyWindow ?? NSApp.windows.first
+        if let gameKit = controller as? NSViewController & GKViewController {
+            let dialog = GKDialogController.shared()
+            dialog.parentWindow = window
+            dialog.present(gameKit)
+        } else {
+            window?.contentViewController?.presentAsSheet(controller)
+        }
     }
     #endif
 

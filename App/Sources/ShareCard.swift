@@ -101,16 +101,16 @@ enum ShareCard {
     static func present(_ info: Info, from view: SKView?) {
         guard let view, let cg = image(info) else { return }
         #if os(iOS)
-        let image = UIImage(cgImage: cg)
-        let sheet = UIActivityViewController(activityItems: [image, text(info)], applicationActivities: nil)
+        let picture = UIImage(cgImage: cg)
+        let sheet = UIActivityViewController(activityItems: [picture, text(info)], applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = view
         sheet.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
         var top = view.window?.rootViewController
         while let next = top?.presentedViewController { top = next }
         top?.present(sheet, animated: true)
         #else
-        let image = NSImage(cgImage: cg, size: NSSize(width: cg.width / 2, height: cg.height / 2))
-        let picker = NSSharingServicePicker(items: [image, text(info)])
+        let picture = NSImage(cgImage: cg, size: NSSize(width: cg.width / 2, height: cg.height / 2))
+        let picker = NSSharingServicePicker(items: [picture, text(info)])
         picker.show(relativeTo: CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1), of: view, preferredEdge: .minY)
         #endif
     }

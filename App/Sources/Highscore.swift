@@ -89,7 +89,7 @@ enum DailyRun {
     /// Serie: zählt, solange zuletzt heute oder gestern gespielt wurde.
     static var streak: Int {
         let defaults = UserDefaults.standard
-        let today = today()
+        let today = DailyRun.today()
         guard let last = defaults.string(forKey: lastKey), last == today || last == dayBefore(today) else { return 0 }
         return defaults.integer(forKey: streakKey)
     }
