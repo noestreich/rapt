@@ -92,6 +92,8 @@ final class GameScene: SKScene {
     private var lastCombo = 1
     private var mode = GameScene.savedMode
     private var highscore = Highscore.load(GameScene.savedMode)
+    /// Tag des laufenden Tageslaufs, sonst `nil`.
+    private var dailyDay: String?
     private var busy = false
     private var selected: Pos?
     private var pointerStart: (pos: Pos, point: CGPoint)?
@@ -222,7 +224,13 @@ final class GameScene: SKScene {
     private var shootingStarTimer: TimeInterval = 15
 
     // Menü (Moduswahl, Spielende)
-    private var menuButtons: [(rect: CGRect, mode: GameMode, resume: Bool)] = []
+    private var menuButtons: [(rect: CGRect, choice: MenuChoice)] = []
+
+    private enum MenuChoice: Equatable {
+        case resume
+        case mode(GameMode)
+        case daily
+    }
     private var menuSettingsRect = CGRect.zero
     private var menuVisible = false
     private var slotFrames: [SKSpriteNode] = []
@@ -702,14 +710,17 @@ final class GameScene: SKScene {
 
     // MARK: Spielablauf
 
-    /// `restoring`: gespeichertes Spiel fortsetzen statt neu zu beginnen.
-    private func startNewGame(mode newMode: GameMode, animated: Bool, restoring saved: Game? = nil) {
+    /// `restoring`: gespeichertes Spiel fortsetzen statt neu zu beginnen. `daily`: Tageslauf dieses Tages
+    /// (fester Seed, eigener Bestwert).
+    private func startNewGame(mode newMode: GameMode, animated: Bool, restoring saved: Game? = nil, daily: String? = nil) {
         if menuVisible == false && isBuilt && game.score > 0 { AudioCenter.shared.music.nextTrack() }
         abortArcade()
         mode = newMode
         UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
-        highscore = Highscore.load(newMode)
-        game = saved ?? Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
+        dailyDay = daily
+        highscore = daily.map(DailyRun.best) ?? Highscore.load(newMode)
+        let seed = daily.map(DailyRun.seed(for:)) ?? UInt64.random(in: 0...UInt64.max)
+        game = saved ?? Game(seed: seed, mode: newMode)
         game.citySpeed = GameSettings.shared.citySpeed
         game.cityAcceleration = GameSettings.shared.cityAcceleration
         game.extendCity(toScreenX: Double(visibleRight) + 40)
@@ -907,7 +918,11 @@ final class GameScene: SKScene {
         if Game.hasStarRunTrigger(result), starRunReady, !game.isOver { pendingStarRun = true }
         if game.score > highscore {
             highscore = game.score
-            Highscore.save(highscore, for: mode)
+            if let day = dailyDay {
+                DailyRun.saveBest(highscore, day: day)
+            } else {
+                Highscore.save(highscore, for: mode)
+            }
         }
         updateHUD()
         pendingDeliveries += result.rewards.filter { $0.powerUp != nil }.count
@@ -1111,7 +1126,7 @@ final class GameScene: SKScene {
     // MARK: Anzeige
 
     private func updateHUD() {
-        setText(recordLabel, "HOCHPUNKTE " + String(format: "%08d", highscore), color: Palette.label)
+        setText(recordLabel, (dailyDay == nil ? "HOCHPUNKTE " : "TAGESBEST ") + String(format: "%08d", highscore), color: Palette.label)
         setText(comboLabel, "x\(lastCombo)", color: Palette.red, scale: 2)
         let plan = game.plan
         shownPlan = plan
@@ -1224,33 +1239,46 @@ final class GameScene: SKScene {
             overlayLayer.addChild(node)
         }
 
-        var buttonY = 56
+        // Gespeichertes Spiel: oben als erste Wahl
+        let saved = gameOver ? nil : SavedGame.load()
+        let today = DailyRun.today()
+        let todayBest = DailyRun.best(today)
+        let streak = DailyRun.streak
+        var options: [(choice: MenuChoice, title: String, subtitle: String)] = [
+            (.mode(.rooftop), "DÄCHERLAUF", "STADT WANDERT - POWER-UPS"),
+            (.mode(.endless), "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
+            (.daily, "TAGESLAUF", todayBest > 0 ? "HEUTE \(todayBest) - SERIE \(streak)" : "JEDEN TAG EIN NEUES BRETT"),
+        ]
+        if let saved {
+            let modeName = saved.daily != nil ? "TAGESLAUF" : saved.game.mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
+            options.insert((.resume, "WEITERSPIELEN", "\(modeName) - \(saved.game.score) PUNKTE"), at: 0)
+        }
+        // Vier Knöpfe: etwas flacher und ohne Rekordzeile, damit alles aufs Brett passt
+        let compact = options.count > 3
+        var buttonY = compact ? 40 : 56
+        let h = compact ? 26 : 28
+        let spacing = compact ? 30 : 32
         if gameOver {
             text(game.hasFallen ? "ABGESTÜRZT" : "KEINE ZÜGE", color: Palette.amber, scale: 2, y: 18)
             text("PUNKTE " + String(game.score), color: Palette.cream, scale: 1, y: 36)
+            if let day = dailyDay {
+                text("TAGESBEST \(DailyRun.best(day)) - SERIE \(streak)", color: Palette.label, scale: 1, y: 44)
+            }
             buttonY = 64
-            text("NOCHMAL:", color: Palette.label, scale: 1, y: buttonY - 12)
+            text("NOCHMAL:", color: Palette.label, scale: 1, y: buttonY - 10)
         } else {
             text("SPIELMODUS", color: Palette.amber, scale: 2, y: 22)
-            text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
-                 color: Palette.label, scale: 1, y: 40)
+            if !compact {
+                text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
+                     color: Palette.label, scale: 1, y: 40)
+            }
         }
-        var options: [(mode: GameMode, title: String, subtitle: String, resume: Bool)] = [
-            (.rooftop, "DÄCHERLAUF", "STADT WANDERT - POWER-UPS", false),
-            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK", false),
-        ]
-        // Gespeichertes Spiel: oben als erste Wahl
-        let saved = gameOver ? nil : SavedGame.load()
-        if let saved {
-            let modeName = saved.mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
-            options.insert((saved.mode, "WEITERSPIELEN", "\(modeName) - \(saved.score) PUNKTE", true), at: 0)
-        }
-        let spacing = saved == nil ? 36 : 32
+        let current: MenuChoice = saved != nil ? .resume : dailyDay != nil ? .daily : .mode(mode)
         for (i, option) in options.enumerated() {
-            let w = 150, h = 28
+            let w = 150
             let x = Layout.boardX + (Layout.boardSize - w) / 2
             let y = Layout.boardY + buttonY + i * spacing
-            let selected = saved == nil ? option.mode == mode : option.resume
+            let selected = option.choice == current
             var canvas = PixelCanvas(width: w, height: h, fill: RGBA(hex: selected ? 0x2A1A14 : 0x1B1A24))
             let border = selected ? Palette.amber : RGBA(hex: 0x4A4B56)
             canvas.fillRect(0, 0, w, 1, border)
@@ -1258,12 +1286,13 @@ final class GameScene: SKScene {
             canvas.fillRect(0, 0, 1, h, border)
             canvas.fillRect(w - 1, 0, 1, h, border)
             let title = PixelFont.render(option.title, color: selected ? Palette.amber : Palette.cream)
+            let titleY = compact ? 4 : 5
             for yy in 0..<title.height * 2 {
                 for xx in 0..<title.width * 2 where title.get(xx / 2, yy / 2).a > 0 {
-                    canvas.set((w - title.width * 2) / 2 + xx, 5 + yy, title.get(xx / 2, yy / 2))
+                    canvas.set((w - title.width * 2) / 2 + xx, titleY + yy, title.get(xx / 2, yy / 2))
                 }
             }
-            PixelFont.draw(option.subtitle, into: &canvas, x: (w - PixelFont.width(option.subtitle)) / 2, y: 19, color: Palette.label)
+            PixelFont.draw(option.subtitle, into: &canvas, x: (w - PixelFont.width(option.subtitle)) / 2, y: h - 9, color: Palette.label)
             let node = SKSpriteNode(texture: canvas.texture(), size: canvas.size)
             node.anchorPoint = CGPoint(x: 0, y: 1)
             node.position = design(x, y)
@@ -1271,7 +1300,7 @@ final class GameScene: SKScene {
             node.alpha = 0
             node.run(.sequence([.wait(forDuration: 0.1 + Double(i) * 0.08), .fadeIn(withDuration: 0.2)]))
             overlayLayer.addChild(node)
-            menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.mode, option.resume))
+            menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.choice))
         }
         // Direkter Weg in die Einstellungen
         let label = "EINSTELLUNGEN"
@@ -1303,15 +1332,25 @@ final class GameScene: SKScene {
             settingsPanel.show()
             return
         }
-        guard let choice = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
+        guard let button = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
         menuVisible = false
         menuButtons = []
         audio.play(.select, volume: 0.6)
-        if choice.resume, let saved = SavedGame.load() {
-            startNewGame(mode: saved.mode, animated: true, restoring: saved)
-        } else {
+        switch button.choice {
+        case .resume:
+            if let saved = SavedGame.load() {
+                startNewGame(mode: saved.game.mode, animated: true, restoring: saved.game, daily: saved.daily)
+            } else {
+                startNewGame(mode: mode, animated: true)
+            }
+        case .mode(let choice):
             SavedGame.clear()
-            startNewGame(mode: choice.mode, animated: true)
+            startNewGame(mode: choice, animated: true)
+        case .daily:
+            SavedGame.clear()
+            let day = DailyRun.today()
+            DailyRun.markPlayed(day)
+            startNewGame(mode: .rooftop, animated: true, daily: day)
         }
     }
 
@@ -1326,7 +1365,7 @@ final class GameScene: SKScene {
             return
         }
         guard !menuVisible, !busy, arcade == nil, !arcadeIntro, pendingRound == nil, fresser == nil else { return }
-        SavedGame.save(game)
+        SavedGame.save(game, daily: dailyDay)
     }
 
     // MARK: Stadt

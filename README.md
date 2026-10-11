@@ -60,11 +60,16 @@ ist der Dächerlauf vorausgewählt, danach der zuletzt gespielte Modus.
   `dangerTick`); die Musik wird nur ganz leicht zurückgenommen.
 - Abstimmung von Tempo und Startposition: `Packages/RaptCore/Sources/RaptCore/City.swift`.
 - Nach 7 Sekunden ohne Zug blinkt ein Hinweis.
+- **Tageslauf** (dritter Knopf in der Moduswahl): ein Dächerlauf mit festem Seed pro Kalendertag (`DailyRun.seed`,
+  FNV-1a über das Datum) – Brett, Stadt und Belohnungen sind an diesem Tag für alle gleich. Eigener Tagesbestwert
+  („TAGESBEST“ statt „HOCHPUNKTE“, `rapt.daily.best.<tag>`) und eine **Serie**: jeder Tag, an dem ein Tageslauf
+  gestartet wird, zählt; eine Lücke setzt sie auf 1 zurück. Menü und Spielende zeigen Bestwert und Serie.
 - **Weiterspielen:** Nach jedem Zug und beim Wechsel in den Hintergrund (Mac: auch beim Beenden) wird das laufende Spiel
   gesichert (`GameSnapshot` in RaptCore: Brett mit Spezialsteinen, Punkte, Lager, Stadt und Zufallsgeneratoren, als
   JSON in den UserDefaults, `SavedGame`). Gesichert wird nur ein ruhiger Stand – läuft gerade ein Zug, ein Minispiel oder
   der Fresser, bleibt der letzte ruhige Stand (ein dafür verbrauchtes Power-up liegt danach wieder im Lager). Beim
-  nächsten Start steht im Moduswahl-Menü oben **WEITERSPIELEN** mit Modus und Punkten; eine neue Wahl verwirft den
+  nächsten Start steht im Moduswahl-Menü oben **WEITERSPIELEN** mit Modus und Punkten (mit vier Knöpfen etwas flacher,
+  ohne Rekordzeile); eine neue Wahl verwirft den
   Stand, ebenso das Spielende.
 
 ### Minispiele
