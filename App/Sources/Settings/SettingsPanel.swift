@@ -15,6 +15,8 @@ final class SettingsPanel {
     var onTestMono: () -> Void = {}
     /// Debug: Stromausfall (Fenster aus, Spielbrett grau, 5 Sekunden).
     var onTestBlackout: () -> Void = {}
+    var onTestTrain: () -> Void = {}
+    var onTestRain: () -> Void = {}
     /// Debug: Sternenbahn sofort starten.
     var onTestStarRun: () -> Void = {}
     /// Debug: drei Sprünge auf einmal (z. B. um die Oberkante des Spielfelds zu sehen).
@@ -139,11 +141,13 @@ final class SettingsPanel {
                 default: self?.onTestStarRun()
                 }
             })))
-            // Spielbrett 5 s grau; Stromausfall; drei Sprünge weiter
-            specs.append((fixed("TEST"), .actions(options: ["GRAU", "AUS", "+3"], perform: { [weak self] i in
+            // Spielbrett 5 s grau; Stromausfall; Nachtzug; Regen; drei Sprünge weiter
+            specs.append((fixed("TEST"), .actions(options: ["GRAU", "AUS", "ZUG", "NASS", "+3"], perform: { [weak self] i in
                 switch i {
                 case 0: self?.onTestMono()
                 case 1: self?.onTestBlackout()
+                case 2: self?.onTestTrain()
+                case 3: self?.onTestRain()
                 default: self?.onTestJumps()
                 }
             })))

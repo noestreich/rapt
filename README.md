@@ -218,6 +218,11 @@ Reihenfolge der Quellen pro Platz: eigene Datei aus dem Sound-Labor → Datei im
 
 - Der Runner zeigt im Stand alle paar Sekunden eine Geste: zurückschauen, strecken, hocken, winken, hüpfen,
   aufs Armband-Terminal schauen, Visier-Scan.
+- Stadt-Ereignisse (beide Modi, nur während des Spiels, etwa alle 70–150 Sekunden eins): **Nachtzug** – eine S-Bahn
+  aus drei oder vier Wagen mit erleuchteten Fenstern, Scheinwerfer und Funken am Stromabnehmer fährt auf einer
+  Hochbahn hinter der vorderen Häuserreihe durch (sichtbar in Lücken und über niedrigen Dächern), leises Schienenklacken;
+  **Regen** (30 %) – 20–35 Sekunden schräge Striche vor den Häusern, hinter Anzeige und Brett, ein- und ausgeblendet,
+  ein- bis zweimal Wetterleuchten mit fernem Donner. Debug: TEST → **ZUG**, **NASS**. Code: `App/Sources/CityEvents.swift`.
 - iPhone: Ist die Spielmusik aus, laufen Musik oder Podcasts aus anderen Apps weiter und die Effekte liegen darüber.
 - Feuerwand: links hinter den Häusern lodert im Dächerlauf ein Plasma-Feuer (Cyan, Blau, Magenta) mit Rauch,
   bei Absturzgefahr breiter; steht die Figur im Feuer, züngelt es bis zur Bildschirmmitte, beim Absturz mit Ausbruch.
@@ -258,7 +263,7 @@ Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahme
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), **SPIEL** mit den Knöpfen **INV**, **ABR**,
-**FLAK**, **KAT**, **KURZ** (Minispiel sofort starten) und **BAHN** (Sternenbahn sofort) sowie **TEST** mit **GRAU** (Spielbrett 5 Sekunden grau), **AUS** (Stromausfall sofort) und **+3** (drei Sprünge auf einmal) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
+**FLAK**, **KAT**, **KURZ** (Minispiel sofort starten) und **BAHN** (Sternenbahn sofort) sowie **TEST** mit **GRAU** (Spielbrett 5 Sekunden grau), **AUS** (Stromausfall sofort), **ZUG** (Nachtzug), **NASS** (Regen) und **+3** (drei Sprünge auf einmal) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat vier Seiten: Power-ups, Minispiele (mit Sternenbahn), Spezialsteine (antippen spielt den Funkspruch
 des Kontakts) sowie Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.

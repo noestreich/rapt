@@ -134,6 +134,7 @@ final class GameScene: SKScene {
     private var splash: SplashPresenter!
     private var settingsPanel: SettingsPanel!
     private var helpPanel: HelpPanel!
+    private var cityEvents: CityEvents!
     private var albumPanel: AlbumPanel!
     /// Roter Rahmen am Bildschirmrand bei Absturzgefahr (in Bildschirmkoordinaten, nicht skaliert).
     private let edgeGlow = SKNode()
@@ -379,6 +380,11 @@ final class GameScene: SKScene {
         dangerAura.alpha = 0
         figure.addChild(dangerAura)
         backLayer.addChild(figure)
+        cityEvents = CityEvents(layer: backLayer, glowTexture: glowTexture,
+                                design: { [weak self] x, y in self?.design(x, y) ?? .zero },
+                                sound: { [weak self] slot, volume, semitones in
+                                    self?.audio.play(slot, volume: volume, semitones: semitones)
+                                })
         if FireWall.enabled {   // FireWall
             let fire = FireWall(glowTexture: glowTexture)
             fire.node.zPosition = 3.8
@@ -538,6 +544,16 @@ final class GameScene: SKScene {
             guard let self else { return }
             self.settingsPanel.hide()
             self.blackout(duration: 5)
+        }
+        settingsPanel.onTestTrain = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            self.cityEvents.train(frame: self.cityFrame)
+        }
+        settingsPanel.onTestRain = { [weak self] in
+            guard let self else { return }
+            self.settingsPanel.hide()
+            self.cityEvents.startRain(frame: self.cityFrame)
         }
         settingsPanel.onTestMono = { [weak self] in
             guard let self else { return }
@@ -771,6 +787,7 @@ final class GameScene: SKScene {
         place(hintCursor, at: nil)
         removeAction(forKey: "orderDone")
         orderFlashing = false
+        cityEvents?.reset()
         displayedScore = 0
         shownScore = -1
         lastCombo = 1
@@ -1144,6 +1161,11 @@ final class GameScene: SKScene {
         guard !planBarAnimating else { return }
         let shown = planSnapshot.map { ($0.plan, $0.progress) } ?? (plan, game.planProgress)
         drawPlanBar(plan: shown.0, filled: Int((shown.1 * Double(planSegments.count)).rounded(.down)))
+    }
+
+    /// Sichtbarer Ausschnitt für die Stadt-Ereignisse.
+    private var cityFrame: CityEvents.Frame {
+        CityEvents.Frame(left: visibleLeft, right: visibleRight, top: visibleTop, ground: skyBottom)
     }
 
     // MARK: Aufträge
@@ -3460,6 +3482,9 @@ final class GameScene: SKScene {
         }
         updateClock()
         updateTowerHold()
+        if !menuVisible, !game.isOver, !settingsPanel.isVisible {
+            cityEvents.update(dt, frame: cityFrame)
+        }
 
         // Lebendige Stadt: Fensterlicht und Sternschnuppen
         windowTimer -= dt
