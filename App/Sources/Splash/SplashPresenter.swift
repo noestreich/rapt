@@ -10,6 +10,8 @@ final class SplashPresenter {
         let item: SKTexture
         /// Wird aufgerufen, wenn der Kontakt den Gegenstand übergibt; Parameter ist die Handposition (Weltkoordinaten).
         var onHandover: ((CGPoint) -> Void)?
+        /// Zählt fürs Funker-Album (nicht bei Vorführungen aus Hilfe und Album).
+        var album = true
     }
 
     let node = SKNode()
@@ -25,6 +27,8 @@ final class SplashPresenter {
     private var lastShown: TimeInterval = -1000
     private var rng = SystemRandomNumberGenerator()
     var onSpeak: (Contact) -> Void = { _ in }
+    /// Ein Funker hat sich im Spiel gemeldet (fürs Album).
+    var onMeet: (Contact) -> Void = { _ in }
 
     /// `topLeft`: linke obere Ecke der Einblendung in Weltkoordinaten.
     init(topLeft: CGPoint, width: CGFloat, height: CGFloat) {
@@ -57,6 +61,7 @@ final class SplashPresenter {
         panel.position = CGPoint(x: origin.x + width + 20, y: origin.y)
         node.addChild(panel)
         onSpeak(delivery.contact)
+        if delivery.album { onMeet(delivery.contact) }
 
         let slideIn = SKAction.move(to: origin, duration: 0.14)
         slideIn.timingMode = .easeOut

@@ -122,6 +122,12 @@ reicht dir den Gegenstand, dazu ein unverständlicher Funkspruch auf eigenem Aud
 Der Gegenstand fliegt aus der Hand ins Lager bzw. aufs Brett; erst dann ist er verfügbar. Das Spiel läuft dabei weiter.
 Abschaltbar in den Einstellungen – dann fliegt das Power-up von der Figur ins Lager.
 
+**Funker-Album** (Einstellungen → FUNKER-ALBUM): alle Funker, die im Spiel auftauchen können (Porträts aus
+`portraits.json`, ohne Zuordnung der zuständige Kontakt), drei pro Reihe, 15 pro Seite. Wer sich noch nicht gemeldet
+hat, zeigt nur Rauschen und „KEIN SIGNAL“; beim ersten echten Funkspruch erscheint „NEU IM FUNKER-ALBUM“. Vorführungen
+aus Hilfe und Album zählen nicht. Bekannte Funker antippen spielt ihren Funkspruch. Gespeichert in den UserDefaults
+(`rapt.album.seen`), Code: `App/Sources/Settings/AlbumPanel.swift`.
+
 | Kontakt | Liefert |
 |---|---|
 | KIRA | Linien-Stein, Invasion |
@@ -237,7 +243,7 @@ derselbe hintereinander. Eine eigene Datei im Sound-Labor auf dem Platz „Hinte
 
 Zahnrad oben rechts auf der Punkteplatte (iPhone und Mac). Eigene Pixel-Ansicht über dem Spiel mit Schaltern und
 Schiebereglern: Soundeffekte und Musik (je mit Lautstärke), Funksprüche, Hinweise, Haptik (iPhone), „Neues Spiel“ zur
-Moduswahl und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit und Wirkung) und Spezialsteinen.
+Moduswahl, **Funker-Album** und **Hilfe**: ein zweites Fenster mit allen Power-ups (Häufigkeit und Wirkung) und Spezialsteinen.
 Standard: Effekte, Musik, Funksprüche und Haptik an, Hinweise (blinkender Rahmen nach 7 Sekunden ohne Zug) aus.
 Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekunden auf die Überschrift
 „EINSTELLUNGEN“ drückt, und bleibt bis zum Beenden der App (oder erneut 5 Sekunden drücken). Eingeschaltet blendet er

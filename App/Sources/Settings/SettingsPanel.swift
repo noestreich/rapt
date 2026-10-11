@@ -8,6 +8,7 @@ final class SettingsPanel {
     var onClose: () -> Void = {}
     var onNewGame: () -> Void = {}
     var onHelp: () -> Void = {}
+    var onAlbum: () -> Void = {}
     /// Debug: startet ein Minispiel sofort, ohne Power-up im Lager.
     var onTestArcade: (PowerUp) -> Void = { _ in }
     /// Debug: Spielbrett 5 Sekunden grau.
@@ -149,6 +150,7 @@ final class SettingsPanel {
         }
         specs.append((fixed("NEUES SPIEL"), .button(action: { [weak self] in self?.onNewGame() })))
         specs.append((fixed("HILFE"), .button(action: { [weak self] in self?.onHelp() })))
+        specs.append((fixed("FUNKER-ALBUM"), .button(action: { [weak self] in self?.onAlbum() })))
         specs.append((fixed("ZURÜCK"), .button(action: { [weak self] in self?.onClose() })))
 
         var y = y0 + 34

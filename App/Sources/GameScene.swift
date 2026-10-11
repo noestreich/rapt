@@ -128,6 +128,7 @@ final class GameScene: SKScene {
     private var splash: SplashPresenter!
     private var settingsPanel: SettingsPanel!
     private var helpPanel: HelpPanel!
+    private var albumPanel: AlbumPanel!
     /// Roter Rahmen am Bildschirmrand bei Absturzgefahr (in Bildschirmkoordinaten, nicht skaliert).
     private let edgeGlow = SKNode()
     private var edgeSprites: [SKSpriteNode] = []
@@ -464,6 +465,10 @@ final class GameScene: SKScene {
             AudioCenter.shared.speak(contact)
             self?.haptics.select()
         }
+        splash.onMeet = { [weak self] contact in
+            guard let self, ContactAlbum.markSeen(contact) else { return }
+            self.fx.popup("NEU IM FUNKER-ALBUM", at: self.design(100, 88), color: Palette.amber)
+        }
         shaker.addChild(splash.node)
 
         // Einstellungen als Pixel-Ansicht, Zahnrad auf der Punkteplatte
@@ -491,6 +496,18 @@ final class GameScene: SKScene {
             self?.helpPanel.hide()
         }
         settingsPanel.onHelp = { [weak self] in self?.helpPanel.show() }
+        albumPanel = AlbumPanel(designHeight: Layout.height)
+        albumPanel.node.zPosition = 85
+        albumPanel.onClose = { [weak self] in
+            self?.audio.play(.select, volume: 0.5)
+            self?.albumPanel.hide()
+        }
+        albumPanel.onPlay = { [weak self] contact in
+            guard let self else { return }
+            let delivery = SplashPresenter.Delivery(contact: contact, item: SKTexture(), album: false)
+            self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
+        }
+        settingsPanel.onAlbum = { [weak self] in self?.albumPanel.show() }
         settingsPanel.onTestJumps = { [weak self] in
             guard let self else { return }
             self.settingsPanel.hide()
@@ -521,6 +538,7 @@ final class GameScene: SKScene {
             self.startArcade(kind, free: true)
         }
         shaker.addChild(helpPanel.node)
+        shaker.addChild(albumPanel.node)
 
         // Roter Rahmen um das ganze Display
         let horizontal = Backdrop.edgeGradient(vertical: false), vertical = Backdrop.edgeGradient(vertical: true)
@@ -1535,7 +1553,7 @@ final class GameScene: SKScene {
         func radio(_ pick: @escaping () -> Contact, _ item: SKTexture?) -> () -> Void {
             { [weak self] in
                 guard let self else { return }
-                let delivery = SplashPresenter.Delivery(contact: pick(), item: item ?? SKTexture())
+                let delivery = SplashPresenter.Delivery(contact: pick(), item: item ?? SKTexture(), album: false)
                 self.splash.present(delivery, at: self.clock, force: true, ignoreSettings: true)
             }
         }
@@ -3116,13 +3134,17 @@ final class GameScene: SKScene {
         idleTime = 0
         place(hintCursor, at: nil)
         let d = CGPoint(x: point.x, y: Layout.height - point.y)
-        if !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !towerEggUsed, !game.isOver, isNearTowerLight(point) {
+        if !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !albumPanel.isVisible, !towerEggUsed, !game.isOver, isNearTowerLight(point) {
             towerHoldStart = clock
             pointerStart = nil
             return
         }
         if helpPanel.isVisible {
             helpPanel.pointerDown(d)
+            return
+        }
+        if albumPanel.isVisible {
+            albumPanel.pointerDown(d)
             return
         }
         if settingsPanel.isVisible {
@@ -3191,7 +3213,7 @@ final class GameScene: SKScene {
             if !isNearTowerLight(point) { cancelTowerHold() }
             return
         }
-        if helpPanel.isVisible { return }
+        if helpPanel.isVisible || albumPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerMoved(CGPoint(x: point.x, y: Layout.height - point.y))
             return
@@ -3232,7 +3254,7 @@ final class GameScene: SKScene {
             cancelTowerHold()
             return
         }
-        if helpPanel.isVisible { return }
+        if helpPanel.isVisible || albumPanel.isVisible { return }
         if settingsPanel.isVisible {
             settingsPanel.pointerUp()
             return
@@ -3313,7 +3335,7 @@ final class GameScene: SKScene {
         updateArcade(dt)
         updateLedge(dt)
         if pendingStarRun, !busy, !minigameActive, !figureJumping, !figureFalling, !figureAway,
-           !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible {
+           !game.isOver, !menuVisible, !settingsPanel.isVisible, !helpPanel.isVisible, !albumPanel.isVisible {
             pendingStarRun = false
             startStarRun()
         }
