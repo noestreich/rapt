@@ -243,6 +243,8 @@ final class GameScene: SKScene {
     }
     private var menuSettingsRect = CGRect.zero
     private var menuShareRect = CGRect.zero
+    private var menuBoardsRect = CGRect.zero
+    private var menuGameOver = false
     /// Rekord zu Beginn des Spiels, um beim Teilen einen neuen Rekord zu erkennen.
     private var recordAtStart = 0
     private var menuVisible = false
@@ -262,6 +264,13 @@ final class GameScene: SKScene {
         if !isBuilt {
             build()
             isBuilt = true
+            // Nach der Anmeldung erscheint im Startmenü der Link zur Bestenliste
+            GameCenter.authenticate { [weak self] in
+                DispatchQueue.main.async {
+                    guard let self, self.menuVisible, !self.menuGameOver, !self.settingsPanel.isVisible else { return }
+                    self.showMenu(gameOver: false)
+                }
+            }
             startNewGame(mode: mode, animated: true)
             showMenu(gameOver: false)
         }
@@ -496,6 +505,8 @@ final class GameScene: SKScene {
         }
         splash.onMeet = { [weak self] contact in
             guard let self, ContactAlbum.markSeen(contact) else { return }
+            let all = ContactAlbum.everyone.map(\.id)
+            GameCenter.report(.album, percent: Double(ContactAlbum.seen.intersection(all).count) / Double(max(1, all.count)) * 100)
             self.fx.popup("NEU IM FUNKER-ALBUM", at: self.design(100, 88), color: Palette.amber)
         }
         shaker.addChild(splash.node)
@@ -920,6 +931,7 @@ final class GameScene: SKScene {
         }
         let step = result.steps[index]
         lastCombo = step.combo
+        if step.combo >= 5 { GameCenter.report(.cascade5) }
         explode(step)
         run(.sequence([.wait(forDuration: 0.17), .run { [weak self] in
             self?.collapse(step) { self?.play(result, index: index + 1) }
@@ -959,7 +971,14 @@ final class GameScene: SKScene {
                 Highscore.save(highscore, for: mode)
             }
         }
-        if let done = result.completedOrder { celebrateOrder(done) }
+        if let done = result.completedOrder {
+            celebrateOrder(done)
+            GameCenter.orderCompleted()
+        }
+        if !result.rewards.isEmpty {
+            GameCenter.report(.jump10, percent: Double(game.plan - 1) / 9 * 100)
+            if game.plan >= 25 { GameCenter.report(.jump25) }
+        }
         updateHUD()
         pendingDeliveries += result.rewards.filter { $0.powerUp != nil }.count
         updateSlots()
@@ -1313,6 +1332,7 @@ final class GameScene: SKScene {
 
     private func showGameOver() {
         SavedGame.clear()
+        GameCenter.submit(game.score, to: dailyDay != nil ? .daily : mode == .rooftop ? .rooftop : .endless)
         audio.play(.gameOver, volume: 0.7)
         busy = true
         run(.sequence([.wait(forDuration: 0.5), .run { [weak self] in self?.showMenu(gameOver: true) }]))
@@ -1323,6 +1343,7 @@ final class GameScene: SKScene {
         overlayLayer.children.filter { $0 !== countdownLabel }.forEach { $0.removeFromParent() }
         menuButtons = []
         menuVisible = true
+        menuGameOver = gameOver
         busy = true
         setArmed(nil)
         setSelected(nil)
@@ -1416,9 +1437,22 @@ final class GameScene: SKScene {
         link.draw(Self.gearCanvas(Palette.cream), at: 0, 0)
         PixelFont.draw(label, into: &link, x: 11, y: 1, color: Palette.cream)
         // Nach Spielende links daneben: Ergebnis teilen
-        let linkX = gameOver ? Layout.boardX + Layout.boardSize - 8 - linkWidth : Layout.boardX + (Layout.boardSize - linkWidth) / 2
+        let twoLinks = gameOver || GameCenter.isAuthenticated
+        let linkX = twoLinks ? Layout.boardX + Layout.boardSize - 8 - linkWidth : Layout.boardX + (Layout.boardSize - linkWidth) / 2
         let linkY = Layout.boardY + buttonY + options.count * spacing + 4
         menuShareRect = .zero
+        menuBoardsRect = .zero
+        if !gameOver && GameCenter.isAuthenticated {
+            let boardsLabel = "BESTENLISTE"
+            var boards = PixelCanvas(width: 7 + 4 + PixelFont.width(boardsLabel), height: 7)
+            boards.draw(Self.cupCanvas(Palette.amber), at: 0, 0)
+            PixelFont.draw(boardsLabel, into: &boards, x: 11, y: 1, color: Palette.amber)
+            let boardsX = Layout.boardX + 8
+            let boardsNode = pixelSprite(boards, topLeft: design(boardsX, linkY))
+            boardsNode.zPosition = 1
+            overlayLayer.addChild(boardsNode)
+            menuBoardsRect = CGRect(x: boardsX, y: linkY, width: boards.width, height: 7).insetBy(dx: -8, dy: -6)
+        }
         if gameOver && game.score > 0 {
             let shareLabel = "TEILEN"
             var share = PixelCanvas(width: 7 + 4 + PixelFont.width(shareLabel), height: 7)
@@ -1434,6 +1468,16 @@ final class GameScene: SKScene {
         linkNode.zPosition = 1
         overlayLayer.addChild(linkNode)
         menuSettingsRect = CGRect(x: linkX, y: linkY, width: linkWidth, height: 7).insetBy(dx: -8, dy: -6)
+    }
+
+    /// Pokal für die Bestenliste.
+    private static func cupCanvas(_ color: RGBA) -> PixelCanvas {
+        let rows = ["XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X...", "..XXX..", ".XXXXX."]
+        var c = PixelCanvas(width: 7, height: 7)
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() where ch == "X" { c.set(x, y, color) }
+        }
+        return c
     }
 
     /// Teilen-Symbol: Kasten mit Pfeil nach oben.
@@ -1479,6 +1523,11 @@ final class GameScene: SKScene {
             shareResult()
             return
         }
+        if menuBoardsRect.contains(p) {
+            audio.play(.select, volume: 0.5)
+            GameCenter.showLeaderboards()
+            return
+        }
         guard let button = menuButtons.first(where: { $0.rect.contains(p) }) else { return }
         chooseMenu(button.choice)
     }
@@ -1501,6 +1550,7 @@ final class GameScene: SKScene {
             SavedGame.clear()
             let day = DailyRun.today()
             DailyRun.markPlayed(day)
+            GameCenter.report(.streak7, percent: Double(min(7, DailyRun.streak)) / 7 * 100)
             startNewGame(mode: .rooftop, animated: true, daily: day)
         }
     }
@@ -2401,6 +2451,7 @@ final class GameScene: SKScene {
     /// `free`: Test aus den Einstellungen, ohne Power-up aus dem Lager (in beiden Modi).
     private func startArcade(_ kind: PowerUp, free: Bool = false) {
         guard !busy, free || game.startArcade(kind) else { return }
+        if !free { GameCenter.minigamePlayed(kind.rawValue) }
         spentSpecials = []
         freezePlanBar()
         busy = true
@@ -2809,6 +2860,7 @@ final class GameScene: SKScene {
     /// hinein, Manga-Auftakt „STERNENBAHN!“.
     private func startStarRun() {
         guard !busy, !minigameActive else { return }
+        GameCenter.minigamePlayed("sternenbahn")
         lastStarRun = clock
         freezePlanBar()
         busy = true

@@ -196,6 +196,36 @@ Ein lokaler Tasten-Monitor in `GameView` reicht die Tasten an `GameScene.handleK
 Texteingaben (Sound-Labor) bleiben unberührt. Ein Mausklick blendet den Rahmen aus. Die Hilfe zeigt auf dem Mac einen
 Absatz „TASTATUR“.
 
+## Game Center
+
+Bestenlisten und Erfolge (`App/Sources/GameCenter.swift`, zum Abschalten `GameCenter.enabled = false`). Anmeldung beim
+Start; ist man angemeldet, steht im Startmenü links unten **BESTENLISTE** (öffnet Game Center). Gemeldet wird beim
+Spielende; Erfolge mit Fortschritt (z. B. 4 von 6 Minispielen) gehen laufend hinaus. Entitlement in
+`App/Rapt.entitlements`, auf dem Mac zusätzlich ausgehende Verbindungen (`ENABLE_OUTGOING_NETWORK_CONNECTIONS`).
+
+**Einmalig in App Store Connect anlegen** (App → Dienste → Game Center; danach in der Version unter „Game Center“
+die Bestenlisten und Erfolge hinzufügen). Solange sie fehlen, passiert im Spiel einfach nichts.
+
+| Bestenliste (klassisch, Ganzzahl, höchster Wert oben) | ID |
+|---|---|
+| Dächerlauf | `de.ncls.rapt.rooftop` |
+| Endlos | `de.ncls.rapt.endless` |
+| Tageslauf (**wiederkehrend**, Dauer 1 Tag, Start 00:00) | `de.ncls.rapt.daily` |
+
+| Erfolg | ID | Punkte | Beschreibung | Bild |
+|---|---|---|---|---|
+| Zehn Dächer | `de.ncls.rapt.jump10` | 25 | Erreiche Sprung 10. | `jump10.png` |
+| Dachkönig | `de.ncls.rapt.jump25` | 50 | Erreiche Sprung 25. | `jump25.png` |
+| Kettenreaktion | `de.ncls.rapt.cascade5` | 25 | Löse eine Kaskade der Stufe 5 aus. | `cascade5.png` |
+| Planerfüller | `de.ncls.rapt.orders10` | 25 | Erfülle zehn Aufträge. | `orders10.png` |
+| Spielhalle | `de.ncls.rapt.minigames` | 50 | Spiele jedes Minispiel einmal, auch die Sternenbahn. | `minigames.png` |
+| Funkverkehr | `de.ncls.rapt.album` | 50 | Triff alle Funker im Funker-Album. | `album.png` |
+| Sieben Nächte | `de.ncls.rapt.streak7` | 50 | Spiele den Tageslauf an sieben Tagen in Folge. | `streak7.png` |
+
+Die Bilder (1024 × 1024, Platzhalter im Spielstil) liegen in `docs/assets/gamecenter/`, erzeugt mit
+`python3 tools/gamecenter_images.py`. Für jeden Erfolg in App Store Connect eine deutsche Lokalisierung mit Name,
+Beschreibung (vor und nach dem Erreichen gleich) und Bild anlegen.
+
 ## Sound-Labor (Mac)
 
 Im Debug-Build auf dem Mac: Menü **Entwickler → Sound-Labor öffnen** (⇧⌘L).
