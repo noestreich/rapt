@@ -221,7 +221,7 @@ final class GameScene: SKScene {
     private var shootingStarTimer: TimeInterval = 15
 
     // Menü (Moduswahl, Spielende)
-    private var menuButtons: [(rect: CGRect, mode: GameMode)] = []
+    private var menuButtons: [(rect: CGRect, mode: GameMode, resume: Bool)] = []
     private var menuSettingsRect = CGRect.zero
     private var menuVisible = false
     private var slotFrames: [SKSpriteNode] = []
@@ -684,13 +684,14 @@ final class GameScene: SKScene {
 
     // MARK: Spielablauf
 
-    private func startNewGame(mode newMode: GameMode, animated: Bool) {
+    /// `restoring`: gespeichertes Spiel fortsetzen statt neu zu beginnen.
+    private func startNewGame(mode newMode: GameMode, animated: Bool, restoring saved: Game? = nil) {
         if menuVisible == false && isBuilt && game.score > 0 { AudioCenter.shared.music.nextTrack() }
         abortArcade()
         mode = newMode
         UserDefaults.standard.set(newMode.rawValue, forKey: "rapt.mode")
         highscore = Highscore.load(newMode)
-        game = Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
+        game = saved ?? Game(seed: UInt64.random(in: 0...UInt64.max), mode: newMode)
         game.citySpeed = GameSettings.shared.citySpeed
         game.cityAcceleration = GameSettings.shared.cityAcceleration
         game.extendCity(toScreenX: Double(visibleRight) + 40)
@@ -702,7 +703,8 @@ final class GameScene: SKScene {
         figureJumping = false
         figureFalling = false
         wasInDanger = false
-        lastStarRun = nil
+        // Fortgesetzt: keine Sternenbahn gleich beim ersten Kristall-Vierer
+        lastStarRun = saved == nil ? nil : clock
         pendingStarRun = false
         figureOnLedge = false
         ledgeHintShown = false
@@ -742,7 +744,7 @@ final class GameScene: SKScene {
         var longest = 0.0
         for p in game.board.positions {
             guard let gem = game.board[p] else { continue }
-            let node = makeGem(gem, at: animated ? Pos(p.col, p.row - Layout.count - 1) : p)
+            let node = makeGem(gem, at: animated ? Pos(p.col, p.row - Layout.count - 1) : p, special: game.board[tile: p]?.special)
             gems[p] = node
             if animated {
                 let delay = Double(p.col) * 0.035 + Double(Layout.count - 1 - p.row) * 0.02
@@ -754,6 +756,7 @@ final class GameScene: SKScene {
             run(.sequence([.wait(forDuration: longest), .run { [weak self] in
                 self?.audio.play(.land, volume: 0.5)
                 self?.busy = false
+                self?.saveProgress()
             }]))
         }
     }
@@ -898,6 +901,7 @@ final class GameScene: SKScene {
             showGameOver()
         } else {
             busy = false
+            saveProgress()
         }
         refreshStatus()
         // Nach einem Minispiel wächst die Sprung-Leiste jetzt sichtbar
@@ -1168,6 +1172,7 @@ final class GameScene: SKScene {
     }
 
     private func showGameOver() {
+        SavedGame.clear()
         audio.play(.gameOver, volume: 0.7)
         busy = true
         run(.sequence([.wait(forDuration: 0.5), .run { [weak self] in self?.showMenu(gameOver: true) }]))
@@ -1212,28 +1217,35 @@ final class GameScene: SKScene {
             text("HOCHPUNKTE " + String(format: "%08d", Highscore.load(.rooftop)) + " / " + String(format: "%08d", Highscore.load(.endless)),
                  color: Palette.label, scale: 1, y: 40)
         }
-        let options: [(GameMode, String, String)] = [
-            (.rooftop, "DÄCHERLAUF", "STADT WANDERT - POWER-UPS"),
-            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK"),
+        var options: [(mode: GameMode, title: String, subtitle: String, resume: Bool)] = [
+            (.rooftop, "DÄCHERLAUF", "STADT WANDERT - POWER-UPS", false),
+            (.endless, "ENDLOS", "KLASSISCH - OHNE ZEITDRUCK", false),
         ]
+        // Gespeichertes Spiel: oben als erste Wahl
+        let saved = gameOver ? nil : SavedGame.load()
+        if let saved {
+            let modeName = saved.mode == .rooftop ? "DÄCHERLAUF" : "ENDLOS"
+            options.insert((saved.mode, "WEITERSPIELEN", "\(modeName) - \(saved.score) PUNKTE", true), at: 0)
+        }
+        let spacing = saved == nil ? 36 : 32
         for (i, option) in options.enumerated() {
             let w = 150, h = 28
             let x = Layout.boardX + (Layout.boardSize - w) / 2
-            let y = Layout.boardY + buttonY + i * (h + 8)
-            let selected = option.0 == mode
+            let y = Layout.boardY + buttonY + i * spacing
+            let selected = saved == nil ? option.mode == mode : option.resume
             var canvas = PixelCanvas(width: w, height: h, fill: RGBA(hex: selected ? 0x2A1A14 : 0x1B1A24))
             let border = selected ? Palette.amber : RGBA(hex: 0x4A4B56)
             canvas.fillRect(0, 0, w, 1, border)
             canvas.fillRect(0, h - 1, w, 1, border)
             canvas.fillRect(0, 0, 1, h, border)
             canvas.fillRect(w - 1, 0, 1, h, border)
-            let title = PixelFont.render(option.1, color: selected ? Palette.amber : Palette.cream)
+            let title = PixelFont.render(option.title, color: selected ? Palette.amber : Palette.cream)
             for yy in 0..<title.height * 2 {
                 for xx in 0..<title.width * 2 where title.get(xx / 2, yy / 2).a > 0 {
                     canvas.set((w - title.width * 2) / 2 + xx, 5 + yy, title.get(xx / 2, yy / 2))
                 }
             }
-            PixelFont.draw(option.2, into: &canvas, x: (w - PixelFont.width(option.2)) / 2, y: 19, color: Palette.label)
+            PixelFont.draw(option.subtitle, into: &canvas, x: (w - PixelFont.width(option.subtitle)) / 2, y: 19, color: Palette.label)
             let node = SKSpriteNode(texture: canvas.texture(), size: canvas.size)
             node.anchorPoint = CGPoint(x: 0, y: 1)
             node.position = design(x, y)
@@ -1241,7 +1253,7 @@ final class GameScene: SKScene {
             node.alpha = 0
             node.run(.sequence([.wait(forDuration: 0.1 + Double(i) * 0.08), .fadeIn(withDuration: 0.2)]))
             overlayLayer.addChild(node)
-            menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.0))
+            menuButtons.append((CGRect(x: x, y: y, width: w, height: h), option.mode, option.resume))
         }
         // Direkter Weg in die Einstellungen
         let label = "EINSTELLUNGEN"
@@ -1250,7 +1262,7 @@ final class GameScene: SKScene {
         link.draw(Self.gearCanvas(Palette.cream), at: 0, 0)
         PixelFont.draw(label, into: &link, x: 11, y: 1, color: Palette.cream)
         let linkX = Layout.boardX + (Layout.boardSize - linkWidth) / 2
-        let linkY = Layout.boardY + buttonY + 2 * 36 + 4
+        let linkY = Layout.boardY + buttonY + options.count * spacing + 4
         let linkNode = pixelSprite(link, topLeft: design(linkX, linkY))
         linkNode.zPosition = 1
         overlayLayer.addChild(linkNode)
@@ -1277,7 +1289,26 @@ final class GameScene: SKScene {
         menuVisible = false
         menuButtons = []
         audio.play(.select, volume: 0.6)
-        startNewGame(mode: choice.mode, animated: true)
+        if choice.resume, let saved = SavedGame.load() {
+            startNewGame(mode: saved.mode, animated: true, restoring: saved)
+        } else {
+            SavedGame.clear()
+            startNewGame(mode: choice.mode, animated: true)
+        }
+    }
+
+    // MARK: Fortsetzen
+
+    /// Speichert den Stand, wenn gerade nichts läuft (kein Zug, kein Minispiel, kein Fresser); sonst bleibt der
+    /// zuletzt gespeicherte ruhige Stand. Wird nach jedem Zug und beim Wechsel in den Hintergrund aufgerufen.
+    func saveProgress() {
+        guard isBuilt else { return }
+        if game.isOver {
+            SavedGame.clear()
+            return
+        }
+        guard !menuVisible, !busy, arcade == nil, !arcadeIntro, pendingRound == nil, fresser == nil else { return }
+        SavedGame.save(game)
     }
 
     // MARK: Stadt
@@ -2018,6 +2049,7 @@ final class GameScene: SKScene {
             showGameOver()
         } else {
             busy = false
+            saveProgress()
         }
         refreshStatus()
     }

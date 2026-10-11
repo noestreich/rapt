@@ -1,6 +1,6 @@
 /// Kleiner, deterministischer Zufallsgenerator, damit Spiele per Seed reproduzierbar sind.
 public struct SplitMix64: RandomNumberGenerator, Sendable {
-    private var state: UInt64
+    public private(set) var state: UInt64
 
     public init(seed: UInt64) {
         state = seed

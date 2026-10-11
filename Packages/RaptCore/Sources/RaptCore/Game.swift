@@ -106,6 +106,21 @@ public struct Game: Sendable {
         updateOver()
     }
 
+    // Für gespeicherte Spielstände (Snapshot.swift)
+    var lastRewardKind: PowerUp? { lastReward }
+    var rewardedPlanStep: Int { rewardedPlan }
+    var rngState: UInt64 { rng.state }
+
+    mutating func restore(score: Int, powerUps: [PowerUp], roof: Int, lastReward: PowerUp?, rewardedPlan: Int, city: City) {
+        self.score = score
+        self.powerUps = Array(powerUps.prefix(Self.maxPowerUps))
+        self.roof = roof
+        self.lastReward = lastReward
+        self.rewardedPlan = rewardedPlan
+        self.city = city
+        updateOver()
+    }
+
     /// Lässt die Stadt `seconds` weiterwandern. Gibt `true` zurück, wenn die Figur gerade abgestürzt ist.
     public mutating func tick(_ seconds: Double) -> Bool {
         guard !isOver, mode == .rooftop else { return false }

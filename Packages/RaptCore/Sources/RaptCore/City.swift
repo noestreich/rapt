@@ -37,6 +37,17 @@ public struct City: Sendable {
         figureIndex = buildings.indices.min { abs(buildings[$0].center - startX) < abs(buildings[$1].center - startX) } ?? 0
     }
 
+    /// Für gespeicherte Spielstände (`GameSnapshot`).
+    init(buildings: [Building], offset: Double, figureIndex: Int, elapsed: Double, rng: UInt64) {
+        self.buildings = buildings
+        self.offset = offset
+        self.figureIndex = figureIndex
+        self.elapsed = elapsed
+        self.rng = SplitMix64(seed: rng)
+    }
+
+    var rngState: UInt64 { rng.state }
+
     /// Bildschirmposition (Design-Pixel) einer Stadtkoordinate.
     public func screenX(_ x: Double) -> Double { x - offset }
 
