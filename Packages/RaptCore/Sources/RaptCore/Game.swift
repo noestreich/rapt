@@ -63,9 +63,10 @@ public struct Game: Sendable {
     /// Gewichte für zufällige Belohnungen. Seltene Power-ups sind wertvoller.
     public static let rewardWeights: [PowerUp: Double] = [
         .bombe: 30, .farbtilger: 21, .strudel: 16, .atom: 12, .fresser: 9, .invasion: 6, .abriss: 6, .flak: 6, .katana: 6,
+        .kurzschluss: 6,
     ]
     /// Seltene Höhepunkte: garantiert am Ende jedes Zyklus.
-    public static let topRewards: [PowerUp] = [.fresser, .atom, .invasion, .abriss, .flak, .katana]
+    public static let topRewards: [PowerUp] = [.fresser, .atom, .invasion, .abriss, .flak, .katana, .kurzschluss]
     /// Jeder `roofCount - 1`. Sprung schließt einen Zyklus ab und bringt garantiert ein seltenes Power-up.
     public static let roofCount = 7
     public static let maxPowerUps = 3

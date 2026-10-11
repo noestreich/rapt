@@ -26,9 +26,11 @@ public enum PowerUp: String, CaseIterable, Sendable {
     case flak
     /// Minispiel mit dem Schwert: Wischen zerschneidet die Steine entlang der Klinge.
     case katana
+    /// Minispiel mit der Tesla-Spule: Ein Blitz springt über alle benachbarten Steine derselben Farbe.
+    case kurzschluss
 
     /// Startet ein eigenes Minispiel mit Steuerung statt eines Sofort-Effekts.
-    public var isArcade: Bool { [.invasion, .abriss, .flak, .katana].contains(self) }
+    public var isArcade: Bool { [.invasion, .abriss, .flak, .katana, .kurzschluss].contains(self) }
 
     /// Dauer des Minispiels in Sekunden.
     public var arcadeDuration: Double {
@@ -37,6 +39,7 @@ public enum PowerUp: String, CaseIterable, Sendable {
         case .abriss: return 12
         case .flak: return 10
         case .katana: return 8
+        case .kurzschluss: return 8
         default: return 0
         }
     }

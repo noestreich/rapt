@@ -128,12 +128,13 @@ final class SettingsPanel {
                           .slider(get: { settings.debugCityAcceleration / 0.5 },
                                   set: { settings.debugCityAcceleration = $0 * 0.5 })))
             // Minispiele sofort starten
-            specs.append((fixed("SPIEL"), .actions(options: ["INV", "ABR", "FLAK", "KAT", "BAHN"], perform: { [weak self] i in
+            specs.append((fixed("SPIEL"), .actions(options: ["INV", "ABR", "FLAK", "KAT", "KURZ", "BAHN"], perform: { [weak self] i in
                 switch i {
                 case 0: self?.onTestArcade(.invasion)
                 case 1: self?.onTestArcade(.abriss)
                 case 2: self?.onTestArcade(.flak)
                 case 3: self?.onTestArcade(.katana)
+                case 4: self?.onTestArcade(.kurzschluss)
                 default: self?.onTestStarRun()
                 }
             })))

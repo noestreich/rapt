@@ -193,6 +193,43 @@ enum ArcadeArt {
         ], ["W": 0xB8BCC8, "H": 0x7E8494, "D": 0x4A4B56, "K": 0x22232B, "E": 0x14141A, "r": 0x3FD8FF]).texture()
     }
 
+    // MARK: Kurzschluss
+
+    /// Tesla-Wagen (23 × 14): Kugel mit Kupferwicklung auf dem Dach, Fenster für den Läufer, blaue Warnlichter,
+    /// Nietengrau mit Rost wie die anderen Geräte.
+    static func teslaCoil() -> SKTexture {
+        let rows = [
+            ".........KCCCK.........",
+            "........KCWWCBK........",
+            "........KCCCCBK........",
+            ".........KOOOK.........",
+            "....KHHHHHKOKHHHHHK....",
+            "....KHHH.......HHHK....",
+            "...KHHHH.......HHHHK...",
+            "..KHHHHH.......HHHHHK..",
+            ".KDDDDDDDDDDDDDDDDDDDK.",
+            "KHcKcKHHHHHHHHHHHcKcKHK",
+            "KHHHHHHHHHHHHHHHHHHHHHK",
+            "KDDDDDDDDDDDDDDDDDDDDDK",
+            ".KKEEKKKKKKKKKKKKKEEKK.",
+            "...EE.............EE...",
+        ]
+        let palette: [Character: UInt32] = ["H": 0x7E8494, "D": 0x4A4B56, "K": 0x22232B, "E": 0x14141A, "c": 0x3FD8FF,
+                                            "C": 0x3FD8FF, "W": 0xFFFFFF, "B": 0x1E6E9A, "O": 0xC8743A]
+        let rust: [UInt32] = [0x5A2E1E, 0x8A4A2A, 0xB8642E]
+        var c = PixelCanvas(width: 23, height: rows.count)
+        for (y, row) in rows.enumerated() {
+            for (x, ch) in row.enumerated() {
+                guard var hex = palette[ch] else { continue }
+                if ch == "H", Noise.hash(x / 2, y / 2, 23) * 0.6 + Noise.hash(x, y, 29) * 0.4 < 0.22 {
+                    hex = rust[min(2, Int(Noise.hash(x, y, 31) * 3))]
+                }
+                c.set(x, y, RGBA(hex: hex))
+            }
+        }
+        return c.texture()
+    }
+
     // MARK: Sternenbahn
 
     /// Raumschiff (22 × 21) aus dem Kristall: Kristallform in Nietengrau mit Rostflecken wie beim Glider,

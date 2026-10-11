@@ -1,8 +1,9 @@
 import RaptCore
 import SpriteKit
 
-// Zwei weitere Minispiele aus Power-ups: Flak (nach Missile Command, der Läufer bemannt eine rostige
-// Flakstellung) und Katana (nach Fruit Ninja, der Läufer schneidet auf einem Schwebebrett durch die Steine).
+// Weitere Minispiele aus Power-ups: Flak (nach Missile Command, der Läufer bemannt eine rostige Flakstellung),
+// Katana (nach Fruit Ninja, der Läufer schneidet auf einem Schwebebrett durch die Steine) und Kurzschluss
+// (nach SameGame, ein Blitz aus der Tesla-Spule springt über zusammenhängende Steine einer Farbe).
 
 // MARK: - Flak
 
@@ -303,5 +304,136 @@ final class KatanaRound: ArcadeBase, ArcadeRound {
         elapsed += dt
         timeLeft -= dt
         moveCraft(dt, maxSpeed: 260, stiffness: 14, response: 18)
+    }
+}
+
+// MARK: - Kurzschluss
+
+/// Der Läufer fährt einen Tesla-Wagen unter dem Brett. Antippen eines Steins schickt einen Blitz aus der Kugel;
+/// er springt von Stein zu Stein über alle Nachbarn derselben Farbe (auch schräg). Fünf Ladungen.
+final class KurzschlussRound: ArcadeBase, ArcadeRound {
+    let kind = PowerUp.kurzschluss
+    let title = "KURZSCHLUSS"
+    var hint: String { "STEIN ANTIPPEN: BLITZ!" }
+    var isFinished: Bool { timeLeft <= 0 || remaining == 0 || (charges == 0 && busy <= 0) }
+
+    private static let maxCharges = 5
+    /// Höchstens so viele Steine pro Blitz.
+    private static let maxChain = 18
+    private static let words = ["BZZZT!", "ZAPP!", "KNISTER!", "ZZZAP!"]
+    private static let blue = RGBA(hex: 0x3FD8FF)
+
+    private var charges = KurzschlussRound.maxCharges
+    private var reload = 0.0
+    /// Solange ein Blitz noch springt, endet die Runde nicht.
+    private var busy = 0.0
+    private var arcTimer = 0.5
+    private var pips: [SKSpriteNode] = []
+    private let orb: SKSpriteNode
+
+    init(host: ArcadeHost) {
+        let spec = ArcadeCraft.Spec(texture: ArcadeArt.teslaCoil(), size: CGSize(width: 23, height: 14), runnerRow: 4,
+                                    nozzleRow: 10, hoverX: [-7, 7], neon: true)
+        orb = SKSpriteNode(texture: host.glowTexture, color: KurzschlussRound.blue.skColor, size: CGSize(width: 18, height: 18))
+        super.init(host: host, duration: PowerUp.kurzschluss.arcadeDuration, craft: spec, hover: 4)
+        orb.colorBlendFactor = 1
+        orb.blendMode = .add
+        orb.alpha = 0.6
+        orb.position = CGPoint(x: 0, y: spec.size.height - 2)
+        orb.zPosition = 2
+        orb.run(.repeatForever(.sequence([.fadeAlpha(to: 0.85, duration: 0.12), .fadeAlpha(to: 0.45, duration: 0.18)])))
+        craft.node.addChild(orb)
+        // Ladungen als kleine blaue Lichter unter dem Wagen
+        for i in 0..<Self.maxCharges {
+            let pip = SKSpriteNode(texture: host.glowTexture, color: Self.blue.skColor, size: CGSize(width: 5, height: 5))
+            pip.colorBlendFactor = 1
+            pip.blendMode = .add
+            pip.position = CGPoint(x: CGFloat(i - Self.maxCharges / 2) * 4, y: -3)
+            craft.node.addChild(pip)
+            pips.append(pip)
+        }
+    }
+
+    func release() {}
+
+    private var sphere: CGPoint {
+        CGPoint(x: craft.node.position.x, y: craft.node.position.y + craft.spec.size.height - 2)
+    }
+
+    func touchDown(_ p: CGPoint) {
+        guard !runner.isHidden, charges > 0, reload <= 0, let start = cell(at: p), let color = host.gemColor(start) else { return }
+        charges -= 1
+        reload = 0.3
+        if charges < pips.count {
+            pips[charges].run(.sequence([.fadeOut(withDuration: 0.15), .removeFromParent()]))
+        }
+
+        // Breitensuche über gleichfarbige Nachbarn; jede Stufe springt etwas später
+        var links: [(from: Pos, to: Pos, depth: Int)] = []
+        var seen: Set<Pos> = [start]
+        var frontier = [start]
+        var depth = 0
+        while !frontier.isEmpty, seen.count < Self.maxChain {
+            depth += 1
+            var next: [Pos] = []
+            for a in frontier {
+                for dr in -1...1 {
+                    for dc in -1...1 where dr != 0 || dc != 0 {
+                        let b = Pos(a.col + dc, a.row + dr)
+                        guard seen.count < Self.maxChain, (0..<host.cols).contains(b.col), (0..<host.rows).contains(b.row),
+                              !seen.contains(b), !cleared.contains(b), host.occupied(b), host.gemColor(b) == color else { continue }
+                        seen.insert(b)
+                        next.append(b)
+                        links.append((a, b, depth))
+                    }
+                }
+            }
+            frontier = next
+        }
+
+        let step = 0.07
+        host.fx.lightning(from: sphere, to: host.center(start), color: color.skColor)
+        host.sound(.purge, 0.6, 0)
+        host.fx.flash(at: sphere, color: Self.blue.skColor)
+        craft.dip(2)
+        hit(start, heavy: false)
+        for link in links {
+            let delay = step * Double(link.depth)
+            host.fx.lightning(from: host.center(link.from), to: host.center(link.to), color: color.skColor, delay: delay)
+            node.run(.sequence([.wait(forDuration: delay + 0.03), .run { [weak self] in
+                guard let self, self.hit(link.to) else { return }
+                self.host.sound(.brick, 0.4, Double(min(link.depth * 2, 12)))
+            }]))
+        }
+        busy = step * Double(depth) + 0.4
+        let total = links.count + 1
+        if total >= 8 {
+            node.run(.sequence([.wait(forDuration: busy - 0.3), .run { [weak self] in
+                guard let self else { return }
+                self.onomatopoeia(Self.words.randomElement()!, at: CGPoint(x: self.host.center(start).x, y: self.host.center(start).y + 14),
+                                  color: Self.blue)
+                self.host.shake(2)
+                self.host.boom()
+            }]))
+        } else if total == 1 {
+            onomatopoeia("PFFT", at: CGPoint(x: host.center(start).x, y: host.center(start).y + 12), color: RGBA(hex: 0xB8BCC8))
+        }
+    }
+
+    func update(_ dt: Double) {
+        elapsed += dt
+        timeLeft -= dt
+        reload -= dt
+        busy -= dt
+        moveCraft(dt, maxSpeed: 150)
+        // Kleine Funken an der Kugel, solange noch Ladung da ist
+        arcTimer -= dt
+        if arcTimer <= 0, charges > 0, !runner.isHidden {
+            arcTimer = Double.random(in: 0.25...0.6)
+            let s = sphere
+            let angle = CGFloat.random(in: 0.3...(CGFloat.pi - 0.3))
+            let r = CGFloat.random(in: 6...10)
+            host.fx.lightning(from: s, to: CGPoint(x: s.x + cos(angle) * r, y: s.y + sin(angle) * r), color: Self.blue.skColor)
+        }
     }
 }

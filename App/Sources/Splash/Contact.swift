@@ -140,6 +140,7 @@ struct Contact: Equatable {
         case .abriss: return boris
         case .flak: return robo
         case .katana: return juki
+        case .kurzschluss: return zora
         }
     }
 

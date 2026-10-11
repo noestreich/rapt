@@ -1544,6 +1544,8 @@ final class GameScene: SKScene {
                   lines: ["10 SEK. ANTIPPEN: SIEBEN RAKETEN", "SPRENGEN STEINE IM UMKREIS."], onTap: radioFor(.flak)),
             .init(icon: icon(.katana), title: "KATANA", badge: percent(.katana),
                   lines: ["8 SEK. WISCHEN: SECHS HIEBE", "ZERSCHNEIDEN DIE STEINE."], onTap: radioFor(.katana)),
+            .init(icon: icon(.kurzschluss), title: "KURZSCHLUSS", badge: percent(.kurzschluss),
+                  lines: ["8 SEK. ANTIPPEN: DER BLITZ", "SPRINGT ÜBER GLEICHE FARBEN."], onTap: radioFor(.kurzschluss)),
             // Sternenbahn: kein Lager-Power-up, nur eine Andeutung, wie man sie auslöst
             .init(icon: SKSpriteNode(texture: shipIcon, size: CGSize(width: 18, height: 17)), title: "STERNENBAHN", badge: "BONUS",
                   lines: ["VIER KRISTALLE IN EINER REIHE ...", "12 SEK. LENKEN: MÜNZEN SAMMELN."],
@@ -1729,6 +1731,7 @@ final class GameScene: SKScene {
         case .abriss: return "ABRISSBIRNE"
         case .flak: return "FLAK"
         case .katana: return "KATANA"
+        case .kurzschluss: return "KURZSCHLUSS"
         }
     }
 
@@ -1889,7 +1892,7 @@ final class GameScene: SKScene {
         case .fresser:
             setArmed(nil)
             startFresser()
-        case .invasion, .abriss, .flak, .katana:
+        case .invasion, .abriss, .flak, .katana, .kurzschluss:
             setArmed(nil)
             startArcade(kind)
         }
@@ -2171,6 +2174,10 @@ final class GameScene: SKScene {
             title = "KATANA!"
             color = RGBA(hex: 0xD8FAFF)
             round = KatanaRound(host: host)
+        case .kurzschluss:
+            title = "KURZSCHLUSS!"
+            color = RGBA(hex: 0x3FD8FF)
+            round = KurzschlussRound(host: host)
         default:
             title = "ABRISSBIRNE!"
             color = RGBA(hex: 0xFFB347)

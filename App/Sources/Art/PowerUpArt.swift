@@ -115,7 +115,30 @@ enum PowerUpArt {
         case .abriss: return wreckingBallIcon().texture()
         case .flak: return flakIcon().texture()
         case .katana: return katanaIcon().texture()
+        case .kurzschluss: return boltIcon().texture()
         }
+    }
+
+    /// Gezackter Blitz in Kaltblau mit dunkler Kante (Kurzschluss).
+    private static func boltIcon() -> PixelCanvas {
+        sprite([
+            "...........WWW..",
+            "..........WCCY..",
+            ".........WCCY...",
+            "........WCCY....",
+            ".......WCCY.....",
+            "......WCCY......",
+            ".....WCCCCCCW...",
+            "....WWWWWCCY....",
+            "........WCY.....",
+            ".......WCY......",
+            "......WCY.......",
+            ".....WCY........",
+            "....WY..........",
+            "...WY...........",
+            "..W.............",
+            "................",
+        ], ["W": 0xFFFFFF, "C": 0x3FD8FF, "Y": 0x1E6E9A])
     }
 
     /// Fadenkreuz mit einschlagender Rakete (Flak).
