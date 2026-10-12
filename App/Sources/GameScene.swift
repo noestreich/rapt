@@ -1910,8 +1910,9 @@ final class GameScene: SKScene {
         #else
         let keys: [HelpPanel.Block] = []
         #endif
+        let stones = Gem.allCases.map { HelpPanel.Stone(texture: GemArt.makeSprite($0, size: 14).texture, name: Self.gemPlural($0)) }
         return HelpPanel(designHeight: Layout.height, powerUps: powerUps, minigames: minigames, specials: specials,
-                         footnote: "", info: Array(info.dropLast()) + keys + Array(info.suffix(1)))
+                         stones: stones, footnote: "", info: Array(info.dropLast()) + keys + Array(info.suffix(1)))
     }
 
     /// Ein Fenster in einem sichtbaren Plattenbau geht an oder aus. Sehr dezent, nur gelegentlich.

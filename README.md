@@ -334,7 +334,8 @@ Der Schalter **DEBUG-REGLER** ist versteckt: Er erscheint erst, wenn man 5 Sekun
 **Stadt-Tempo** (0,2–4 px/s), **Beschleunigung** (0–50 % pro Spielminute), **SPIEL** mit den Knöpfen **INV**, **ABR**,
 **FLAK**, **KAT**, **KURZ** (Minispiel sofort starten) und **BAHN** (Sternenbahn sofort) sowie **TEST** mit **GRAU** (Spielbrett 5 Sekunden grau), **AUS** (Stromausfall sofort), **ZUG** (Nachtzug), **NASS** (Regen) und **+3** (drei Sprünge auf einmal) ein. Beim Ausblenden und bei jedem App-Start gelten die Standardwerte.
 Die **Hilfe** hat vier Seiten: Power-ups, Minispiele (mit Sternenbahn), Spezialsteine (antippen spielt den Funkspruch
-des Kontakts) sowie Dächerlauf, Punkte und Credits.
+des Kontakts) mit den sieben normalen Steinen darunter (Bild und Name wie in den Aufträgen: ORDEN, ZAHNRÄDER, SIGNALE,
+URANGLÄSER, KRISTALLE, RÖHREN, NIETEN) sowie Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
 
 ### Vorlagen für neue Funker-Porträts

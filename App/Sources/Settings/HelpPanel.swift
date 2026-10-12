@@ -39,10 +39,17 @@ final class HelpPanel {
     private var page = 0
     private let pageLabel = SKSpriteNode()
 
-    init(designHeight: CGFloat, powerUps: [Entry], minigames: [Entry], specials: [Entry], footnote: String, info: [Block]) {
+    /// Ein normaler Stein mit dem Namen, unter dem er in den Aufträgen vorkommt.
+    struct Stone {
+        let texture: SKTexture
+        let name: String
+    }
+
+    init(designHeight: CGFloat, powerUps: [Entry], minigames: [Entry], specials: [Entry], stones: [Stone],
+         footnote: String, info: [Block]) {
         self.designHeight = designHeight
         node.isHidden = true
-        build(powerUps: powerUps, minigames: minigames, specials: specials, footnote: footnote, info: info)
+        build(powerUps: powerUps, minigames: minigames, specials: specials, stones: stones, footnote: footnote, info: info)
     }
 
     private func world(_ x: Int, _ y: Int) -> CGPoint {
@@ -71,7 +78,7 @@ final class HelpPanel {
         return c
     }
 
-    private func build(powerUps: [Entry], minigames: [Entry], specials: [Entry], footnote: String, info: [Block]) {
+    private func build(powerUps: [Entry], minigames: [Entry], specials: [Entry], stones: [Stone], footnote: String, info: [Block]) {
         var back = PixelCanvas(width: width, height: height, fill: RGBA(hex: 0x0B0A11, alpha: 248))
         for y in stride(from: 1, to: height, by: 2) { back.fillRect(1, y, width - 2, 1, RGBA(hex: 0x14121C, alpha: 248)) }
         for (x, y, w, h) in [(0, 0, width, 1), (0, height - 1, width, 1), (0, 0, 1, height), (width - 1, 0, 1, height)] {
@@ -133,6 +140,20 @@ final class HelpPanel {
         y = y0 + 22
         section(tr("SPEZIALSTEINE IN BEIDEN MODI - ANTIPPEN!", "SPECIAL STONES IN BOTH MODES - TAP!"))
         specials.forEach(entry)
+
+        // Darunter die normalen Steine mit ihren Namen, damit die Aufträge lesbar sind (zwei Spalten)
+        y += 4
+        section(tr("STEINE - SO HEISSEN SIE IN AUFTRÄGEN", "STONES - AS NAMED IN ORDERS"))
+        for (i, stone) in stones.enumerated() {
+            let cx = x0 + 8 + (i % 2) * 84
+            let cy = y + (i / 2) * 18
+            let icon = SKSpriteNode(texture: stone.texture, size: CGSize(width: 14, height: 14))
+            icon.anchorPoint = CGPoint(x: 0, y: 1)
+            icon.position = world(cx, cy)
+            parent.addChild(icon)
+            parent.addChild(sprite(PixelFont.render(stone.name, color: Self.cream), at: cx + 19, cy + 5))
+        }
+        y += (stones.count + 1) / 2 * 18
 
         // Seite 4: Dächerlauf, Punkte, Macher
         parent = pages[3]
