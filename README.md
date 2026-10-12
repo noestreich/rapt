@@ -337,6 +337,15 @@ Die **Hilfe** hat vier Seiten: Power-ups, Minispiele (mit Sternenbahn), Spezials
 des Kontakts) sowie Dächerlauf, Punkte und Credits.
 Während die Einstellungen offen sind, steht die Stadt still.
 
+### Vorlagen für neue Funker-Porträts
+
+`docs/assets/props/` zeigt, was die Figur auf den Porträts der neuen Minispiele in der Hand hält (Pixel-Art 32 × 32,
+16-fach, transparent; `uebersicht.png` alle drei auf Nachthimmel): **Flak** – Flugabwehrrakete mit roter Spitze,
+Warnring, Leitwerk und Feuerstrahl; **Katana** – Schwert mit goldenem Stichblatt und rot gewickeltem Griff;
+**Kurzschluss** – Tesla-Spule mit Kupferwicklung, leuchtender Kugel und Blitzen. Erzeugt mit
+`python3 tools/prop_sketches.py`. Fertige Porträts kommen in die Ordner `Flak/`, `Katana/`, `Kurzschluss/` und werden mit
+`tools/import_portraits.py` importiert.
+
 ### Abzüge und Webseiten-Export
 
 - `docs/assets/abzug_grafiken.png`: alle Spielgrafiken (Steine, Spezialsteine, Power-ups, Läufer, Minispiele, App-Icons)
