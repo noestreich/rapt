@@ -146,10 +146,13 @@ aus Hilfe und Album zählen nicht. Bekannte Funker antippen spielt ihren Funkspr
 |---|---|
 | KIRA | Linien-Stein, Invasion |
 | BORIS | Bomben-Stein, Bombe, Abrissbirne |
-| JUKI | Farbtilger |
-| MAMA ZORA | Hyperstein, Strudel |
+| JUKI | Farbtilger, Katana |
+| MAMA ZORA | Hyperstein, Strudel, Kurzschluss |
 | K-9 | Fresser |
-| ROBO-7 | Atombombe |
+| ROBO-7 | Atombombe, Flak |
+
+Die Gruppen der neuen Minispiele: **Flak** (Rakete) Juno, Mika, Vexa; **Katana** (Schwert) Kira, Ronan, Sora;
+**Kurzschluss** (Tesla-Spule) Ada, Ivo, Nika. Insgesamt 55 Funker im Album.
 
 - **Porträts:** liegen als `App/Resources/portrait_<id>.png` (`kira`, `boris`, `juki`, `zora`, `k9`, `robo`) im
   Querformat 184 × 121 und füllen die Einblendung in voller Breite. Neue Bilder (beliebige Größe, ca. 3:2) mit
@@ -159,7 +162,8 @@ aus Hilfe und Album zählen nicht. Bekannte Funker antippen spielt ihren Funkspr
   Kontakt zufällig, mit eigenem Namen und eigener Stimme. Stimmen: `mann`, `mann-tief`, `frau`, `maedchen`, `junge`,
   `alt`, `hund`, `katze`, `roboter`. Ebenfalls mit `tools/import_portraits.py` einspielen.
 - **Wer hält was:** Liegen die Bilder in Ordnern je Teil (`Atombombe/`, `Bombe/`, `Bombenstein/`, `Farbtilger/`,
-  `Fresser/`, `Hyperstein/`, `Linienstein/`, `Strudel/`, `Sternenbahn/`), schreibt das Skript `App/Resources/portraits.json`.
+  `Fresser/`, `Hyperstein/`, `Linienstein/`, `Strudel/`, `Invasion/`, `Abrissbirne/`, `Flak/`, `Katana/`, `Kurzschluss/`,
+  `Sternenbahn/`), schreibt das Skript `App/Resources/portraits.json`.
   Ein Funkspruch zeigt dann nur Porträts, die genau das übergebene Teil in der Hand haben.
   Fehlt ein Ordner für einen Spezialstein, leiht er sich eine Gruppe: Hyperstein → Farbtilger,
   Bombenstein → Bombe, Linienstein → Invasion.
@@ -351,11 +355,14 @@ Warnring, Leitwerk und Feuerstrahl; **Katana** – Schwert mit goldenem Stichbla
 
 - `docs/assets/abzug_grafiken.png`: alle Spielgrafiken (Steine, Spezialsteine, Power-ups, Läufer, Minispiele, App-Icons)
 - `docs/assets/abzug_funker.png`: alle Funker-Porträts nach Power-up, mit Name und Stimme
+  (neu bauen: `python3 tools/make_funker_sheet.py`)
 - `docs/assets/web/export/`: aktueller Export für die Webseite (Porträts als JPG, Steine, Symbole, Minispiele, Läufer, App-Icons)
-- `docs/assets/originale/portraits/<Teil>/`: alle 46 Funker-Porträts in voller Auflösung (1536 × 1024 PNG), nach dem
+- `docs/assets/originale/portraits/<Teil>/`: alle 55 Funker-Porträts in voller Auflösung (1536 × 1024 PNG), nach dem
   Teil sortiert, das die Figur in der Hand hält. Daraus entstehen die Spiel-Porträts:
   `python3 tools/import_portraits.py docs/assets/originale/portraits` (schreibt `App/Resources/portrait_*.png`
   und `portraits.json`)
+- `docs/assets/originale/powerups/`: Flak (Rakete), Katana (Schwert) und Kurzschluss (Tesla-Spule) als
+  hochaufgelöste Gegenstände (1254 × 1254, transparent), Vorlage zu den Porträts; im Spiel bleiben die Pixel-Symbole
 - `docs/assets/originale/keyart/startbildschirm.jpg`: Key-Art des Startbildschirms im Original (920 × 2000)
 - `docs/assets/originale/sternenbahn/raumschiff.png`: Raumschiff der Sternenbahn als Vorlage (nicht im Spiel verwendet)
 - `docs/assets/web/funk/`: Funksprüche als MP3 (`funk_<teil>_<name>_<1-3>.mp3`, erzeugt mit `tools/render_radio.py`)

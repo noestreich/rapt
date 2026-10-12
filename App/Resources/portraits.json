@@ -28,6 +28,11 @@
     "juki--yuna--frau",
     "juki"
   ],
+  "flak": [
+    "robo--juno--frau",
+    "robo--mika--frau",
+    "robo--vexa--frau"
+  ],
   "fresser": [
     "k9--momo--katze",
     "k9--ren--junge",
@@ -51,6 +56,16 @@
     "kira--moewe--roboter",
     "kira--neon-trio--junge",
     "kira--phantom--roboter"
+  ],
+  "katana": [
+    "juki--kira--frau",
+    "juki--ronan--mann-tief",
+    "juki--sora--frau"
+  ],
+  "kurzschluss": [
+    "zora--ada--alt",
+    "zora--ivo--mann",
+    "zora--nika--frau"
   ],
   "sternenbahn": [
     "boris--yanko--alt",
