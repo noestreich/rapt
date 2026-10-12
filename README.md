@@ -212,6 +212,10 @@ die Bestenlisten und Erfolge hinzufügen). Solange sie fehlen, passiert im Spiel
 | Endlos | `de.ncls.rapt.endless` |
 | Tageslauf (**wiederkehrend**, Dauer 1 Tag, Start 00:00) | `de.ncls.rapt.daily` |
 
+Bilder für die Bestenlisten: `docs/assets/gamecenter/leaderboard_rooftop.png`, `leaderboard_endless.png`,
+`leaderboard_daily.png` (1024 × 1024, dazu `_512` mit 512 × 512): Läufer im Sprung über die Plattenbauten, Brett mit
+Steinen, Abreißkalender mit Kristall.
+
 | Erfolg | ID | Punkte | Beschreibung | Bild |
 |---|---|---|---|---|
 | Zehn Dächer | `de.ncls.rapt.jump10` | 25 | Erreiche Sprung 10. | `jump10.png` |
