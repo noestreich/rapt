@@ -7,6 +7,7 @@ name: Veröffentlichen
 # Jeder Lauf legt ein neues Entwicklungszertifikat „Created via API“ an – harmlos.
 # Version und Build kommen aus project.yml (MARKETING_VERSION, CURRENT_PROJECT_VERSION). Die Buildnummer muss
 # höher sein als jede bisher hochgeladene, sonst lehnt Apple ab (lokal: tools/upload.sh --bump, dann committen).
+# Ist die Version schon freigegeben („train version … is closed“), braucht es eine neue MARKETING_VERSION.
 # Nur per Hand starten (Actions → Veröffentlichen → Run workflow); der Workflow muss dazu auf dem Standard-Branch
 # liegen. Gebaut wird mit Xcode 27.1 (iOS-27.1-SDK), damit Rapt das innere Display der iPhone Duo ganz nutzt.
 # Vorlage: noestreich/appo-familie, .github/workflows/release.yml.
@@ -83,7 +84,7 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
-            | tee archive.log | grep -E "error:|warning: .*(deprecated|renamed)|ARCHIVE (SUCCEEDED|FAILED)" || true
+            2>&1 | tee archive.log | grep -E "error:|warning: .*(deprecated|renamed)|ARCHIVE (SUCCEEDED|FAILED)" || true
           grep -q "ARCHIVE SUCCEEDED" archive.log
 
       - name: Hochladen zu App Store Connect
@@ -114,7 +115,7 @@ jobs:
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$KEY_ID" \
             -authenticationKeyIssuerID "$ISSUER_ID" \
-            | tee export.log | grep -E "error:|Upload|EXPORT (SUCCEEDED|FAILED)" || true
+            2>&1 | tee export.log | grep -E "error:|Upload|EXPORT (SUCCEEDED|FAILED)" || true
           grep -q "EXPORT SUCCEEDED" export.log
           {
             echo "### Rapt $APP_VERSION ($APP_BUILD) hochgeladen"
@@ -129,7 +130,7 @@ jobs:
           for log in archive.log export.log; do
             [ -f "$log" ] || continue
             echo "::group::$log (Signieren, Fehler, letzte Zeilen)"
-            grep -iE "error|signing|provision|certificate|profile|not permitted|forbidden|unauthorized|bundle version|CFBundleVersion" "$log" \
+            grep -iE "error|signing|provision|certificate|profile|not permitted|forbidden|unauthorized|bundle version|CFBundleVersion|CFBundleShortVersionString|train" "$log" \
               | grep -v "^ *export " | sort -u | head -60 || true
             echo "…"
             tail -40 "$log"
@@ -138,7 +139,7 @@ jobs:
             {
               echo "### Fehler in $log"
               echo '```'
-              grep -iE "error:|signing|provision|certificate|profile|bundle version" "$log" | grep -v "^ *export " | sort -u | head -25 || true
+              grep -iE "error:|signing|provision|certificate|profile|bundle version|train" "$log" | grep -v "^ *export " | sort -u | head -25 || true
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           done
