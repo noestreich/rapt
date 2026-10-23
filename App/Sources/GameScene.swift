@@ -151,6 +151,17 @@ final class GameScene: SKScene {
     private var towerEggUsed = false
     /// Zahnrad auf der Punkteplatte (Design-Koordinaten, großzügige Trefferfläche).
     private let gearRect = CGRect(x: 172, y: 4, width: 22, height: 20)
+    /// Punkteplatte samt Beschriftungen; im Querformat rechts neben das Brett verschoben (`hudShift`).
+    private let topBar = SKNode()
+    /// Einstellungen, Hilfe und Album; im Querformat verkleinert und mittig.
+    private let panelHost = SKNode()
+    /// Breites Fenster (iPhone Duo aufgeklappt quer, iPad quer, breites Mac-Fenster): Platte rechts vom Brett.
+    private var wideLayout = false
+    /// Verschiebung der Punkteplatte in Design-Pixeln (x nach rechts, y nach unten).
+    private var hudShift = CGPoint.zero
+    /// Kulissenhäuser links vor der ersten Stadt-Häuserreihe (nur Bild, keine Spiellogik), damit zwischen Feuer und
+    /// Häusern auf breiten Displays keine Lücke bleibt. Schlüssel in `buildingSprites`: negative Indizes.
+    private var fillerBuildings: [Building] = []
     private var armed: Armed?
     private var armedSlot = 0
     private var fresser: FresserState?
@@ -416,7 +427,8 @@ final class GameScene: SKScene {
         beacon.run(blink)
 
         // Punkteanzeige und Brett
-        hudLayer.addChild(pixelSprite(Backdrop.hudPlate(), topLeft: design(8, 10)))
+        hudLayer.addChild(topBar)
+        topBar.addChild(pixelSprite(Backdrop.hudPlate(), topLeft: design(8, 10)))
         hudLayer.addChild(pixelSprite(Backdrop.boardFrame(tile: Layout.tile, count: Layout.count),
                                       topLeft: design(Layout.boardX - 6, Layout.boardY - 6)))
         let planY = Layout.planY
@@ -433,14 +445,16 @@ final class GameScene: SKScene {
             label.anchorPoint = anchor
             label.position = position
             label.zPosition = 1
-            hudLayer.addChild(label)
+            // Sprung-Beschriftung gehört zum Brett, alles andere zur Punkteplatte
+            (label === planLabel ? hudLayer : topBar).addChild(label)
         }
         let scoreGlow = SKSpriteNode(texture: glowTexture, color: Palette.amber.skColor, size: CGSize(width: 110, height: 34))
         scoreGlow.colorBlendFactor = 1
         scoreGlow.blendMode = .add
         scoreGlow.alpha = 0.28
         scoreGlow.position = design(55, 38)
-        glowLayer.addChild(scoreGlow)
+        scoreGlow.zPosition = 2
+        topBar.addChild(scoreGlow)
 
         // Plan-Leiste
         let barStart = Layout.boardX + PixelFont.width("SPRUNG 00") + 5
@@ -528,14 +542,15 @@ final class GameScene: SKScene {
             self.fireWall?.node.isHidden = !(self.mode == .rooftop && GameSettings.shared.fireEnabled)   // FireWall
             if !GameSettings.shared.hintsEnabled { self.place(self.hintCursor, at: nil) }
         }
-        shaker.addChild(settingsPanel.node)
+        shaker.addChild(panelHost)
+        panelHost.addChild(settingsPanel.node)
         installHelpPanel()
         settingsPanel.onLanguage = { [weak self] in
             guard let self else { return }
             // Hilfe neu bauen, Menü und Anzeigen in der neuen Sprache
             self.helpPanel.node.removeFromParent()
             self.installHelpPanel()
-            self.shaker.addChild(self.helpPanel.node)
+            self.panelHost.addChild(self.helpPanel.node)
             self.updateHUD()
             self.refreshStatus()
             if self.menuVisible { self.showMenu(gameOver: self.menuGameOver) }
@@ -592,8 +607,8 @@ final class GameScene: SKScene {
             self.setArmed(nil)
             self.startArcade(kind, free: true)
         }
-        shaker.addChild(helpPanel.node)
-        shaker.addChild(albumPanel.node)
+        panelHost.addChild(helpPanel.node)
+        panelHost.addChild(albumPanel.node)
 
         // Roter Rahmen um das ganze Display
         let horizontal = Backdrop.edgeGradient(vertical: false), vertical = Backdrop.edgeGradient(vertical: true)
@@ -618,7 +633,7 @@ final class GameScene: SKScene {
         // Zahnrad mittig auf der Zeile der Hochpunkte (Text 5 px ab y 17, Zahnrad 7 px ab y 16)
         let gear = pixelSprite(Self.gearCanvas(Palette.label), topLeft: design(182, 16))
         gear.zPosition = 2
-        hudLayer.addChild(gear)
+        topBar.addChild(gear)
 
         buildBracket(armedBracket, color: RGBA(hex: 0xFF6A3D).skColor, size: Layout.slotSize)
         armedBracket.zPosition = 46
@@ -673,25 +688,39 @@ final class GameScene: SKScene {
         let px = pixelScale
         let availW = max(1, size.width - safeInsets.left - safeInsets.right)
         let availH = max(1, size.height - safeInsets.top - safeInsets.bottom)
-        let k = max(1, floor(min(availW * px / Layout.width, availH * px / Layout.height)))
+        // Breit: Brett links, Punkteplatte rechts daneben (oben bündig), Stadt unten über die ganze Breite.
+        // Der Block ist 400 × 286 Design-Pixel (Brett-Oberkante 86 bis Lager-Unterkante 312 plus Streifen Stadt);
+        // er wird so groß wie möglich und mittig gesetzt, der Knick der Duo fällt in die Lücke zwischen Brett und Platte.
+        let wideSize = CGSize(width: 400, height: 286)
+        let tallK = max(1, floor(min(availW * px / Layout.width, availH * px / Layout.height)))
+        let wideK = max(1, floor(min(availW * px / wideSize.width, availH * px / wideSize.height)))
+        wideLayout = availW > availH * 1.1 && wideK > tallK
+        let k = wideLayout ? wideK : tallK
         let scale = k / px
         world.setScale(scale)
-        var ox = safeInsets.left + (availW - Layout.width * scale) / 2
-        #if os(iOS)
-        // Großes Querformat (iPhone Duo aufgeklappt, iPad quer): Spiel auf die rechte Hälfte, damit der Knick der
-        // Duo in der Mitte frei bleibt; links liegt die Stadt wie eine zweite Buchseite.
-        if availW > availH, availW / 2 >= Layout.width * scale + 8 {
-            ox = safeInsets.left + availW * 0.75 - Layout.width * scale / 2
+        let ox: CGFloat
+        let oy: CGFloat
+        if wideLayout {
+            hudShift = CGPoint(x: 196, y: 86)
+            ox = safeInsets.left + (availW - wideSize.width * scale) / 2
+            // Oberkante des Blocks (Design-y 86) mittig im freien Bereich
+            let topGap = (availH - wideSize.height * scale) / 2
+            oy = size.height - safeInsets.top - topGap - (Layout.height - 86) * scale
+        } else {
+            hudShift = .zero
+            ox = safeInsets.left + (availW - Layout.width * scale) / 2
+            oy = safeInsets.bottom + (availH - Layout.height * scale) / 2
         }
-        #endif
-        let oy = safeInsets.bottom + (availH - Layout.height * scale) / 2
         world.position = CGPoint(x: (ox * px).rounded() / px, y: (oy * px).rounded() / px)
+        topBar.position = CGPoint(x: hudShift.x, y: -hudShift.y)
+        splash.node.position = topBar.position
 
         // Sichtbarer Bereich in Design-Pixeln
         let left = Int(floor(-world.position.x / scale)) - 1
         let right = Int(ceil((size.width - world.position.x) / scale)) + 1
         let top = Int(floor(Layout.height - (size.height - world.position.y) / scale)) - 1
         let bottom = Int(ceil(Layout.height + world.position.y / scale)) + 1
+        layoutPanels(left: CGFloat(left), right: CGFloat(right), top: CGFloat(top), bottom: CGFloat(bottom), k: k)
         let key = "\(left),\(right),\(top),\(bottom)"
         guard key != backdropKey else { return }
         backdropKey = key
@@ -706,6 +735,28 @@ final class GameScene: SKScene {
         } else {
             run(.sequence([.wait(forDuration: 0.15), rebuild]), withKey: "backdrop")
         }
+    }
+
+    /// Fenster (Einstellungen 354 hoch, Hilfe und Album 300) passen im Querformat nicht in die Höhe: verkleinern
+    /// (in ganzen Pixelstufen, damit die Pixel-Art scharf bleibt) und mittig in den sichtbaren Bereich setzen.
+    private func layoutPanels(left: CGFloat, right: CGFloat, top: CGFloat, bottom: CGFloat, k: CGFloat) {
+        guard wideLayout else {
+            panelHost.setScale(1)
+            panelHost.position = .zero
+            return
+        }
+        let needed: CGFloat = 370
+        let s = min(1, max(1, floor(k * (bottom - top) / needed)) / k)
+        panelHost.setScale(s)
+        // Mitte der Fenster (Design 100, 187) auf die Mitte des sichtbaren Bereichs
+        let center = CGPoint(x: (left + right) / 2, y: Layout.height - (top + bottom) / 2)
+        panelHost.position = CGPoint(x: center.x - 100 * s, y: center.y - (Layout.height - 187) * s)
+    }
+
+    /// Punkt in Fenster-Koordinaten (Design, y nach unten) für Einstellungen, Hilfe und Album.
+    private func panelPoint(_ point: CGPoint) -> CGPoint {
+        let p = panelHost.convert(point, from: shaker)
+        return CGPoint(x: p.x, y: Layout.height - p.y)
     }
 
     private func rebuildBackdrop(left: Int, right: Int, top: Int, bottom: Int) {
@@ -781,6 +832,7 @@ final class GameScene: SKScene {
         game.extendCity(toScreenX: Double(visibleRight) + 40)
         buildingSprites.values.forEach { $0.removeFromParent() }
         buildingSprites = [:]
+        fillerBuildings = []
         figure.removeAllActions()
         figure.zRotation = 0
         figure.alpha = 1
@@ -1592,6 +1644,26 @@ final class GameScene: SKScene {
             guard x + CGFloat(b.width) >= visibleLeft - 4, x <= visibleRight + 4 else { continue }
             visible.insert(i)
             let sprite = buildingSprites[i] ?? makeBuilding(b, index: i)
+            sprite.position = design(x, skyBottom)
+        }
+        // Kulisse links vor der ersten Häuserreihe bis zum linken Bildrand (breite Displays, Feuer am Rand)
+        if let first = city.buildings.first {
+            let screenLeft = city.offset + Double(visibleLeft) - 8
+            while (fillerBuildings.last ?? first).x > screenLeft {
+                let i = fillerBuildings.count
+                let prev = fillerBuildings.last ?? first
+                let width = 22 + Int(Noise.hash(i, 1, 77) * 18)
+                let height = 26 + Int(Noise.hash(i, 2, 77) * 34)
+                let gap = 2 + Int(Noise.hash(i, 3, 77) * 4)
+                fillerBuildings.append(Building(x: prev.x - Double(gap + width), width: width, height: height))
+            }
+        }
+        for (j, b) in fillerBuildings.enumerated() {
+            let x = CGFloat(city.screenX(b.x)).rounded()
+            guard x + CGFloat(b.width) >= visibleLeft - 4, x <= visibleRight + 4 else { continue }
+            let key = -(j + 1)
+            visible.insert(key)
+            let sprite = buildingSprites[key] ?? makeBuilding(b, index: key)
             sprite.position = design(x, skyBottom)
         }
         for (i, sprite) in buildingSprites where !visible.contains(i) {
@@ -3425,25 +3497,27 @@ final class GameScene: SKScene {
             return
         }
         if helpPanel.isVisible {
-            helpPanel.pointerDown(d)
+            helpPanel.pointerDown(panelPoint(point))
             return
         }
         if albumPanel.isVisible {
-            albumPanel.pointerDown(d)
+            albumPanel.pointerDown(panelPoint(point))
             return
         }
         if settingsPanel.isVisible {
-            settingsPanel.pointerDown(d)
+            settingsPanel.pointerDown(panelPoint(point))
             return
         }
-        if logoRect.contains(d) && !menuVisible {
+        // Logo und Zahnrad liegen auf der Punkteplatte, die im Querformat verschoben ist
+        let hud = CGPoint(x: d.x - hudShift.x, y: d.y - hudShift.y)
+        if logoRect.contains(hud) && !menuVisible {
             pointerStart = nil
             GameSettings.shared.showClock.toggle()
             audio.play(.select, volume: 0.4)
             updateClock(force: true)
             return
         }
-        if gearRect.contains(d) && !minigameActive {
+        if gearRect.contains(hud) && !minigameActive {
             pointerStart = nil
             setArmed(nil)
             setSelected(nil)
@@ -3500,7 +3574,7 @@ final class GameScene: SKScene {
         }
         if helpPanel.isVisible || albumPanel.isVisible { return }
         if settingsPanel.isVisible {
-            settingsPanel.pointerMoved(CGPoint(x: point.x, y: Layout.height - point.y))
+            settingsPanel.pointerMoved(panelPoint(point))
             return
         }
         if fresser != nil {

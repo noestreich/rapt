@@ -246,8 +246,15 @@ Größenwechsel aus (`didChangeSize`, neue Safe-Area).
   600 pt (normale iPhones, Außendisplay der Duo) bleiben im Hochformat; große Fenster (Duo aufgeklappt, iPad) drehen
   frei. In `project.yml` sind dafür alle Ausrichtungen eingetragen; `UIRequiresFullScreen` ist entfernt (von Apple als
   veraltet markiert, verhinderte das Mitwachsen des Fensters).
-- **Knick frei:** In großen Querformat-Fenstern (Duo aufgeklappt, iPad quer) steht das Spiel mittig auf der rechten
-  Hälfte, links liegt die Stadt wie eine zweite Buchseite – so läuft der Knick der Duo nicht durchs Brett (`layoutWorld`).
+- **Querformat-Layout** (Duo aufgeklappt quer, iPad quer, breites Mac-Fenster; Fenster mindestens 10 % breiter als
+  hoch und dadurch größer darstellbar): Brett, Sprung-Leiste und Lager links, die Punkteplatte samt Funk-Einblendung
+  rechts daneben, oben bündig mit dem Brett (`topBar`, `hudShift` = 196 × 86 Design-Pixel). Der Block (400 × 286) wird
+  so groß wie möglich gesetzt – auf der Duo quer wird das Brett rund 411 pt groß statt 293 pt –, die Stadt läuft unten
+  über die ganze Breite, und die Bildschirmmitte (Knick der Duo) fällt genau in die Lücke zwischen Brett und Platte.
+  Einstellungen, Hilfe und Album werden dort in ganzen Pixelstufen verkleinert und mittig gezeigt (`panelHost`).
+  Hochformat und iPhone bleiben unverändert.
+- **Kulissenhäuser:** Links vor der ersten Häuserreihe der Stadt stehen bis zum Bildrand weitere Plattenbauten (nur Bild,
+  keine Spiellogik, `fillerBuildings`), damit zwischen Feuer und Häusern auf breiten Displays keine Lücke bleibt.
 - **Manga-Auftakt:** Blitz und Konzentrationslinien wachsen mit dem Fenster, damit sie auch breite Displays füllen.
 - **Bauen:** Mit dem iOS-27-SDK füllt die App das Innendisplay der Duo größtenteils (Statusleiste rechts bleibt frei),
   erst mit Xcode 27.1 (iOS-27.1-SDK) das ganze Display. Ältere SDKs zeigen die App als iPhone-Fenster mit Rand.

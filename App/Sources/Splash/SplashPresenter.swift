@@ -79,7 +79,9 @@ final class SplashPresenter {
             .wait(forDuration: 0.5),
             .run { [weak self] in
                 guard let self else { return }
-                delivery.onHandover?(CGPoint(x: self.origin.x + hand.x, y: self.origin.y + hand.y))
+                // node.position: im Querformat sitzt die Einblendung mit der Punkteplatte rechts vom Brett
+                delivery.onHandover?(CGPoint(x: self.origin.x + hand.x + self.node.position.x,
+                                             y: self.origin.y + hand.y + self.node.position.y))
             },
             .wait(forDuration: 0.45),
             .group([slideOut, glitch]),

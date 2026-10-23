@@ -4,6 +4,12 @@ public struct Building: Equatable, Sendable {
     public let width: Int
     public let height: Int
 
+    public init(x: Double, width: Int, height: Int) {
+        self.x = x
+        self.width = width
+        self.height = height
+    }
+
     public var center: Double { x + Double(width) / 2 }
     public var right: Double { x + Double(width) }
 }
