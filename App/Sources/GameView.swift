@@ -19,6 +19,10 @@ struct GameView: View {
                 .ignoresSafeArea()
                 .onAppear { scene.safeInsets = ScreenInsets(geo.safeAreaInsets) }
                 .onChange(of: geo.safeAreaInsets) { _, insets in scene.safeInsets = ScreenInsets(insets) }
+                #if os(iOS)
+                // iPhone Duo auf- oder zugeklappt: erlaubte Ausrichtungen passen sich der neuen Größe an
+                .onChange(of: geo.size) { _, _ in ScreenFit.refresh() }
+                #endif
         }
         .overlay {   // LaunchSplash
             if showSplash { LaunchSplash { showSplash = false } }

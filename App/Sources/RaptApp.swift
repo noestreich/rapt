@@ -2,6 +2,10 @@ import SwiftUI
 
 @main
 struct RaptApp: App {
+    #if os(iOS)
+    // Ausrichtung nach Fenstergröße (iPhone Duo aufgeklappt, iPad: frei; sonst Hochformat)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
     #if os(macOS)
     init() {
         // Dock-Symbol gilt auf dem Mac nur zur Laufzeit, daher beim Start erneut setzen

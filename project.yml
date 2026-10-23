@@ -44,9 +44,10 @@ targets:
         INFOPLIST_KEY_UIStatusBarHidden: YES
         # Ergebniskarte aus dem Teilen-Menü in Fotos sichern (sonst Absturz bei „Bild sichern“)
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Rapt sichert deine Ergebniskarte in Fotos."
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
-        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        # Alle Ausrichtungen erlaubt; ScreenFit (AppDelegate) hält kleine Fenster im Hochformat, große (iPhone Duo
+        # aufgeklappt, iPad) drehen frei. Ohne UIRequiresFullScreen (veraltet), die Szene passt sich jeder Größe an.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Zweites Icon, in den Einstellungen wählbar (iOS: setAlternateIconName)
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconAlt AppIconAlt2"

@@ -2765,14 +2765,17 @@ final class GameScene: SKScene {
         haptics.explosion()
         shake(strength: 4)
 
-        let white = SKSpriteNode(color: .white, size: CGSize(width: 1400, height: 1800))
+        // Blitz und Linien decken das ganze Fenster, auch breite (iPhone Duo aufgeklappt, iPad, Mac)
+        let visible = CGSize(width: max(Layout.width, visibleRight - visibleLeft), height: max(Layout.height, skyBottom - visibleTop))
+        let white = SKSpriteNode(color: .white, size: CGSize(width: visible.width * 3 + 400, height: visible.height * 3 + 400))
         white.position = c
         white.zPosition = 10
         white.name = "manga"
         overlayLayer.addChild(white)
         white.run(.sequence([.fadeOut(withDuration: 0.14), .removeFromParent()]))
 
-        let lines = SKSpriteNode(texture: speedLines[0], size: CGSize(width: 450, height: 840))
+        let cover = max(1, visible.width * 1.2 / 450, visible.height * 1.2 / 840)
+        let lines = SKSpriteNode(texture: speedLines[0], size: CGSize(width: 450 * cover, height: 840 * cover))
         lines.position = c
         lines.zPosition = 8
         lines.name = "manga"

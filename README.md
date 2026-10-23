@@ -234,6 +234,23 @@ Die Bilder (1024 × 1024, Platzhalter im Spielstil) liegen in `docs/assets/gamec
 `python3 tools/gamecenter_images.py`. Für jeden Erfolg in App Store Connect eine deutsche Lokalisierung mit Name,
 Beschreibung (vor und nach dem Erreichen gleich) und Bild anlegen.
 
+## iPhone Duo, iPad und große Fenster
+
+Die Szene passt sich jeder Fenstergröße an (`scaleMode = .resizeFill`, ganzzahlige Pixel-Skala, `layoutWorld`): Das
+Spielfeld (200 × 373 Design-Pixel) steht mittig, links und rechts füllen Stadt, Himmel, Regen und Zug den Platz –
+wie beim frei ziehbaren Mac-Fenster. Kein `UIScreen.main`, keine festen Bildschirmgrößen, keine Ausrichtungs-Logik;
+die Pixelskala kommt aus `traitCollection.displayScale`. Auf- und Zuklappen der iPhone Duo löst nur einen
+Größenwechsel aus (`didChangeSize`, neue Safe-Area).
+
+- **Ausrichtung nach Fenstergröße** (`App/Sources/ScreenFit.swift`, AppDelegate): Fenster mit kürzerer Seite unter
+  600 pt (normale iPhones, Außendisplay der Duo) bleiben im Hochformat; große Fenster (Duo aufgeklappt, iPad) drehen
+  frei. In `project.yml` sind dafür alle Ausrichtungen eingetragen; `UIRequiresFullScreen` ist entfernt (von Apple als
+  veraltet markiert, verhinderte das Mitwachsen des Fensters).
+- **Manga-Auftakt:** Blitz und Konzentrationslinien wachsen mit dem Fenster, damit sie auch breite Displays füllen.
+- **Bauen:** Mit dem iOS-27-SDK füllt die App das Innendisplay der Duo größtenteils (Statusleiste rechts bleibt frei),
+  erst mit Xcode 27.1 (iOS-27.1-SDK) das ganze Display. Ältere SDKs zeigen die App als iPhone-Fenster mit Rand.
+  Testen im iPhone-Duo-Simulator von Xcode 27.1.
+
 ## Sprachen
 
 Deutsch und Englisch. Alle Spieltexte stehen direkt im Code als `tr("DEUTSCH", "ENGLISH")`
