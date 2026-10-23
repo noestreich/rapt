@@ -676,7 +676,14 @@ final class GameScene: SKScene {
         let k = max(1, floor(min(availW * px / Layout.width, availH * px / Layout.height)))
         let scale = k / px
         world.setScale(scale)
-        let ox = safeInsets.left + (availW - Layout.width * scale) / 2
+        var ox = safeInsets.left + (availW - Layout.width * scale) / 2
+        #if os(iOS)
+        // Großes Querformat (iPhone Duo aufgeklappt, iPad quer): Spiel auf die rechte Hälfte, damit der Knick der
+        // Duo in der Mitte frei bleibt; links liegt die Stadt wie eine zweite Buchseite.
+        if availW > availH, availW / 2 >= Layout.width * scale + 8 {
+            ox = safeInsets.left + availW * 0.75 - Layout.width * scale / 2
+        }
+        #endif
         let oy = safeInsets.bottom + (availH - Layout.height * scale) / 2
         world.position = CGPoint(x: (ox * px).rounded() / px, y: (oy * px).rounded() / px)
 

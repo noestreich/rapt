@@ -1,0 +1,148 @@
+name: Veröffentlichen
+
+# Rapt für iOS archivieren, signieren und zu App Store Connect hochladen. Danach steht der Build nach einigen
+# Minuten in TestFlight; eingereicht wird weiter von Hand.
+# Signiert wird automatisch über den API-Schlüssel (Zertifikate und Profile legt Xcode selbst an). Der Schlüssel
+# braucht die Rolle Admin: Mit „App-Manager“ scheitert der Export mit „Cloud signing permission error“.
+# Jeder Lauf legt ein neues Entwicklungszertifikat „Created via API“ an – harmlos.
+# Version und Build kommen aus project.yml (MARKETING_VERSION, CURRENT_PROJECT_VERSION). Die Buildnummer muss
+# höher sein als jede bisher hochgeladene, sonst lehnt Apple ab (lokal: tools/upload.sh --bump, dann committen).
+# Nur per Hand starten (Actions → Veröffentlichen → Run workflow); der Workflow muss dazu auf dem Standard-Branch
+# liegen. Gebaut wird mit Xcode 27.1 (iOS-27.1-SDK), damit Rapt das innere Display der iPhone Duo ganz nutzt.
+# Vorlage: noestreich/appo-familie, .github/workflows/release.yml.
+#
+# Secrets: ASC_KEY_ID (Key-ID), ASC_ISSUER_ID (Issuer-ID), ASC_KEY_P8 (ganze .p8-Datei mit BEGIN/END-Zeilen)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  PROJECT: Rapt.xcodeproj
+  SCHEME: Rapt
+
+jobs:
+  release:
+    name: Archivieren und hochladen
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: XcodeGen
+        run: brew install xcodegen && xcodegen generate
+
+      - name: API-Schlüssel ablegen
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
+          printf '%s\n' "$KEY_P8" > "$key"
+          chmod 600 "$key"
+          grep -q "BEGIN PRIVATE KEY" "$key" || { echo "::error::ASC_KEY_P8 enthält keinen privaten Schlüssel (ganze .p8-Datei eintragen)"; exit 1; }
+          echo "ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: Version und Team
+        run: |
+          xcodebuild -showBuildSettings -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' 2>/dev/null > settings.txt
+          value() { awk -v key="$1" '$1 == key && $2 == "=" { print $3; exit }' settings.txt; }
+          version=$(value MARKETING_VERSION)
+          build=$(value CURRENT_PROJECT_VERSION)
+          team=$(value DEVELOPMENT_TEAM)
+          [ -n "$team" ] || { echo "::error::Kein Team: DEVELOPMENT_TEAM in project.yml fehlt"; exit 1; }
+          echo "Version $version ($build), Team $team"
+          { echo "APP_VERSION=$version"; echo "APP_BUILD=$build"; echo "TEAM_ID=$team"; } >> "$GITHUB_ENV"
+
+      - name: Archivieren
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Rapt.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            | tee archive.log | grep -E "error:|warning: .*(deprecated|renamed)|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log
+
+      - name: Hochladen zu App Store Connect
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Rapt.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            | tee export.log | grep -E "error:|Upload|EXPORT (SUCCEEDED|FAILED)" || true
+          grep -q "EXPORT SUCCEEDED" export.log
+          {
+            echo "### Rapt $APP_VERSION ($APP_BUILD) hochgeladen"
+            echo "Gebaut mit $(xcodebuild -version | head -1), iOS-SDK $(xcrun --sdk iphoneos --show-sdk-version)."
+            echo "Nach der Verarbeitung durch Apple (meist 5–30 Minuten) steht der Build in TestFlight."
+            echo "Für den nächsten Upload die Buildnummer erhöhen (tools/upload.sh --bump oder project.yml)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fehler anzeigen
+        if: failure()
+        run: |
+          for log in archive.log export.log; do
+            [ -f "$log" ] || continue
+            echo "::group::$log (Signieren, Fehler, letzte Zeilen)"
+            grep -iE "error|signing|provision|certificate|profile|not permitted|forbidden|unauthorized|bundle version|CFBundleVersion" "$log" \
+              | grep -v "^ *export " | sort -u | head -60 || true
+            echo "…"
+            tail -40 "$log"
+            echo "::endgroup::"
+            # Kurzfassung auch in die Job-Zusammenfassung
+            {
+              echo "### Fehler in $log"
+              echo '```'
+              grep -iE "error:|signing|provision|certificate|profile|bundle version" "$log" | grep -v "^ *export " | sort -u | head -25 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Schlüssel entfernen
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8

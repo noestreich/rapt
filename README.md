@@ -246,10 +246,28 @@ Größenwechsel aus (`didChangeSize`, neue Safe-Area).
   600 pt (normale iPhones, Außendisplay der Duo) bleiben im Hochformat; große Fenster (Duo aufgeklappt, iPad) drehen
   frei. In `project.yml` sind dafür alle Ausrichtungen eingetragen; `UIRequiresFullScreen` ist entfernt (von Apple als
   veraltet markiert, verhinderte das Mitwachsen des Fensters).
+- **Knick frei:** In großen Querformat-Fenstern (Duo aufgeklappt, iPad quer) steht das Spiel mittig auf der rechten
+  Hälfte, links liegt die Stadt wie eine zweite Buchseite – so läuft der Knick der Duo nicht durchs Brett (`layoutWorld`).
 - **Manga-Auftakt:** Blitz und Konzentrationslinien wachsen mit dem Fenster, damit sie auch breite Displays füllen.
 - **Bauen:** Mit dem iOS-27-SDK füllt die App das Innendisplay der Duo größtenteils (Statusleiste rechts bleibt frei),
   erst mit Xcode 27.1 (iOS-27.1-SDK) das ganze Display. Ältere SDKs zeigen die App als iPhone-Fenster mit Rand.
   Testen im iPhone-Duo-Simulator von Xcode 27.1.
+
+## Veröffentlichen über GitHub Actions
+
+Workflow **Veröffentlichen** (`.github/workflows/release.yml`), nur per Hand: Actions → Veröffentlichen → Run workflow.
+Er läuft auf dem Runner `xcode-27` mit Xcode 27.1 (iOS-27.1-SDK, volles Duo-Innendisplay), erzeugt das Projekt mit
+XcodeGen, archiviert für `generic/platform=iOS` (Release, automatische Signierung über den API-Schlüssel, Team aus
+`project.yml`) und lädt mit `destination upload` direkt zu App Store Connect hoch; danach TestFlight, eingereicht wird
+von Hand. Im Erfolgsfall stehen Version, Build und SDK in der Job-Zusammenfassung, bei Fehlern die Zeilen zu
+Signieren, Profilen und Zertifikaten.
+
+- **Secrets:** `ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_KEY_P8` (ganze .p8-Datei). Der Schlüssel landet nur für den Lauf in
+  `$RUNNER_TEMP/AuthKey_<KEY_ID>.p8` (chmod 600) und wird am Ende immer gelöscht. Rolle **Admin** nötig (Cloud-Signierung).
+- **Buildnummer:** kommt aus `project.yml` und muss höher sein als jede bisher hochgeladene – vor jedem Lauf erhöhen
+  und committen. Jeder Lauf legt ein Entwicklungszertifikat „Created via API“ an (harmlos).
+- **Start erst nach dem Mergen:** GitHub bietet „Run workflow“ nur für Workflows auf dem Standard-Branch an.
+- Der Mac-Build geht weiter über `tools/upload.sh mac`.
 
 ## Sprachen
 
